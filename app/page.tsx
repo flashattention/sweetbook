@@ -11,7 +11,6 @@ async function getProjects(): Promise<Project[]> {
 		});
 		return rows.map((p: any) => ({
 			...p,
-			anniversaryDate: p.anniversaryDate.toISOString(),
 			createdAt: p.createdAt.toISOString(),
 			updatedAt: p.updatedAt.toISOString(),
 			pages: p.pages.map((pg: any) => ({
@@ -29,9 +28,23 @@ async function getProjects(): Promise<Project[]> {
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
 	DRAFT: { label: "편집 중", color: "bg-amber-100 text-amber-700" },
+	GENERATING: { label: "생성 중", color: "bg-violet-100 text-violet-700" },
 	PUBLISHED: { label: "출판 완료", color: "bg-blue-100 text-blue-700" },
 	ORDERED: { label: "주문 완료", color: "bg-green-100 text-green-700" },
 };
+
+function getProjectStatus(project: Project): keyof typeof STATUS_MAP {
+	if (
+		project.status === "DRAFT" &&
+		project.projectType !== "PHOTOBOOK" &&
+		project.generationStage &&
+		project.generationStage !== "COMPLETED" &&
+		project.generationStage !== "FAILED"
+	) {
+		return "GENERATING";
+	}
+	return project.status;
+}
 
 const TYPE_MAP: Record<string, string> = {
 	PHOTOBOOK: "포토북",
@@ -158,13 +171,14 @@ export default async function HomePage() {
 					<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
 						{projects.map((project) => {
 							const status =
-								STATUS_MAP[project.status] ?? STATUS_MAP.DRAFT;
+								STATUS_MAP[getProjectStatus(project)] ??
+								STATUS_MAP.DRAFT;
 							const coverImage =
 								project.coverImageUrl ||
 								project.pages[0]?.imageUrl ||
 								`https://picsum.photos/seed/${project.id}/400/300`;
-							const anniversary = new Date(
-								project.anniversaryDate,
+							const createdLabel = new Date(
+								project.createdAt,
 							).toLocaleDateString("ko-KR", {
 								year: "numeric",
 								month: "long",
@@ -202,15 +216,15 @@ export default async function HomePage() {
 										<h3 className="font-bold text-gray-800 text-base mb-1 truncate">
 											{project.title}
 										</h3>
-										<p className="text-gray-500 text-sm mb-1">
-											{project.coupleNameA} &amp;{" "}
-											{project.coupleNameB}
-										</p>
+										{project.storyCharacters && (
+											<p className="text-gray-500 text-sm mb-1 truncate">
+												{project.storyCharacters}
+											</p>
+										)}
 										<p className="text-rose-400 text-xs mb-4">
-											{project.projectType === "PHOTOBOOK"
-												? `${anniversary} 기념일`
-												: project.genre ||
-													"AI 생성 콘텐츠"}
+											{project.genre
+												? project.genre
+												: `${createdLabel} 생성`}
 										</p>
 										<div className="flex items-center justify-between">
 											<span className="text-gray-400 text-xs">
@@ -246,17 +260,34 @@ export default async function HomePage() {
 }
 
 function ProjectAction({ project }: { project: Project }) {
-	if (project.projectType !== "PHOTOBOOK") {
+	// 생성 중 → 진행 페이지
+	if (
+		project.status === "DRAFT" &&
+		project.generationStage &&
+		project.generationStage !== "COMPLETED" &&
+		project.generationStage !== "FAILED"
+	) {
 		return (
 			<Link
-				href={`/view/${project.id}`}
+				href={`/create/progress/${project.id}`}
 				className="text-xs bg-violet-50 text-violet-700 px-3 py-1.5 rounded-lg font-medium hover:bg-violet-100 transition-colors"
 			>
-				열어보기 →
+				생성 현황 보기 →
 			</Link>
 		);
 	}
-
+	// 생성 실패 → 재시도
+	if (project.status === "DRAFT" && project.generationStage === "FAILED") {
+		return (
+			<Link
+				href={`/create/progress/${project.id}`}
+				className="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg font-medium hover:bg-red-100 transition-colors"
+			>
+				재시도 →
+			</Link>
+		);
+	}
+	// 주문 완료
 	if (project.status === "ORDERED" && project.orderUid) {
 		return (
 			<div className="flex gap-2">
@@ -275,7 +306,8 @@ function ProjectAction({ project }: { project: Project }) {
 			</div>
 		);
 	}
-	if (project.status === "PUBLISHED" && project.bookUid) {
+	// 출판 완료(Sweetbook 등록) 또는 AI 생성 완료(스토리) → 주문하기
+	if (project.status === "PUBLISHED") {
 		return (
 			<div className="flex gap-2">
 				<Link
@@ -293,12 +325,24 @@ function ProjectAction({ project }: { project: Project }) {
 			</div>
 		);
 	}
+	// 포토북 편집 중
+	if (project.projectType === "PHOTOBOOK") {
+		return (
+			<Link
+				href={`/editor/${project.id}`}
+				className="text-xs bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-100 transition-colors"
+			>
+				편집하기 →
+			</Link>
+		);
+	}
+	// 스토리 초안(아직 생성 안 함)
 	return (
 		<Link
-			href={`/editor/${project.id}`}
-			className="text-xs bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-100 transition-colors"
+			href={`/create/progress/${project.id}`}
+			className="text-xs bg-violet-50 text-violet-700 px-3 py-1.5 rounded-lg font-medium hover:bg-violet-100 transition-colors"
 		>
-			편집하기 →
+			생성 시작 →
 		</Link>
 	);
 }

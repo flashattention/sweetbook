@@ -48,7 +48,7 @@ export default function OrderClient({ project }: Props) {
 	const [error, setError] = useState("");
 	const [quantity, setQuantity] = useState(1);
 	const [shipping, setShipping] = useState<ShippingInfo>({
-		recipientName: `${project.coupleNameA} & ${project.coupleNameB}`,
+		recipientName: project.title || "수령인",
 		recipientPhone: "",
 		postalCode: "",
 		address1: "",
@@ -124,7 +124,7 @@ export default function OrderClient({ project }: Props) {
 		project.pages[0]?.imageUrl ||
 		`https://picsum.photos/seed/${project.id}/400/300`;
 
-	const anniversary = new Date(project.anniversaryDate).toLocaleDateString(
+	const createdDate = new Date(project.createdAt).toLocaleDateString(
 		"ko-KR",
 		{
 			year: "numeric",
@@ -142,10 +142,16 @@ export default function OrderClient({ project }: Props) {
 			<div className="max-w-4xl mx-auto">
 				<div className="mb-6">
 					<a
-						href={`/editor/${project.id}`}
+						href={
+							project.projectType === "PHOTOBOOK"
+								? `/editor/${project.id}`
+								: `/view/${project.id}`
+						}
 						className="text-rose-400 text-sm hover:underline"
 					>
-						← 에디터로 돌아가기
+						{project.projectType === "PHOTOBOOK"
+							? "← 에디터로 돌아가기"
+							: "← 보기로 돌아가기"}
 					</a>
 					<h1 className="text-3xl font-serif font-bold text-gray-800 mt-3">
 						주문하기
@@ -169,13 +175,16 @@ export default function OrderClient({ project }: Props) {
 									{project.title}
 								</p>
 								<p className="text-sm text-white/80">
-									{project.coupleNameA} &amp;{" "}
-									{project.coupleNameB}
+									{project.projectType === "COMIC"
+										? "만화책"
+										: project.projectType === "NOVEL"
+											? "소설"
+											: "자유 주제 포토북"}
 								</p>
 							</div>
 						</div>
 						<div className="p-5 space-y-3">
-							<InfoRow label="기념일" value={anniversary} />
+							<InfoRow label="생성일" value={createdDate} />
 							<InfoRow
 								label="페이지 수"
 								value={`${project.pages.length}p`}
@@ -245,7 +254,7 @@ export default function OrderClient({ project }: Props) {
 							{/* 가격 */}
 							<div className="flex items-center justify-between pt-2 border-t border-gray-100">
 								<span className="text-sm font-semibold text-gray-700">
-									예상 금액
+									실제 샌드박스 견적
 								</span>
 								<span className="text-lg font-bold text-rose-500">
 									{estimating

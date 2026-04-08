@@ -49,7 +49,7 @@ export default async function StatusPage({
 	const currentStatus = project.orderStatus || "PENDING";
 	const currentStepIdx = STEPS.findIndex((s) => s.key === currentStatus);
 
-	const anniversary = new Date(project.anniversaryDate).toLocaleDateString(
+	const createdDate = new Date(project.createdAt).toLocaleDateString(
 		"ko-KR",
 		{
 			year: "numeric",
@@ -141,11 +141,8 @@ export default async function StatusPage({
 						주문 정보
 					</h2>
 					<DetailRow label="포토북 제목" value={project.title} />
-					<DetailRow
-						label="커플"
-						value={`${project.coupleNameA} & ${project.coupleNameB}`}
-					/>
-					<DetailRow label="기념일" value={anniversary} />
+					<DetailRow label="주제" value="자유 주제 포토북" />
+					<DetailRow label="생성일" value={createdDate} />
 					{project.bookUid && (
 						<DetailRow
 							label="Book UID"

@@ -6,10 +6,27 @@ import {
 	fetchImageBlob,
 	postSweetbookTemplateForm,
 } from "@/lib/sweetbook-api";
+import {
+	DEFAULT_PHOTOBOOK_SPEC_UID,
+	getMinPagesByBookSpec,
+} from "@/lib/book-specs";
 
-function getMinPagesByBookSpec(bookSpecUid: string): number {
-	if (bookSpecUid === "SQUAREBOOK_HC") return 24;
-	return 1;
+function pickFirstNumber(...values: unknown[]): number | null {
+	for (const value of values) {
+		if (typeof value === "number" && Number.isFinite(value)) {
+			return value;
+		}
+	}
+	return null;
+}
+
+function pickFirstString(...values: unknown[]): string | null {
+	for (const value of values) {
+		if (typeof value === "string" && value.trim()) {
+			return value;
+		}
+	}
+	return null;
 }
 
 /**
@@ -38,13 +55,6 @@ export async function POST(
 		);
 	}
 
-	if (project.projectType !== "PHOTOBOOK") {
-		return NextResponse.json(
-			{ success: false, error: "포토북 프로젝트만 출판할 수 있습니다." },
-			{ status: 400 },
-		);
-	}
-
 	// 멱등 처리: 이미 발행(또는 주문)된 프로젝트는 재발행하지 않고 성공으로 응답한다.
 	if (
 		(project.status === "PUBLISHED" || project.status === "ORDERED") &&
@@ -64,7 +74,7 @@ export async function POST(
 		);
 	}
 
-	const bookSpecUid = project.bookSpecUid || "SQUAREBOOK_HC";
+	const bookSpecUid = project.bookSpecUid || DEFAULT_PHOTOBOOK_SPEC_UID;
 	const minPages = getMinPagesByBookSpec(bookSpecUid);
 	if (project.pages.length < minPages) {
 		return NextResponse.json(
@@ -143,24 +153,21 @@ export async function POST(
 			project.coverImageUrl,
 			req.nextUrl.origin,
 		);
-		const anniversaryDate = project.anniversaryDate
-			? new Date(project.anniversaryDate)
+		const createdDate = project.createdAt
+			? new Date(project.createdAt)
 			: new Date();
-		const dateRange = `${anniversaryDate.getFullYear()}.${String(
-			anniversaryDate.getMonth() + 1,
-		).padStart(
-			2,
-			"0",
-		)}.${String(anniversaryDate.getDate()).padStart(2, "0")}`;
+		const periodText = `${createdDate.getFullYear()}.${String(
+			createdDate.getMonth() + 1,
+		).padStart(2, "0")}.${String(createdDate.getDate()).padStart(2, "0")}`;
 
 		await postSweetbookTemplateForm(
 			`/Books/${bookUid}/cover`,
 			coverTemplateUid,
 			{
-				childName: `${project.coupleNameA} & ${project.coupleNameB}`,
+				childName: project.title,
 				schoolName: "Momento",
 				volumeLabel: "Vol.1",
-				periodText: dateRange,
+				periodText,
 			},
 			{ coverPhoto: coverBlob },
 		);
@@ -174,7 +181,7 @@ export async function POST(
 				`/Books/${bookUid}/contents`,
 				contentTemplateUid,
 				{
-					monthNum: String(anniversaryDate.getMonth() + 1).padStart(
+					monthNum: String(createdDate.getMonth() + 1).padStart(
 						2,
 						"0",
 					),
@@ -188,12 +195,68 @@ export async function POST(
 
 		await client.books.finalize(bookUid);
 
+		let estimate: {
+			totalPrice: number | null;
+			unitPrice: number | null;
+			itemAmount: number | null;
+			shippingFee: number;
+			currency: string;
+			raw: Record<string, unknown> | null;
+		} | null = null;
+
+		try {
+			const result = (await client.orders.estimate({
+				items: [{ bookUid, quantity: 1 }],
+			})) as Record<string, unknown>;
+
+			const firstItem = Array.isArray(result.items)
+				? ((result.items[0] as Record<string, unknown>) ?? null)
+				: null;
+
+			const unitPrice = pickFirstNumber(
+				firstItem?.unitPrice,
+				result.unitPrice,
+			);
+			const itemAmount = pickFirstNumber(
+				firstItem?.itemAmount,
+				result.itemAmount,
+				unitPrice !== null ? unitPrice : null,
+			);
+			const shippingFee =
+				pickFirstNumber(result.shippingFee, firstItem?.shippingFee) ??
+				0;
+			const totalPrice = pickFirstNumber(
+				result.totalPrice,
+				result.totalAmount,
+				result.price,
+				result.amount,
+				result.finalPrice,
+				itemAmount !== null ? itemAmount + shippingFee : null,
+			);
+			const currency =
+				pickFirstString(result.currency, result.currencyCode) || "KRW";
+
+			estimate = {
+				totalPrice,
+				unitPrice,
+				itemAmount,
+				shippingFee,
+				currency,
+				raw: result,
+			};
+		} catch (estimateError) {
+			console.error(
+				"[POST /api/projects/[id]/publish] estimate after finalize failed",
+				estimateError,
+			);
+		}
+
 		await prisma.project.update({
 			where: { id: project.id },
 			data: { bookUid, status: "PUBLISHED" },
 		});
 
-		return NextResponse.json({ success: true, bookUid });
+		return NextResponse.json({ success: true, bookUid, estimate });
 	} catch (err: unknown) {
 		const message = err instanceof Error ? err.message : "알 수 없는 오류";
 		console.error("[POST /api/projects/[id]/publish]", err);

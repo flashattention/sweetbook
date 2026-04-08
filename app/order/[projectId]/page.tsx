@@ -11,7 +11,6 @@ async function getProject(id: string): Promise<Project | null> {
 	if (!p) return null;
 	return {
 		...p,
-		anniversaryDate: p.anniversaryDate.toISOString(),
 		createdAt: p.createdAt.toISOString(),
 		updatedAt: p.updatedAt.toISOString(),
 		projectType: p.projectType as Project["projectType"],
@@ -32,27 +31,6 @@ export default async function OrderPage({
 }) {
 	const project = await getProject(params.projectId);
 	if (!project) notFound();
-	if (project.projectType !== "PHOTOBOOK") {
-		return (
-			<div className="min-h-screen bg-rose-50 flex items-center justify-center p-6">
-				<div className="bg-white rounded-2xl p-8 text-center max-w-sm shadow-sm">
-					<p className="text-4xl mb-4">📚</p>
-					<h2 className="text-xl font-bold text-gray-800 mb-2">
-						이 프로젝트는 인쇄 주문 대상이 아닙니다
-					</h2>
-					<p className="text-gray-500 text-sm mb-6">
-						만화/소설 프로젝트는 보기 페이지에서 확인해 주세요.
-					</p>
-					<a
-						href={`/view/${project.id}`}
-						className="inline-block bg-rose-500 hover:bg-rose-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
-					>
-						보기 페이지로 이동
-					</a>
-				</div>
-			</div>
-		);
-	}
 	if (project.status === "DRAFT") {
 		return (
 			<div className="min-h-screen bg-rose-50 flex items-center justify-center p-6">

@@ -3,7 +3,8 @@ export type ImageModel = "dall-e-2" | "gpt-image-1";
 export type StoryKind = "COMIC" | "NOVEL";
 
 export const DEFAULT_STORY_MODEL: StoryModel = "gpt-4o-mini";
-export const DEFAULT_IMAGE_MODEL: ImageModel = "dall-e-2";
+export const DEFAULT_IMAGE_MODEL: ImageModel = "gpt-image-1";
+export const DEFAULT_USD_TO_KRW = 1350;
 
 export const STORY_MODEL_OPTIONS: Array<{ value: StoryModel; label: string }> =
 	[
@@ -30,6 +31,19 @@ const IMAGE_PRICING_PER_IMAGE_USD: Record<ImageModel, number> = {
 	"gpt-image-1": 0.04,
 };
 
+export { IMAGE_PRICING_PER_IMAGE_USD };
+
+export function calcStoryActualCostUsd(
+	usage: { inputTokens: number; outputTokens: number },
+	model: StoryModel,
+): number {
+	const pricing = STORY_PRICING_PER_1M_TOKENS[model];
+	return (
+		(usage.inputTokens / 1_000_000) * pricing.inputUsd +
+		(usage.outputTokens / 1_000_000) * pricing.outputUsd
+	);
+}
+
 function estimateStoryTokens(pageCount: number) {
 	const safeCount = Math.max(4, Math.min(120, pageCount || 12));
 	const inputTokens = 1400 + safeCount * 150;
@@ -55,6 +69,13 @@ export interface OpenAICostEstimate {
 	imageCount: number;
 	imageUsd: number;
 	totalUsd: number;
+}
+
+export function convertUsdToKrw(
+	usdAmount: number,
+	exchangeRate: number = DEFAULT_USD_TO_KRW,
+): number {
+	return Math.round(usdAmount * exchangeRate);
 }
 
 export function estimateOpenAICost(input: {

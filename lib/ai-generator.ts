@@ -29,6 +29,7 @@ export interface GenerateBookOutput {
 	characterProfiles: string[];
 	chapters: Array<{ title: string; summary: string }>;
 	pages: Array<{ pageOrder: number; caption: string; imagePrompt?: string }>;
+	actualUsage: { inputTokens: number; outputTokens: number };
 }
 
 export class MissingOpenAIKeyError extends Error {
@@ -107,11 +108,19 @@ export async function generateBookPlan(
 		.filter(Boolean)
 		.join("\n");
 
+	const characterConsistencyNote =
+		input.bookKind === "COMIC"
+			? "각 페이지의 imagePrompt에는 등장인물의 외형(헤어 색상, 의상, 체형 등)을 반드시 상세히 포함시켜라. 모든 페이지에서 동일 캐릭터는 외형 묘사가 일치해야 한다."
+			: "";
+	const fullPrompt = characterConsistencyNote
+		? `${prompt}\n${characterConsistencyNote}`
+		: prompt;
+
 	const response = await client.chat.completions.create({
 		model,
 		temperature: 0.7,
 		response_format: { type: "json_object" },
-		messages: [{ role: "user", content: prompt }],
+		messages: [{ role: "user", content: fullPrompt }],
 	});
 
 	const raw = response.choices[0]?.message?.content;
@@ -144,6 +153,10 @@ export async function generateBookPlan(
 						? p.imagePrompt
 						: undefined,
 			})),
+			actualUsage: {
+				inputTokens: response.usage?.prompt_tokens ?? 0,
+				outputTokens: response.usage?.completion_tokens ?? 0,
+			},
 		};
 	} catch (error) {
 		console.error("[generateBookPlan] parse error", error);
@@ -158,16 +171,35 @@ export async function generateComicImages(params: {
 	synopsis: string;
 	comicStyle: ComicStyle;
 	pages: Array<{ pageOrder: number; caption: string; imagePrompt?: string }>;
+	characterProfiles?: string[];
 	imageModel?: ImageModel;
+	onPageDone?: (
+		doneCount: number,
+		totalCount: number,
+	) => Promise<void> | void;
 }): Promise<{ coverImageUrl: string; pageImageUrls: string[] }> {
 	const client = getOpenAIClient();
 	const imageModel = params.imageModel || DEFAULT_IMAGE_MODEL;
 
+	const stylePrefix =
+		{
+			MANGA: "Japanese manga style black-and-white comic panel",
+			CARTOON: "Western cartoon style colorful comic panel",
+			AMERICAN: "American superhero comic style panel",
+			PICTURE_BOOK: "Children's picture book illustration",
+		}[params.comicStyle] ?? "comic panel illustration";
+
+	const characterAnchor =
+		params.characterProfiles && params.characterProfiles.length > 0
+			? `Characters: ${params.characterProfiles.slice(0, 4).join(" | ")}.`
+			: "";
+
 	const coverPrompt = [
-		`Korean ${params.comicStyle.toLowerCase()} comic cover illustration`,
+		stylePrefix + " cover art",
 		`Title: ${params.title}`,
 		`Synopsis: ${params.synopsis}`,
-		"No text letters on image, vivid composition, high quality",
+		characterAnchor,
+		"No text, no letters on image. Vivid composition, high quality, full scene.",
 	].join(". ");
 
 	const cover = await client.images.generate({
@@ -187,11 +219,14 @@ export async function generateComicImages(params: {
 	});
 
 	const pageImageUrls: string[] = [];
+	const totalCount = params.pages.length;
+	let doneCount = 0;
 	for (const page of params.pages) {
 		const pagePrompt = [
-			`${params.comicStyle.toLowerCase()} comic panel illustration`,
+			stylePrefix,
+			characterAnchor,
 			page.imagePrompt || page.caption,
-			"No watermark, no text overlay",
+			"Consistent character appearance with other panels. No watermark, no text overlay.",
 		].join(". ");
 
 		const pageImageRes = await client.images.generate({
@@ -212,6 +247,10 @@ export async function generateComicImages(params: {
 			prefix: `comic-page-${page.pageOrder}`,
 		});
 		pageImageUrls.push(localUrl);
+		doneCount += 1;
+		if (params.onPageDone) {
+			await params.onPageDone(doneCount, totalCount);
+		}
 	}
 
 	return { coverImageUrl, pageImageUrls };

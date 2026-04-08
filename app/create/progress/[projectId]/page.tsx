@@ -1,0 +1,313 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+
+interface ProgressProject {
+	id: string;
+	title: string;
+	projectType: "COMIC" | "NOVEL" | "PHOTOBOOK";
+	genre?: string | null;
+	storyCharacters?: string | null;
+	requestedPageCount?: number | null;
+	comicStyle?: string | null;
+	status: "DRAFT" | "PUBLISHED" | "ORDERED";
+	generationStage?: string | null;
+	generationProgress?: number | null;
+	generationError?: string | null;
+	generationCostUsd?: number | null;
+}
+
+interface ProjectResponse {
+	success: boolean;
+	data?: ProgressProject;
+	error?: string;
+}
+
+const STAGE_LABEL_COMIC: Record<string, string> = {
+	QUEUED: "대기 중",
+	PLANNING: "스토리 기획 중",
+	IMAGING: "컷 이미지 생성 중",
+	SAVING: "페이지 저장 중",
+	COMPLETED: "완료",
+	FAILED: "실패",
+};
+
+const STAGE_LABEL_NOVEL: Record<string, string> = {
+	QUEUED: "대기 중",
+	PLANNING: "스토리 집필 중",
+	SAVING: "페이지 저장 중",
+	COMPLETED: "완료",
+	FAILED: "실패",
+};
+
+const COMIC_STYLE_LABEL: Record<string, string> = {
+	MANGA: "만화 (망가)",
+	CARTOON: "만화 (카툰)",
+	AMERICAN: "만화 (아메리칸)",
+	PICTURE_BOOK: "그림책",
+};
+
+const DEFAULT_KRW_RATE = 1350;
+
+function formatCostKrw(usd: number): string {
+	const krw = Math.round(usd * DEFAULT_KRW_RATE);
+	return `₩${krw.toLocaleString("ko-KR")} (USD $${usd.toFixed(4)})`;
+}
+
+function getStageLabelMap(projectType: "COMIC" | "NOVEL" | "PHOTOBOOK") {
+	return projectType === "NOVEL" ? STAGE_LABEL_NOVEL : STAGE_LABEL_COMIC;
+}
+
+function normalizeProgress(value: number | null | undefined) {
+	if (typeof value !== "number") return 0;
+	return Math.max(0, Math.min(100, value));
+}
+
+export default function CreateProgressPage() {
+	const params = useParams<{ projectId: string }>();
+	const projectId = params?.projectId;
+	const router = useRouter();
+	const searchParams = useSearchParams();
+	const [project, setProject] = useState<ProgressProject | null>(null);
+	const [error, setError] = useState("");
+	const [starting, setStarting] = useState(false);
+	const startedRef = useRef(false);
+
+	const stageLabel = useMemo(() => {
+		if (!project?.generationStage) return "준비 중";
+		const stage = project.generationStage;
+		if (stage.startsWith("IMAGING:")) {
+			const [, doneStr, totalStr] = stage.split(":");
+			const done = Number(doneStr);
+			const total = Number(totalStr);
+			if (done === 0) return `컷 이미지 생성 중 (0 / ${total})...`;
+			return `컷 이미지 생성 중 (${done} / ${total})...`;
+		}
+		const map = getStageLabelMap(project.projectType);
+		return map[stage] || stage;
+	}, [project?.generationStage, project?.projectType]);
+
+	useEffect(() => {
+		if (!projectId) return;
+
+		let stopped = false;
+
+		async function fetchProject() {
+			try {
+				const res = await fetch(`/api/projects/${projectId}`, {
+					cache: "no-store",
+				});
+				const json = (await res.json()) as ProjectResponse;
+				if (!res.ok || !json.success || !json.data) {
+					throw new Error(
+						json.error || "프로젝트를 불러오지 못했습니다.",
+					);
+				}
+				if (stopped) return;
+				setProject(json.data);
+				setError("");
+			} catch (err) {
+				if (stopped) return;
+				setError(
+					err instanceof Error
+						? err.message
+						: "진행 상태를 불러오는 중 오류가 발생했습니다.",
+				);
+			}
+		}
+
+		void fetchProject();
+		const interval = setInterval(fetchProject, 1500);
+		return () => {
+			stopped = true;
+			clearInterval(interval);
+		};
+	}, [projectId]);
+
+	useEffect(() => {
+		if (!projectId || startedRef.current) return;
+		if (!project) return;
+		if (project.status === "PUBLISHED") {
+			router.replace(`/view/${project.id}`);
+			return;
+		}
+
+		startedRef.current = true;
+		setStarting(true);
+		const body = {
+			storyModel: searchParams.get("storyModel") || undefined,
+			imageModel: searchParams.get("imageModel") || undefined,
+		};
+
+		fetch(`/api/projects/${projectId}/generate`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+		})
+			.then(async (res) => {
+				const json = (await res.json()) as ProjectResponse;
+				if (!res.ok || !json.success) {
+					throw new Error(json.error || "생성 시작에 실패했습니다.");
+				}
+			})
+			.catch((err: unknown) => {
+				setError(
+					err instanceof Error
+						? err.message
+						: "생성 시작 중 오류가 발생했습니다.",
+				);
+				startedRef.current = false;
+			})
+			.finally(() => setStarting(false));
+	}, [projectId, project, router, searchParams]);
+
+	useEffect(() => {
+		if (!project) return;
+		if (project.status === "PUBLISHED") {
+			router.replace(`/view/${project.id}`);
+		}
+	}, [project, router]);
+
+	const progress = normalizeProgress(project?.generationProgress);
+	const isFailed = project?.generationStage === "FAILED";
+
+	return (
+		<div className="min-h-screen bg-gradient-to-br from-rose-50 to-purple-50 flex items-center justify-center p-6">
+			<div className="w-full max-w-xl bg-white rounded-2xl border border-rose-100 shadow-sm p-8 space-y-5">
+				<div className="text-center">
+					<p className="text-xs text-rose-500 font-semibold tracking-wide mb-2">
+						AI BOOK BUILD
+					</p>
+					<h1 className="text-2xl font-serif font-bold text-gray-800">
+						생성 진행 상황
+					</h1>
+					<p className="text-sm text-gray-500 mt-2">
+						작업 완료 후 자동으로 뷰 페이지로 이동합니다.
+					</p>
+				</div>
+
+				{project ? (
+					<div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700 space-y-1.5">
+						<p>
+							<span className="font-semibold">제목:</span>{" "}
+							{project.title}
+						</p>
+						<p>
+							<span className="font-semibold">형식:</span>{" "}
+							{project.projectType === "COMIC"
+								? "만화책"
+								: project.projectType === "NOVEL"
+									? "소설"
+									: project.projectType}
+						</p>
+						{project.genre ? (
+							<p>
+								<span className="font-semibold">장르:</span>{" "}
+								{project.genre}
+							</p>
+						) : null}
+						{project.storyCharacters ? (
+							<p>
+								<span className="font-semibold">등장인물:</span>{" "}
+								{project.storyCharacters}
+							</p>
+						) : null}
+						{project.requestedPageCount ? (
+							<p>
+								<span className="font-semibold">
+									페이지 수:
+								</span>{" "}
+								{project.requestedPageCount}쪽
+							</p>
+						) : null}
+						{project.projectType === "COMIC" &&
+						project.comicStyle ? (
+							<p>
+								<span className="font-semibold">그림체:</span>{" "}
+								{COMIC_STYLE_LABEL[project.comicStyle] ??
+									project.comicStyle}
+							</p>
+						) : null}
+					</div>
+				) : (
+					<div className="text-sm text-gray-500">
+						프로젝트 정보를 불러오는 중...
+					</div>
+				)}
+
+				<div>
+					<div className="flex justify-between text-sm mb-2">
+						<span className="text-gray-600">현재 단계</span>
+						<span className="font-semibold text-rose-500">
+							{stageLabel}
+						</span>
+					</div>
+					<div className="h-3 bg-rose-100 rounded-full overflow-hidden">
+						<div
+							className={`h-full transition-all duration-500 ${
+								isFailed ? "bg-red-400" : "bg-rose-500"
+							}`}
+							style={{ width: `${progress}%` }}
+						/>
+					</div>
+					<p className="text-right text-xs text-gray-500 mt-1">
+						{progress}%
+					</p>
+				</div>
+
+				{typeof project?.generationCostUsd === "number" && (
+					<div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm">
+						<div className="flex items-center justify-between">
+							<span className="text-emerald-700 font-semibold">
+								누적 AI 비용
+							</span>
+							<span className="font-mono text-emerald-800 font-bold">
+								{formatCostKrw(project.generationCostUsd)}
+							</span>
+						</div>
+						<p className="text-emerald-600 text-xs mt-1">
+							{isFailed
+								? "생성 실패 시점까지의 실제 사용 비용입니다."
+								: project.status === "PUBLISHED"
+									? "최종 실제 청구 비용입니다."
+									: "생성 진행에 따라 실시간으로 갱신됩니다."}
+						</p>
+					</div>
+				)}
+
+				{starting ? (
+					<p className="text-xs text-gray-500">
+						생성 작업을 시작하는 중입니다...
+					</p>
+				) : null}
+
+				{(error || project?.generationError) && (
+					<div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm p-3 space-y-2">
+						<p>{error || project?.generationError}</p>
+						<button
+							type="button"
+							onClick={() => {
+								startedRef.current = false;
+								setError("");
+							}}
+							className="text-xs font-semibold underline underline-offset-2"
+						>
+							다시 시도
+						</button>
+					</div>
+				)}
+
+				<div className="text-center pt-2">
+					<Link
+						href="/create"
+						className="text-sm text-rose-500 hover:underline"
+					>
+						다른 프로젝트 만들기
+					</Link>
+				</div>
+			</div>
+		</div>
+	);
+}

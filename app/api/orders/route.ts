@@ -120,8 +120,6 @@ export async function GET() {
 		select: {
 			id: true,
 			title: true,
-			coupleNameA: true,
-			coupleNameB: true,
 			orderUid: true,
 			orderStatus: true,
 			updatedAt: true,

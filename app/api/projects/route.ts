@@ -1,17 +1,131 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { MissingOpenAIKeyError, ComicStyle } from "@/lib/ai-generator";
+import { DEFAULT_STORY_MODEL, isStoryModel } from "@/lib/ai-pricing";
 import {
-	MissingOpenAIKeyError,
-	generateBookPlan,
-	generateComicImages,
-} from "@/lib/ai-generator";
-import {
-	DEFAULT_IMAGE_MODEL,
-	DEFAULT_STORY_MODEL,
-	estimateOpenAICost,
-	isImageModel,
-	isStoryModel,
-} from "@/lib/ai-pricing";
+	DEFAULT_PHOTOBOOK_SPEC_UID,
+	getSupportedBookSpec,
+} from "@/lib/book-specs";
+
+interface CreateProjectBody {
+	title?: unknown;
+	projectType?: unknown;
+	genre?: unknown;
+	description?: unknown;
+	characters?: unknown;
+	pageCount?: unknown;
+	comicStyle?: unknown;
+	storyModel?: unknown;
+	imageModel?: unknown;
+	bookSpecUid?: unknown;
+}
+
+async function createPhotobookProject(params: {
+	title: string;
+	bookSpecUid?: string;
+}) {
+	const selectedBookSpecUid = getSupportedBookSpec(
+		params.bookSpecUid,
+	).bookSpecUid;
+
+	const project = await prisma.project.create({
+		data: {
+			title: params.title,
+			projectType: "PHOTOBOOK",
+			bookSpecUid: selectedBookSpecUid,
+		},
+		include: { pages: true },
+	});
+
+	let bookUid: string | null = null;
+	try {
+		const { getSweetbookClient } = await import("@/lib/sweetbook-api");
+		const client = getSweetbookClient();
+		const book = (await client.books.create({
+			bookSpecUid: selectedBookSpecUid || DEFAULT_PHOTOBOOK_SPEC_UID,
+			title: params.title,
+			creationType: "NORMAL",
+		})) as { bookUid?: string };
+		bookUid = book.bookUid || null;
+
+		if (bookUid) {
+			await prisma.project.update({
+				where: { id: project.id },
+				data: { bookUid },
+			});
+		}
+	} catch {
+		// API 키 없거나 오류면 publish 시점에 bookUid를 생성한다.
+	}
+
+	return NextResponse.json(
+		{ success: true, data: { ...project, bookUid } },
+		{ status: 201 },
+	);
+}
+
+async function createStoryProject(params: {
+	title: string;
+	projectType: "COMIC" | "NOVEL";
+	genre: string;
+	description: string;
+	characters: string;
+	pageCount: number;
+	comicStyle?: "MANGA" | "CARTOON" | "AMERICAN" | "PICTURE_BOOK";
+	storyModel?: unknown;
+	bookSpecUid?: string;
+}) {
+	const selectedBookSpecUid = getSupportedBookSpec(
+		params.bookSpecUid,
+	).bookSpecUid;
+	const selectedStoryModel = isStoryModel(params.storyModel)
+		? params.storyModel
+		: DEFAULT_STORY_MODEL;
+	const normalizedCount = Math.max(
+		24,
+		Math.min(120, Number(params.pageCount) || 24),
+	);
+
+	const project = await prisma.project.create({
+		data: {
+			title: params.title,
+			storyCharacters: params.characters,
+			requestedPageCount: normalizedCount,
+			generationStage: "QUEUED",
+			generationProgress: 0,
+			generationError: null,
+			projectType: params.projectType,
+			bookSpecUid: selectedBookSpecUid,
+			genre: params.genre,
+			synopsis: params.description,
+			comicStyle:
+				params.projectType === "COMIC"
+					? params.comicStyle || "MANGA"
+					: null,
+			coverCaption: "",
+			coverImageUrl: null,
+			status: "DRAFT",
+		} as any,
+		include: { pages: { orderBy: { pageOrder: "asc" } } },
+	});
+
+	return NextResponse.json(
+		{
+			success: true,
+			data: {
+				...project,
+				generationMeta: {
+					storyModel: selectedStoryModel,
+					comicStyle:
+						params.projectType === "COMIC"
+							? ((params.comicStyle || "MANGA") as ComicStyle)
+							: null,
+				},
+			},
+		},
+		{ status: 201 },
+	);
+}
 
 // GET /api/projects — 프로젝트 목록
 export async function GET() {
@@ -25,12 +139,9 @@ export async function GET() {
 // POST /api/projects — 새 프로젝트 생성 (+ Sweetbook book 생성 시도)
 export async function POST(req: NextRequest) {
 	try {
-		const body = await req.json();
+		const body = (await req.json()) as CreateProjectBody;
 		const {
 			title,
-			coupleNameA,
-			coupleNameB,
-			anniversaryDate,
 			projectType = "PHOTOBOOK",
 			genre,
 			description,
@@ -39,6 +150,7 @@ export async function POST(req: NextRequest) {
 			comicStyle,
 			storyModel,
 			imageModel,
+			bookSpecUid,
 		} = body;
 
 		if (!title) {
@@ -48,51 +160,16 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
-		if (projectType === "PHOTOBOOK") {
-			if (!coupleNameA || !coupleNameB || !anniversaryDate) {
-				return NextResponse.json(
-					{ success: false, error: "필수 항목이 누락되었습니다." },
-					{ status: 400 },
-				);
-			}
+		const normalizedTitle = String(title);
+		const normalizedProjectType =
+			projectType === "NOVEL" ? "NOVEL" : projectType;
 
-			const project = await prisma.project.create({
-				data: {
-					title,
-					coupleNameA,
-					coupleNameB,
-					anniversaryDate: new Date(anniversaryDate),
-					projectType: "PHOTOBOOK",
-				},
-				include: { pages: true },
+		if (normalizedProjectType === "PHOTOBOOK") {
+			return createPhotobookProject({
+				title: normalizedTitle,
+				bookSpecUid:
+					typeof bookSpecUid === "string" ? bookSpecUid : undefined,
 			});
-
-			let bookUid: string | null = null;
-			try {
-				const { getSweetbookClient } =
-					await import("@/lib/sweetbook-api");
-				const client = getSweetbookClient();
-				const book = (await client.books.create({
-					bookSpecUid: "SQUAREBOOK_HC",
-					title,
-					creationType: "NORMAL",
-				})) as { bookUid?: string };
-				bookUid = book.bookUid || null;
-
-				if (bookUid) {
-					await prisma.project.update({
-						where: { id: project.id },
-						data: { bookUid },
-					});
-				}
-			} catch {
-				// API 키 없거나 오류 → bookUid는 나중에 publish 시 생성
-			}
-
-			return NextResponse.json(
-				{ success: true, data: { ...project, bookUid } },
-				{ status: 201 },
-			);
 		}
 
 		if (!genre || !description || !characters || !pageCount) {
@@ -105,96 +182,24 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
-		const normalizedType = projectType === "NOVEL" ? "NOVEL" : "COMIC";
-		const normalizedCount = Math.max(
-			4,
-			Math.min(120, Number(pageCount) || 12),
-		);
-		const selectedStoryModel = isStoryModel(storyModel)
-			? storyModel
-			: DEFAULT_STORY_MODEL;
-		const selectedImageModel = isImageModel(imageModel)
-			? imageModel
-			: DEFAULT_IMAGE_MODEL;
-		const characterList = String(characters)
-			.split(",")
-			.map((v: string) => v.trim())
-			.filter(Boolean);
-
-		const plan = await generateBookPlan(
-			{
-				title: String(title),
-				characters: String(characters),
-				genre: String(genre),
-				description: String(description),
-				pageCount: normalizedCount,
-				bookKind: normalizedType,
-				comicStyle: comicStyle || "MANGA",
-			},
-			{
-				storyModel: selectedStoryModel,
-			},
-		);
-
-		const costEstimate = estimateOpenAICost({
-			kind: normalizedType,
-			pageCount: normalizedCount,
-			storyModel: selectedStoryModel,
-			imageModel: selectedImageModel,
+		return createStoryProject({
+			title: normalizedTitle,
+			projectType: normalizedProjectType === "NOVEL" ? "NOVEL" : "COMIC",
+			genre: String(genre),
+			description: String(description),
+			characters: String(characters),
+			pageCount: Number(pageCount),
+			comicStyle:
+				comicStyle === "MANGA" ||
+				comicStyle === "CARTOON" ||
+				comicStyle === "AMERICAN" ||
+				comicStyle === "PICTURE_BOOK"
+					? comicStyle
+					: undefined,
+			storyModel,
+			bookSpecUid:
+				typeof bookSpecUid === "string" ? bookSpecUid : undefined,
 		});
-
-		let coverImageUrl = `https://picsum.photos/seed/${encodeURIComponent(String(title))}-cover/900/700`;
-		let pageImageUrls = plan.pages.map(
-			(page) =>
-				`https://picsum.photos/seed/${encodeURIComponent(String(title))}-${page.pageOrder}/900/700`,
-		);
-
-		if (normalizedType === "COMIC") {
-			const generatedImages = await generateComicImages({
-				title: String(title),
-				synopsis: plan.synopsis,
-				comicStyle: comicStyle || "MANGA",
-				pages: plan.pages,
-				imageModel: selectedImageModel,
-			});
-			coverImageUrl = generatedImages.coverImageUrl;
-			pageImageUrls = generatedImages.pageImageUrls;
-		}
-
-		const project = await prisma.project.create({
-			data: {
-				title: String(title),
-				coupleNameA: characterList[0] || "주인공A",
-				coupleNameB: characterList[1] || "주인공B",
-				anniversaryDate: new Date(),
-				projectType: normalizedType,
-				genre: String(genre),
-				synopsis: plan.synopsis,
-				comicStyle:
-					normalizedType === "COMIC" ? comicStyle || "MANGA" : null,
-				coverCaption: plan.tagline,
-				coverImageUrl,
-				status: "PUBLISHED",
-				pages: {
-					create: plan.pages.map((page, index) => ({
-						pageOrder: page.pageOrder,
-						caption: page.caption,
-						imageUrl:
-							pageImageUrls[index] ||
-							`https://picsum.photos/seed/${encodeURIComponent(String(title))}-${page.pageOrder}/900/700`,
-					})),
-				},
-			},
-			include: { pages: { orderBy: { pageOrder: "asc" } } },
-		});
-
-		return NextResponse.json(
-			{
-				success: true,
-				data: { ...project, aiCostEstimate: costEstimate },
-			},
-			{ status: 201 },
-		);
 	} catch (err) {
 		if (err instanceof MissingOpenAIKeyError) {
 			return NextResponse.json(

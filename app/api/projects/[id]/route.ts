@@ -29,9 +29,6 @@ export async function PATCH(
 		// allowlist: 변경 허용 필드
 		const allowed = [
 			"title",
-			"coupleNameA",
-			"coupleNameB",
-			"anniversaryDate",
 			"projectType",
 			"genre",
 			"synopsis",
@@ -49,10 +46,7 @@ export async function PATCH(
 		const data: Record<string, unknown> = {};
 		for (const key of allowed) {
 			if (key in body) {
-				data[key] =
-					key === "anniversaryDate"
-						? new Date(body[key] as string)
-						: body[key];
+				data[key] = body[key];
 			}
 		}
 		const updated = await prisma.project.update({

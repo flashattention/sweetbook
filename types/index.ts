@@ -1,9 +1,12 @@
 export interface Project {
 	id: string;
 	title: string;
-	coupleNameA: string;
-	coupleNameB: string;
-	anniversaryDate: string;
+	storyCharacters?: string | null;
+	requestedPageCount?: number | null;
+	generationStage?: string | null;
+	generationProgress?: number | null;
+	generationError?: string | null;
+	generationCostUsd?: number | null;
 	projectType: "PHOTOBOOK" | "COMIC" | "NOVEL";
 	genre?: string | null;
 	synopsis?: string | null;

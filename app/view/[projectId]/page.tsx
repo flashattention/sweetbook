@@ -12,7 +12,6 @@ async function getProject(id: string): Promise<Project | null> {
 	if (!p) return null;
 	return {
 		...p,
-		anniversaryDate: p.anniversaryDate.toISOString(),
 		createdAt: p.createdAt.toISOString(),
 		updatedAt: p.updatedAt.toISOString(),
 		projectType: p.projectType as Project["projectType"],
@@ -44,10 +43,13 @@ export default async function ViewPage({
 		project.coverImageUrl ||
 		project.pages[0]?.imageUrl ||
 		`https://picsum.photos/seed/${project.id}/800/600`;
-
-	const anniversary = new Date(project.anniversaryDate).toLocaleDateString(
+	const createdLabel = new Date(project.createdAt).toLocaleDateString(
 		"ko-KR",
-		{ year: "numeric", month: "long", day: "numeric" },
+		{
+			year: "numeric",
+			month: "long",
+			day: "numeric",
+		},
 	);
 
 	const status = STATUS_MAP[project.status] ?? STATUS_MAP.DRAFT;
@@ -83,7 +85,10 @@ export default async function ViewPage({
 					<div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 					<div className="absolute bottom-0 left-0 right-0 p-8 text-white">
 						<p className="text-rose-200 text-sm font-medium mb-2">
-							{project.coupleNameA} &amp; {project.coupleNameB}
+							{project.projectType === "PHOTOBOOK"
+								? "자유 주제 포토북"
+								: project.storyCharacters ||
+									"등장인물 정보 없음"}
 						</p>
 						<h1 className="text-3xl md:text-4xl font-serif font-bold mb-2">
 							{project.title}
@@ -94,7 +99,10 @@ export default async function ViewPage({
 							</p>
 						)}
 						<p className="text-rose-200 text-xs mt-3">
-							{anniversary} 기념일 · {project.pages.length}페이지
+							{project.projectType === "PHOTOBOOK"
+								? `${createdLabel} 생성`
+								: project.genre || "AI 생성 콘텐츠"}
+							· {project.pages.length}페이지
 						</p>
 					</div>
 				</div>
@@ -104,7 +112,9 @@ export default async function ViewPage({
 			{project.pages.length > 0 ? (
 				<div className="max-w-4xl mx-auto px-6 pb-16">
 					<h2 className="text-xl font-serif font-bold text-gray-700 mb-6">
-						우리의 이야기
+						{project.projectType === "PHOTOBOOK"
+							? "우리의 이야기"
+							: "작품 미리보기"}
 					</h2>
 					<div className="grid md:grid-cols-2 gap-6">
 						{project.pages.map((page, idx) => (

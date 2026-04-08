@@ -11,7 +11,6 @@ async function getProject(id: string): Promise<Project | null> {
 	if (!p) return null;
 	return {
 		...p,
-		anniversaryDate: p.anniversaryDate.toISOString(),
 		createdAt: p.createdAt.toISOString(),
 		updatedAt: p.updatedAt.toISOString(),
 		projectType: p.projectType as Project["projectType"],

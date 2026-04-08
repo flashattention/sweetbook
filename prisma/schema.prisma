@@ -12,9 +12,12 @@ datasource db {
 model Project {
   id              String   @id @default(cuid())
   title           String
-  coupleNameA     String
-  coupleNameB     String
-  anniversaryDate DateTime
+  storyCharacters String?
+  requestedPageCount Int?
+  generationStage String?
+  generationProgress Int?
+  generationError String?
+  generationCostUsd Float?
   projectType String  @default("PHOTOBOOK")
   genre       String?
   synopsis    String?

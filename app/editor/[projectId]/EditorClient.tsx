@@ -142,7 +142,13 @@ export default function EditorClient({ initialProject }: Props) {
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error || "출판 실패");
-			showMsg("출판이 완료되었습니다! 주문 페이지로 이동합니다.");
+			const estimatedTotal = Number(json?.estimate?.totalPrice);
+			const hasRealEstimate = Number.isFinite(estimatedTotal);
+			showMsg(
+				hasRealEstimate
+					? `출판 완료! 실제 샌드박스 견적 ${estimatedTotal.toLocaleString("ko-KR")}원 기준으로 주문 페이지로 이동합니다.`
+					: "출판이 완료되었습니다! 주문 페이지로 이동합니다.",
+			);
 			setTimeout(() => router.push(`/order/${project.id}`), 1200);
 		} catch (err: unknown) {
 			showMsg(

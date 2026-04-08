@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-	DEFAULT_IMAGE_MODEL,
+	convertUsdToKrw,
+	DEFAULT_USD_TO_KRW,
 	DEFAULT_STORY_MODEL,
+	DEFAULT_IMAGE_MODEL,
 	IMAGE_MODEL_OPTIONS,
 	STORY_MODEL_OPTIONS,
 	estimateOpenAICost,
 	type ImageModel,
 	type StoryModel,
 } from "@/lib/ai-pricing";
+import {
+	DEFAULT_PHOTOBOOK_SPEC_UID,
+	SUPPORTED_PHOTOBOOK_SPECS,
+	estimateBookProductionCost,
+	getSupportedBookSpec,
+} from "@/lib/book-specs";
 
 export default function CreatePage() {
 	const router = useRouter();
@@ -23,11 +31,22 @@ export default function CreatePage() {
 	const [comicStyle, setComicStyle] = useState<
 		"MANGA" | "CARTOON" | "AMERICAN" | "PICTURE_BOOK"
 	>("MANGA");
-	const [pageCount, setPageCount] = useState(12);
+	const [bookSpecUid, setBookSpecUid] = useState(DEFAULT_PHOTOBOOK_SPEC_UID);
+	const [pageCount, setPageCount] = useState(24);
 	const [storyModel, setStoryModel] =
 		useState<StoryModel>(DEFAULT_STORY_MODEL);
 	const [imageModel, setImageModel] =
 		useState<ImageModel>(DEFAULT_IMAGE_MODEL);
+	const [usdToKrwRate, setUsdToKrwRate] = useState(DEFAULT_USD_TO_KRW);
+	const [exchangeRateMeta, setExchangeRateMeta] = useState<{
+		provider: string;
+		updatedAt: string | null;
+		fallback: boolean;
+	}>({
+		provider: "fallback",
+		updatedAt: null,
+		fallback: true,
+	});
 
 	const costEstimate =
 		mode === "PHOTOBOOK"
@@ -38,6 +57,64 @@ export default function CreatePage() {
 					storyModel,
 					imageModel,
 				});
+	const selectedPhotobookSpec = getSupportedBookSpec(bookSpecUid);
+	const photobookProductionEstimate = estimateBookProductionCost({
+		bookSpecUid,
+		requestedPageCount: selectedPhotobookSpec.pageMin,
+	});
+	const creativeBookProductionEstimate = estimateBookProductionCost({
+		bookSpecUid,
+		requestedPageCount: pageCount,
+	});
+	const apiCostKrw = costEstimate
+		? convertUsdToKrw(costEstimate.totalUsd, usdToKrwRate)
+		: 0;
+	const combinedCreativeCostKrw =
+		creativeBookProductionEstimate.estimatedPrice + apiCostKrw;
+
+	useEffect(() => {
+		let active = true;
+
+		async function loadExchangeRate() {
+			try {
+				const response = await fetch("/api/exchange-rate", {
+					cache: "no-store",
+				});
+				if (!response.ok) {
+					throw new Error(`환율 조회 실패: ${response.status}`);
+				}
+
+				const json = (await response.json()) as {
+					success: boolean;
+					data?: {
+						rate?: number;
+						provider?: string;
+						updatedAt?: string | null;
+						fallback?: boolean;
+					};
+				};
+
+				if (!active || !json.data?.rate) {
+					return;
+				}
+
+				setUsdToKrwRate(json.data.rate);
+				setExchangeRateMeta({
+					provider: json.data.provider || "unknown",
+					updatedAt: json.data.updatedAt || null,
+					fallback: Boolean(json.data.fallback),
+				});
+			} catch (error) {
+				console.error("[CreatePage] exchange rate fetch failed", error);
+			}
+		}
+
+		void loadExchangeRate();
+
+		return () => {
+			active = false;
+		};
+	}, []);
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
@@ -53,25 +130,12 @@ export default function CreatePage() {
 				? {
 						projectType: "PHOTOBOOK",
 						title,
-						coupleNameA: (
-							form.elements.namedItem(
-								"coupleNameA",
-							) as HTMLInputElement
-						).value,
-						coupleNameB: (
-							form.elements.namedItem(
-								"coupleNameB",
-							) as HTMLInputElement
-						).value,
-						anniversaryDate: (
-							form.elements.namedItem(
-								"anniversaryDate",
-							) as HTMLInputElement
-						).value,
+						bookSpecUid,
 					}
 				: {
 						projectType: mode,
 						title,
+						bookSpecUid,
 						genre: (
 							form.elements.namedItem("genre") as HTMLInputElement
 						).value,
@@ -105,11 +169,17 @@ export default function CreatePage() {
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error || "프로젝트 생성 실패");
-			router.push(
-				mode === "PHOTOBOOK"
-					? `/editor/${json.data.id}`
-					: `/view/${json.data.id}`,
-			);
+			if (mode === "PHOTOBOOK") {
+				router.push(`/editor/${json.data.id}`);
+			} else {
+				const query = new URLSearchParams({
+					storyModel,
+					imageModel: mode === "COMIC" ? imageModel : "",
+				});
+				router.push(
+					`/create/progress/${json.data.id}?${query.toString()}`,
+				);
+			}
 		} catch (err: unknown) {
 			setError(
 				err instanceof Error ? err.message : "오류가 발생했습니다.",
@@ -188,46 +258,98 @@ export default function CreatePage() {
 
 					{mode === "PHOTOBOOK" ? (
 						<>
-							<div className="grid grid-cols-2 gap-3">
-								<div>
-									<label className="block text-sm font-semibold text-gray-700 mb-1.5">
-										이름 A{" "}
-										<span className="text-rose-400">*</span>
-									</label>
-									<input
-										name="coupleNameA"
-										type="text"
-										required
-										placeholder="예: 지은"
-										className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
-									/>
-								</div>
-								<div>
-									<label className="block text-sm font-semibold text-gray-700 mb-1.5">
-										이름 B{" "}
-										<span className="text-rose-400">*</span>
-									</label>
-									<input
-										name="coupleNameB"
-										type="text"
-										required
-										placeholder="예: 민준"
-										className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
-									/>
-								</div>
-							</div>
+							<p className="text-sm text-gray-600 bg-rose-50 border border-rose-100 rounded-lg px-4 py-3">
+								가족, 졸업, 여행 등 어떤 주제든 자유롭게
+								포토북을 만들 수 있어요.
+							</p>
 
 							<div>
 								<label className="block text-sm font-semibold text-gray-700 mb-1.5">
-									기념일 날짜{" "}
+									포토북 판형{" "}
 									<span className="text-rose-400">*</span>
 								</label>
-								<input
-									name="anniversaryDate"
-									type="date"
-									required
+								<select
+									name="bookSpecUid"
+									value={bookSpecUid}
+									onChange={(e) =>
+										setBookSpecUid(e.target.value)
+									}
 									className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
-								/>
+								>
+									{SUPPORTED_PHOTOBOOK_SPECS.map((spec) => (
+										<option
+											key={spec.bookSpecUid}
+											value={spec.bookSpecUid}
+										>
+											{spec.name}
+										</option>
+									))}
+								</select>
+								<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 mt-3">
+									<p className="font-semibold text-slate-900 mb-1">
+										선택 판형 안내
+									</p>
+									<p>{selectedPhotobookSpec.name}</p>
+									<p className="mt-1">
+										최소 {selectedPhotobookSpec.pageMin}
+										페이지, 최대{" "}
+										{
+											selectedPhotobookSpec.pageMax
+										}페이지,{" "}
+										{selectedPhotobookSpec.pageIncrement}
+										페이지 단위로 제작됩니다.
+									</p>
+									<p className="mt-1">
+										기본 비용: ₩
+										{selectedPhotobookSpec.sandboxPriceBase.toLocaleString(
+											"ko-KR",
+										)}{" "}
+										(기본 {selectedPhotobookSpec.pageMin}
+										페이지 포함)
+									</p>
+									<p className="mt-1">
+										{selectedPhotobookSpec.pageMin}
+										페이지 넘어가는{" "}
+										{selectedPhotobookSpec.pageIncrement}
+										페이지당 추가 비용: ₩
+										{selectedPhotobookSpec.sandboxPricePerIncrement.toLocaleString(
+											"ko-KR",
+										)}{" "}
+										(페이지당 약 ₩
+										{(
+											selectedPhotobookSpec.sandboxPricePerIncrement /
+											selectedPhotobookSpec.pageIncrement
+										).toLocaleString("ko-KR")}
+										)
+									</p>
+								</div>
+								<div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 mt-3">
+									<p className="text-xl font-extrabold mb-2 leading-tight">
+										예상 비용
+									</p>
+									<p>
+										책 제작비: ₩
+										{photobookProductionEstimate.estimatedPrice.toLocaleString(
+											"ko-KR",
+										)}{" "}
+										(출력용{" "}
+										{
+											photobookProductionEstimate.printablePageCount
+										}
+										페이지 기준)
+									</p>
+									<p className="text-xl font-extrabold mt-2 leading-tight">
+										총 예상 제작비: ₩
+										{photobookProductionEstimate.estimatedPrice.toLocaleString(
+											"ko-KR",
+										)}
+									</p>
+									<p className="text-xs text-emerald-700 mt-1">
+										Sandbox 단가 기준 추정치이며, 실제
+										페이지 구성 후 금액은 달라질 수
+										있습니다.
+									</p>
+								</div>
 							</div>
 						</>
 					) : (
@@ -259,17 +381,18 @@ export default function CreatePage() {
 										onChange={(e) =>
 											setPageCount(
 												Math.max(
-													4,
+													selectedPhotobookSpec.pageMin,
 													Math.min(
 														120,
 														Number(
 															e.target.value,
-														) || 12,
+														) ||
+															selectedPhotobookSpec.pageMin,
 													),
 												),
 											)
 										}
-										min={4}
+										min={selectedPhotobookSpec.pageMin}
 										max={120}
 										className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
 									/>
@@ -277,6 +400,77 @@ export default function CreatePage() {
 							</div>
 
 							<div className="grid md:grid-cols-2 gap-3">
+								<div>
+									<label className="block text-sm font-semibold text-gray-700 mb-1.5">
+										책 판형
+									</label>
+									<select
+										name="bookSpecUid"
+										value={bookSpecUid}
+										onChange={(e) =>
+											setBookSpecUid(e.target.value)
+										}
+										className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
+									>
+										{SUPPORTED_PHOTOBOOK_SPECS.map(
+											(spec) => (
+												<option
+													key={spec.bookSpecUid}
+													value={spec.bookSpecUid}
+												>
+													{spec.name}
+												</option>
+											),
+										)}
+									</select>
+									<p className="text-xs text-gray-500 mt-1.5">
+										선택한 판형 기준으로 출력용 페이지와
+										제작비를 함께 계산합니다.
+									</p>
+									<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 mt-3">
+										<p className="font-semibold text-slate-900 mb-1">
+											선택 판형 안내
+										</p>
+										<p>{selectedPhotobookSpec.name}</p>
+										<p className="mt-1">
+											최소 {selectedPhotobookSpec.pageMin}
+											페이지, 최대{" "}
+											{selectedPhotobookSpec.pageMax}
+											페이지,
+											{
+												selectedPhotobookSpec.pageIncrement
+											}
+											페이지 단위로 제작됩니다.
+										</p>
+										<p className="mt-1">
+											기본 비용: ₩
+											{selectedPhotobookSpec.sandboxPriceBase.toLocaleString(
+												"ko-KR",
+											)}{" "}
+											(기본{" "}
+											{selectedPhotobookSpec.pageMin}
+											페이지 포함)
+										</p>
+										<p className="mt-1">
+											{selectedPhotobookSpec.pageMin}
+											페이지 넘어가는{" "}
+											{
+												selectedPhotobookSpec.pageIncrement
+											}
+											페이지당 추가 비용: ₩
+											{selectedPhotobookSpec.sandboxPricePerIncrement.toLocaleString(
+												"ko-KR",
+											)}{" "}
+											(페이지당 약 ₩
+											{(
+												selectedPhotobookSpec.sandboxPricePerIncrement /
+												selectedPhotobookSpec.pageIncrement
+											).toLocaleString("ko-KR")}
+											)
+										</p>
+									</div>
+								</div>
+
 								<div>
 									<label className="block text-sm font-semibold text-gray-700 mb-1.5">
 										줄거리 생성 모델
@@ -394,12 +588,12 @@ export default function CreatePage() {
 							</div>
 
 							{costEstimate && (
-								<div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-									<p className="font-semibold mb-1">
-										예상 OpenAI 비용
+								<div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+									<p className="text-xl font-extrabold mb-2 leading-tight">
+										예상 비용
 									</p>
 									<p>
-										줄거리: $
+										OpenAI 줄거리: $
 										{costEstimate.storyUsd.toFixed(4)} (입력{" "}
 										{costEstimate.storyInputTokens} / 출력{" "}
 										{costEstimate.storyOutputTokens} 토큰
@@ -407,18 +601,50 @@ export default function CreatePage() {
 									</p>
 									{mode === "COMIC" && (
 										<p>
-											이미지: $
+											OpenAI 이미지: $
 											{costEstimate.imageUsd.toFixed(4)} (
 											{costEstimate.imageCount}장)
 										</p>
 									)}
-									<p className="font-semibold mt-1">
-										총 예상: $
+									<p>
+										API 비용 합계: $
 										{costEstimate.totalUsd.toFixed(4)}
+										(약 ₩
+										{apiCostKrw.toLocaleString("ko-KR")})
 									</p>
-									<p className="text-xs text-amber-700 mt-1">
-										실제 청구액은 프롬프트 길이와 모델
-										정책에 따라 달라질 수 있습니다.
+									<p>
+										책 제작비: ₩
+										{creativeBookProductionEstimate.estimatedPrice.toLocaleString(
+											"ko-KR",
+										)}{" "}
+										(출력용{" "}
+										{
+											creativeBookProductionEstimate.printablePageCount
+										}
+										페이지 기준)
+									</p>
+									<p className="text-xl font-extrabold mt-2 leading-tight">
+										총 예상 제작비: ₩
+										{combinedCreativeCostKrw.toLocaleString(
+											"ko-KR",
+										)}
+									</p>
+									<p className="text-xs text-emerald-700 mt-1">
+										실제 API 청구액은 프롬프트 길이와 모델
+										정책에 따라 달라지고, 책 제작비는 선택
+										판형의 샌드박스 단가 기준 추정치입니다.
+										합산 금액은 $1 = ₩
+										{usdToKrwRate.toLocaleString("ko-KR")}{" "}
+										기준 환산입니다.
+									</p>
+									<p className="text-xs text-emerald-700 mt-1">
+										환율 출처: {exchangeRateMeta.provider}
+										{exchangeRateMeta.updatedAt
+											? ` · ${exchangeRateMeta.updatedAt}`
+											: ""}
+										{exchangeRateMeta.fallback
+											? " · 실시간 환율 조회 실패로 기본값 사용"
+											: ""}
 									</p>
 								</div>
 							)}
