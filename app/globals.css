@@ -3,16 +3,13 @@
 @tailwind utilities;
 
 :root {
-	--background: #fff8f5;
-	--foreground: #1f1011;
+	--background: #ffffff;
+	--foreground: #111827;
 }
 
 body {
-	background-color: var(--background);
+	background: var(--background);
 	color: var(--foreground);
-	font-family:
-		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-		sans-serif;
 }
 
 /* 부드러운 스크롤 */
@@ -25,10 +22,10 @@ html {
 	width: 6px;
 }
 ::-webkit-scrollbar-track {
-	background: #fff5f7;
+	background: #e5e7eb;
 }
 ::-webkit-scrollbar-thumb {
-	background: #f9a8c9;
+	background: #94a3b8;
 	border-radius: 3px;
 }
 
@@ -38,14 +35,14 @@ html {
 }
 .upload-zone:hover,
 .upload-zone.drag-over {
-	background-color: #fff0f5;
-	border-color: #f43f72;
+	background-color: #eff6ff;
+	border-color: #60a5fa;
 }
 
 /* 페이지 카드 선택 상태 */
 .page-card-selected {
 	ring: 2px;
-	ring-color: #f43f72;
+	ring-color: #60a5fa;
 }
 
 /* 로딩 애니메이션 */
@@ -58,7 +55,97 @@ html {
 	}
 }
 .shimmer {
-	background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+	background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
 	background-size: 200% 100%;
 	animation: shimmer 1.5s infinite;
+}
+
+/* Professional light palette overrides */
+@layer utilities {
+	.bg-white {
+		background-color: #ffffff !important;
+	}
+	.bg-rose-50,
+	.bg-rose-100,
+	.bg-rose-200,
+	.bg-blue-50,
+	.bg-green-50,
+	.bg-violet-50,
+	.bg-amber-100 {
+		background-color: #f8fafc !important;
+	}
+	.bg-rose-500,
+	.bg-rose-600,
+	.hover\:bg-rose-500:hover,
+	.hover\:bg-rose-600:hover,
+	.bg-blue-500,
+	.hover\:bg-blue-100:hover,
+	.bg-green-500,
+	.hover\:bg-green-600:hover {
+		background-color: #3b82f6 !important;
+	}
+	.hover\:bg-rose-600:hover,
+	.hover\:bg-green-600:hover,
+	.hover\:bg-blue-600:hover {
+		background-color: #2563eb !important;
+	}
+	.text-gray-800,
+	.text-gray-700,
+	.text-gray-600,
+	.text-gray-500,
+	.text-rose-600,
+	.text-rose-500,
+	.text-blue-600,
+	.text-green-600,
+	.text-violet-700 {
+		color: #0f172a !important;
+	}
+	.text-gray-400,
+	.text-rose-400,
+	.text-rose-300,
+	.text-rose-200,
+	.text-rose-100,
+	.text-white\/80 {
+		color: #64748b !important;
+	}
+	.border-rose-50,
+	.border-rose-100,
+	.border-rose-200,
+	.border-rose-300,
+	.border-rose-400,
+	.border-gray-200,
+	.border-gray-100 {
+		border-color: #dbe2ea !important;
+	}
+	.hover\:bg-rose-50:hover,
+	.hover\:bg-rose-100:hover,
+	.hover\:bg-green-100:hover,
+	.hover\:bg-blue-100:hover,
+	.hover\:bg-violet-100:hover {
+		background-color: #eef2f7 !important;
+	}
+	.focus\:ring-rose-300:focus {
+		--tw-ring-color: #93c5fd !important;
+	}
+	.hover\:border-rose-300:hover,
+	.hover\:border-rose-400:hover {
+		border-color: #93c5fd !important;
+	}
+	.from-rose-50,
+	.from-rose-400 {
+		--tw-gradient-from: #f8fbff var(--tw-gradient-from-position) !important;
+		--tw-gradient-to: rgb(248 251 255 / 0) var(--tw-gradient-to-position) !important;
+		--tw-gradient-stops:
+			var(--tw-gradient-from), var(--tw-gradient-to) !important;
+	}
+	.via-pink-300 {
+		--tw-gradient-to: rgb(240 247 255 / 0) var(--tw-gradient-to-position) !important;
+		--tw-gradient-stops:
+			var(--tw-gradient-from), #f0f7ff var(--tw-gradient-via-position),
+			var(--tw-gradient-to) !important;
+	}
+	.to-purple-50,
+	.to-purple-400 {
+		--tw-gradient-to: #ffffff var(--tw-gradient-to-position) !important;
+	}
 }

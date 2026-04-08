@@ -1,24 +1,24 @@
-# Momento Photobook App
+# Momento Book Studio
 
-Next.js 14 기반 커플 포토북 제작/주문 웹앱입니다.  
-프로젝트 생성 → 편집 → Sweetbook 발행 → 주문 → 배송조회 흐름을 제공합니다.
+Next.js 14 기반 멀티 북 제작 웹앱입니다.  
+포토북 제작/출판/주문 + AI 만화/소설 자동 생성 서비스를 함께 제공합니다.
 
 ## 서비스 소개
 
-- 한 줄 소개: 커플이 사진과 문구를 업로드해 실물 포토북으로 제작하고 주문까지 완료할 수 있는 웹앱입니다.
-- 타겟 고객: 기념일을 기록하고 선물하고 싶은 20~30대 커플, 소규모 가족/지인 중심 포토북 수요 사용자
+- 한 줄 소개: 사용자 입력을 기반으로 포토북/만화책/소설 프로젝트를 생성하고 관리하는 제작 스튜디오입니다.
+- 타겟 고객: 기념일 포토북 수요 사용자 + 스토리 창작자 + AI 기반 출판 초안이 필요한 개인/팀
 - 주요 기능:
-  - 신규 프로젝트 생성(기념일/이름 기반)
-  - 표지/내지 편집(이미지 업로드 + 캡션 작성)
-  - Sweetbook Book Print API로 출판(publish)
-  - 주문 견적 조회 및 주문 생성
-  - 주문 상태/배송 정보 조회
+  - 포토북 생성/편집/출판/주문/배송조회
+  - AI 만화책 자동 생성(스타일 선택: 일본 만화/카툰/미국 코믹북/그림책)
+  - AI 소설 자동 생성(챕터/페이지 초안)
 
 ## 기술 스택
 
 - Next.js 14 (App Router)
 - TypeScript
 - Prisma + SQLite
+- NextAuth (Google OAuth)
+- OpenAI API (저비용 모델 기본: gpt-4o-mini)
 - Tailwind CSS
 - Sweetbook API (Sandbox/Live)
 
@@ -53,6 +53,15 @@ SWEETBOOK_WEBHOOK_SECRET=your_webhook_secret
 # - 템플릿 UID를 변경하면 publish 파라미터 매핑도 함께 확인 필요
 SWEETBOOK_COVER_TEMPLATE_UID=YOUR_COVER_TEMPLATE_UID
 SWEETBOOK_CONTENT_TEMPLATE_UID=YOUR_CONTENT_TEMPLATE_UID
+
+OPENAI_API_KEY=""
+OPENAI_MODEL="gpt-4o-mini"
+
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="replace_with_random_secret"
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+
 DATABASE_URL="file:./dev.db"
 ```
 
@@ -73,10 +82,11 @@ npm run dev
 ## 핵심 화면
 
 - 홈: 프로젝트 목록/생성 진입
-- 생성: 커플 정보로 신규 프로젝트 생성
+- 생성: 포토북/만화/소설 모드 선택 후 생성
 - 편집: 표지/내지 이미지 업로드 및 캡션 입력
 - 주문: 견적 조회 및 배송 정보 입력
 - 상태: 주문 상태 및 운송장 조회
+- 뷰어: 생성된 포토북/만화/소설 내용 열람
 
 ## API 라우트 요약
 
@@ -84,6 +94,8 @@ npm run dev
   - GET /api/projects
   - POST /api/projects
   - GET/PATCH/DELETE /api/projects/:id
+- AI 생성
+  - POST /api/ai/generate-book
 - 페이지
   - GET/POST /api/projects/:id/pages
   - PATCH/DELETE /api/projects/:id/pages/:pageId

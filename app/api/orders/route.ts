@@ -37,6 +37,26 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
+		const project = await prisma.project.findUnique({
+			where: { id: projectId },
+			select: { projectType: true },
+		});
+		if (!project) {
+			return NextResponse.json(
+				{ success: false, error: "프로젝트를 찾을 수 없습니다." },
+				{ status: 404 },
+			);
+		}
+		if (project.projectType !== "PHOTOBOOK") {
+			return NextResponse.json(
+				{
+					success: false,
+					error: "포토북 프로젝트만 주문할 수 있습니다.",
+				},
+				{ status: 400 },
+			);
+		}
+
 		let orderUid: string;
 		let orderStatus: "PENDING" | "PROCESSING" | "SHIPPING" | "DELIVERED" =
 			"PENDING";

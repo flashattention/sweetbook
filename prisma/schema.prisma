@@ -15,6 +15,10 @@ model Project {
   coupleNameA     String
   coupleNameB     String
   anniversaryDate DateTime
+  projectType String  @default("PHOTOBOOK")
+  genre       String?
+  synopsis    String?
+  comicStyle  String?
 
   bookSpecUid          String  @default("SQUAREBOOK_HC")
   coverTemplateUid     String?

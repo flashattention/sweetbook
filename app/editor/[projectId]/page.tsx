@@ -14,6 +14,8 @@ async function getProject(id: string): Promise<Project | null> {
 		anniversaryDate: p.anniversaryDate.toISOString(),
 		createdAt: p.createdAt.toISOString(),
 		updatedAt: p.updatedAt.toISOString(),
+		projectType: p.projectType as Project["projectType"],
+		comicStyle: p.comicStyle as Project["comicStyle"],
 		status: p.status as Project["status"],
 		pages: p.pages.map((pg) => ({
 			...pg,
@@ -30,5 +32,6 @@ export default async function EditorPage({
 }) {
 	const project = await getProject(params.projectId);
 	if (!project) notFound();
+	if (project.projectType !== "PHOTOBOOK") notFound();
 	return <EditorClient initialProject={project} />;
 }

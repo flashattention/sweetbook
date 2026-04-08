@@ -4,6 +4,10 @@ export interface Project {
 	coupleNameA: string;
 	coupleNameB: string;
 	anniversaryDate: string;
+	projectType: "PHOTOBOOK" | "COMIC" | "NOVEL";
+	genre?: string | null;
+	synopsis?: string | null;
+	comicStyle?: "MANGA" | "CARTOON" | "AMERICAN" | "PICTURE_BOOK" | null;
 	bookSpecUid: string;
 	coverTemplateUid: string | null;
 	contentTemplateUid: string | null;

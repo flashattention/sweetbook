@@ -169,14 +169,12 @@ export default async function StatusPage({
 					>
 						홈으로
 					</Link>
-					{project.status !== "ORDERED" && (
-						<Link
-							href={`/editor/${project.id}`}
-							className="flex-1 text-center bg-rose-500 hover:bg-rose-600 text-white font-medium py-3 rounded-xl text-sm transition-colors"
-						>
-							에디터로 →
-						</Link>
-					)}
+					<Link
+						href={`/view/${project.id}`}
+						className="flex-1 text-center bg-rose-500 hover:bg-rose-600 text-white font-medium py-3 rounded-xl text-sm transition-colors"
+					>
+						📖 포토북 보기
+					</Link>
 				</div>
 			</div>
 		</div>

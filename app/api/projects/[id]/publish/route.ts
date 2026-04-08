@@ -38,6 +38,13 @@ export async function POST(
 		);
 	}
 
+	if (project.projectType !== "PHOTOBOOK") {
+		return NextResponse.json(
+			{ success: false, error: "포토북 프로젝트만 출판할 수 있습니다." },
+			{ status: 400 },
+		);
+	}
+
 	// 멱등 처리: 이미 발행(또는 주문)된 프로젝트는 재발행하지 않고 성공으로 응답한다.
 	if (
 		(project.status === "PUBLISHED" || project.status === "ORDERED") &&
