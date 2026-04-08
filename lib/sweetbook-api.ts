@@ -101,6 +101,22 @@ function getSweetbookBaseUrl(): string {
 		: "https://api.sweetbook.com/v1";
 }
 
+function getFileExtFromBlob(file: Blob): string {
+	const mime = (file.type || "").toLowerCase();
+	if (mime === "image/jpeg") return "jpg";
+	if (mime === "image/png") return "png";
+	if (mime === "image/webp") return "webp";
+	if (mime === "image/gif") return "gif";
+	if (mime === "image/heic") return "heic";
+	if (mime === "image/heif") return "heif";
+	if (mime === "image/bmp") return "bmp";
+	if (mime === "image/tiff") return "tiff";
+	if (mime === "image/avif") return "avif";
+
+	// 타입이 비어 있는 경우(일부 응답/환경)에는 기존 동작과 호환되게 jpg로 폴백한다.
+	return "jpg";
+}
+
 export async function postSweetbookTemplateForm(
 	path: string,
 	templateUid: string,
@@ -122,14 +138,16 @@ export async function postSweetbookTemplateForm(
 	for (const [fieldName, value] of Object.entries(files)) {
 		if (Array.isArray(value)) {
 			value.forEach((file, index) => {
+				const ext = getFileExtFromBlob(file);
 				formData.append(
 					fieldName,
 					file,
-					`${fieldName}-${index + 1}.jpg`,
+					`${fieldName}-${index + 1}.${ext}`,
 				);
 			});
 		} else {
-			formData.append(fieldName, value, `${fieldName}.jpg`);
+			const ext = getFileExtFromBlob(value);
+			formData.append(fieldName, value, `${fieldName}.${ext}`);
 		}
 	}
 
@@ -161,8 +179,26 @@ export async function postSweetbookTemplateForm(
 /**
  * 원격 URL 이미지를 Blob으로 다운로드
  */
-export async function fetchImageBlob(url: string): Promise<Blob> {
-	const res = await fetch(url);
-	if (!res.ok) throw new Error(`이미지 다운로드 실패: ${url}`);
+export async function fetchImageBlob(
+	url: string,
+	baseOrigin?: string,
+): Promise<Blob> {
+	let resolvedUrl = url;
+
+	// 업로드 API가 저장한 상대 경로(/uploads/...)를 서버 환경에서 절대 URL로 변환한다.
+	if (url.startsWith("/")) {
+		const originFromEnv =
+			process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || "";
+		const origin = baseOrigin || originFromEnv;
+		if (!origin) {
+			throw new Error(
+				`상대 이미지 경로를 해석할 수 없습니다: ${url}. NEXT_PUBLIC_APP_URL 또는 APP_BASE_URL을 설정하거나 요청 origin을 전달하세요.`,
+			);
+		}
+		resolvedUrl = new URL(url, origin).toString();
+	}
+
+	const res = await fetch(resolvedUrl);
+	if (!res.ok) throw new Error(`이미지 다운로드 실패: ${resolvedUrl}`);
 	return res.blob();
 }

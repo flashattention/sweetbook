@@ -23,7 +23,7 @@ function getMinPagesByBookSpec(bookSpecUid: string): number {
  *  5. 로컬 DB 상태 업데이트
  */
 export async function POST(
-	_req: NextRequest,
+	req: NextRequest,
 	{ params }: { params: { id: string } },
 ) {
 	const project = await prisma.project.findUnique({
@@ -36,6 +36,18 @@ export async function POST(
 			{ success: false, error: "프로젝트를 찾을 수 없습니다." },
 			{ status: 404 },
 		);
+	}
+
+	// 멱등 처리: 이미 발행(또는 주문)된 프로젝트는 재발행하지 않고 성공으로 응답한다.
+	if (
+		(project.status === "PUBLISHED" || project.status === "ORDERED") &&
+		project.bookUid
+	) {
+		return NextResponse.json({
+			success: true,
+			bookUid: project.bookUid,
+			message: "이미 발행이 완료된 프로젝트입니다.",
+		});
 	}
 
 	if (project.pages.length === 0) {
@@ -120,7 +132,10 @@ export async function POST(
 			);
 		}
 
-		const coverBlob = await fetchImageBlob(project.coverImageUrl);
+		const coverBlob = await fetchImageBlob(
+			project.coverImageUrl,
+			req.nextUrl.origin,
+		);
 		const anniversaryDate = project.anniversaryDate
 			? new Date(project.anniversaryDate)
 			: new Date();
@@ -144,7 +159,10 @@ export async function POST(
 		);
 
 		for (const page of project.pages) {
-			const pageBlob = await fetchImageBlob(page.imageUrl);
+			const pageBlob = await fetchImageBlob(
+				page.imageUrl,
+				req.nextUrl.origin,
+			);
 			await postSweetbookTemplateForm(
 				`/Books/${bookUid}/contents`,
 				contentTemplateUid,

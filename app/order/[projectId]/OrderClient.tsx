@@ -9,10 +9,38 @@ interface Props {
 	project: Project;
 }
 
+function formatPhone(raw: string): string {
+	const digits = raw.replace(/\D/g, "").slice(0, 11);
+	if (digits.startsWith("02")) {
+		if (digits.length <= 2) return digits;
+		if (digits.length <= 5)
+			return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+		if (digits.length <= 9)
+			return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+		return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6, 10)}`;
+	}
+	if (digits.length <= 3) return digits;
+	if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+	if (digits.length <= 10)
+		return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+	return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
+function toValidPrice(value: unknown): number | null {
+	if (typeof value === "number" && Number.isFinite(value)) return value;
+	if (typeof value === "string" && value.trim() !== "") {
+		const parsed = Number(value);
+		return Number.isFinite(parsed) ? parsed : null;
+	}
+	return null;
+}
+
 export default function OrderClient({ project }: Props) {
 	const router = useRouter();
 	const [estimate, setEstimate] = useState<{
 		totalPrice: number;
+		unitPrice: number | null;
+		shippingFee: number;
 		currency: string;
 	} | null>(null);
 	const [estimating, setEstimating] = useState(false);
@@ -32,6 +60,7 @@ export default function OrderClient({ project }: Props) {
 	useEffect(() => {
 		if (!project.bookUid) return;
 		setEstimating(true);
+		setEstimate(null);
 		fetch("/api/orders/estimate", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -39,11 +68,20 @@ export default function OrderClient({ project }: Props) {
 		})
 			.then((r) => r.json())
 			.then((j) => {
-				if (j.success)
-					setEstimate({
-						totalPrice: j.data.totalPrice,
-						currency: j.data.currency,
-					});
+				if (!j?.success) return;
+				const price = toValidPrice(j?.data?.totalPrice);
+				if (price === null) return;
+				const unitPrice = toValidPrice(j?.data?.unitPrice);
+				const shippingFee = toValidPrice(j?.data?.shippingFee) ?? 0;
+				setEstimate({
+					totalPrice: price,
+					unitPrice,
+					shippingFee,
+					currency:
+						typeof j?.data?.currency === "string"
+							? j.data.currency
+							: "KRW",
+				});
 			})
 			.finally(() => setEstimating(false));
 	}, [project.bookUid, quantity]);
@@ -94,6 +132,10 @@ export default function OrderClient({ project }: Props) {
 			day: "numeric",
 		},
 	);
+	const unitPriceText =
+		estimate?.unitPrice != null
+			? ` (개당 ${estimate.unitPrice.toLocaleString()}원)`
+			: "";
 
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-rose-50 to-purple-50 p-6">
@@ -180,6 +222,26 @@ export default function OrderClient({ project }: Props) {
 								</div>
 							</div>
 
+							<div className="flex items-center justify-between pt-2 border-t border-gray-100">
+								<span className="text-sm text-gray-600">
+									수량{unitPriceText}
+								</span>
+								<span className="text-sm font-semibold text-gray-800">
+									{quantity}개
+								</span>
+							</div>
+
+							<div className="flex items-center justify-between pt-2 border-t border-gray-100">
+								<span className="text-sm text-gray-600">
+									배송비
+								</span>
+								<span className="text-sm font-semibold text-gray-800">
+									{estimate
+										? `${estimate.shippingFee.toLocaleString()}원`
+										: "—"}
+								</span>
+							</div>
+
 							{/* 가격 */}
 							<div className="flex items-center justify-between pt-2 border-t border-gray-100">
 								<span className="text-sm font-semibold text-gray-700">
@@ -225,7 +287,7 @@ export default function OrderClient({ project }: Props) {
 								onChange={(v) =>
 									setShipping((s) => ({
 										...s,
-										recipientPhone: v,
+										recipientPhone: formatPhone(v),
 									}))
 								}
 								required
