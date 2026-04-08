@@ -1,2 +1,11 @@
 node_modules/
 .env
+.next/
+out/
+
+# SQLite — 시딩된 dev.db 는 커밋 허용 (심사자 즉시 실행용)
+prisma/*.db-journal
+
+# 사용자 업로드 사진 (더미 데이터 아님)
+public/uploads/*
+!public/uploads/.gitkeep

@@ -1,0 +1,55 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id              String   @id @default(cuid())
+  title           String
+  coupleNameA     String
+  coupleNameB     String
+  anniversaryDate DateTime
+
+  bookSpecUid          String  @default("SQUAREBOOK_HC")
+  coverTemplateUid     String?
+  contentTemplateUid   String?
+
+  // Cover data (stored locally, used when building book)
+  coverImageUrl  String?
+  coverCaption   String? @default("")
+
+  // Sweetbook API state
+  bookUid      String?
+  orderUid     String?
+  orderStatus  String?
+  trackingInfo String?
+
+  // App state: DRAFT | PUBLISHED | ORDERED
+  status String @default("DRAFT")
+
+  pages Page[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Page {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  pageOrder Int
+  imageUrl  String
+  caption   String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
