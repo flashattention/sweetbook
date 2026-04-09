@@ -3,17 +3,46 @@ import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { getAuthUserFromRequest } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 // POST /api/upload — 사진 파일 업로드 (로컬 저장)
 export async function POST(req: NextRequest) {
 	try {
+		const user = await getAuthUserFromRequest(req);
+		if (!user) {
+			return NextResponse.json(
+				{ success: false, error: "로그인이 필요합니다." },
+				{ status: 401 },
+			);
+		}
+
 		const formData = await req.formData();
 		const file = formData.get("file") as File | null;
+		const projectId = String(formData.get("projectId") || "").trim();
 
 		if (!file) {
 			return NextResponse.json(
 				{ success: false, error: "파일이 없습니다." },
 				{ status: 400 },
+			);
+		}
+
+		if (!projectId) {
+			return NextResponse.json(
+				{ success: false, error: "projectId가 필요합니다." },
+				{ status: 400 },
+			);
+		}
+
+		const project = await prisma.project.findFirst({
+			where: { id: projectId, userId: user.id },
+			select: { id: true },
+		});
+		if (!project) {
+			return NextResponse.json(
+				{ success: false, error: "프로젝트 접근 권한이 없습니다." },
+				{ status: 403 },
 			);
 		}
 

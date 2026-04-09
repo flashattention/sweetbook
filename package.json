@@ -8,7 +8,9 @@
 		"start": "next start",
 		"db:setup": "prisma db push && node prisma/seed.js",
 		"db:seed": "node prisma/seed.js",
-		"db:reset": "prisma db push --force-reset && node prisma/seed.js"
+		"db:reset": "prisma db push --force-reset && node prisma/seed.js",
+		"smoke-test": "node scripts/smoke-test.js",
+		"probe-templates": "node scripts/probe-templates.js"
 	},
 	"dependencies": {
 		"@prisma/client": "^5.14.0",

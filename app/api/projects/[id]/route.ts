@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserFromRequest } from "@/lib/auth";
 
 // GET /api/projects/[id]
 export async function GET(
-	_req: NextRequest,
+	req: NextRequest,
 	{ params }: { params: { id: string } },
 ) {
-	const project = await prisma.project.findUnique({
-		where: { id: params.id },
+	const user = await getAuthUserFromRequest(req);
+	if (!user) {
+		return NextResponse.json(
+			{ success: false, error: "로그인이 필요합니다." },
+			{ status: 401 },
+		);
+	}
+
+	const project = await prisma.project.findFirst({
+		where: { id: params.id, userId: user.id },
 		include: { pages: { orderBy: { pageOrder: "asc" } } },
 	});
 	if (!project) {
@@ -25,6 +35,25 @@ export async function PATCH(
 	{ params }: { params: { id: string } },
 ) {
 	try {
+		const user = await getAuthUserFromRequest(req);
+		if (!user) {
+			return NextResponse.json(
+				{ success: false, error: "로그인이 필요합니다." },
+				{ status: 401 },
+			);
+		}
+
+		const existing = await prisma.project.findFirst({
+			where: { id: params.id, userId: user.id },
+			select: { id: true },
+		});
+		if (!existing) {
+			return NextResponse.json(
+				{ success: false, error: "프로젝트를 찾을 수 없습니다." },
+				{ status: 404 },
+			);
+		}
+
 		const body = await req.json();
 		// allowlist: 변경 허용 필드
 		const allowed = [
@@ -50,7 +79,7 @@ export async function PATCH(
 			}
 		}
 		const updated = await prisma.project.update({
-			where: { id: params.id },
+			where: { id: existing.id },
 			data,
 			include: { pages: { orderBy: { pageOrder: "asc" } } },
 		});
@@ -66,9 +95,20 @@ export async function PATCH(
 
 // DELETE /api/projects/[id]
 export async function DELETE(
-	_req: NextRequest,
+	req: NextRequest,
 	{ params }: { params: { id: string } },
 ) {
-	await prisma.project.delete({ where: { id: params.id } });
+	const user = await getAuthUserFromRequest(req);
+	if (!user) {
+		return NextResponse.json(
+			{ success: false, error: "로그인이 필요합니다." },
+			{ status: 401 },
+		);
+	}
+
+	await prisma.project.deleteMany({
+		where: { id: params.id, userId: user.id },
+	});
+	revalidatePath("/");
 	return NextResponse.json({ success: true });
 }

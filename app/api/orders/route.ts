@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserFromRequest } from "@/lib/auth";
 import { getSweetbookClient, isSweetbookConfigured } from "@/lib/sweetbook-api";
 import { normalizeOrderStatus } from "@/lib/order-status";
 import type { ShippingInfo } from "@/types";
@@ -8,6 +9,14 @@ import type { ShippingInfo } from "@/types";
 // body: { projectId, bookUid, quantity, shipping }
 export async function POST(req: NextRequest) {
 	try {
+		const user = await getAuthUserFromRequest(req);
+		if (!user) {
+			return NextResponse.json(
+				{ success: false, error: "로그인이 필요합니다." },
+				{ status: 401 },
+			);
+		}
+
 		const {
 			projectId,
 			bookUid,
@@ -37,8 +46,8 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
-		const project = await prisma.project.findUnique({
-			where: { id: projectId },
+		const project = await prisma.project.findFirst({
+			where: { id: projectId, userId: user.id },
 			select: { projectType: true },
 		});
 		if (!project) {
@@ -114,9 +123,17 @@ export async function POST(req: NextRequest) {
 }
 
 // GET /api/orders — 주문 목록 (로컬)
-export async function GET() {
+export async function GET(req: NextRequest) {
+	const user = await getAuthUserFromRequest(req);
+	if (!user) {
+		return NextResponse.json(
+			{ success: false, error: "로그인이 필요합니다." },
+			{ status: 401 },
+		);
+	}
+
 	const projects = await prisma.project.findMany({
-		where: { orderUid: { not: null } },
+		where: { orderUid: { not: null }, userId: user.id },
 		select: {
 			id: true,
 			title: true,

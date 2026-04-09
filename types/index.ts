@@ -1,5 +1,6 @@
 export interface Project {
 	id: string;
+	userId?: string | null;
 	title: string;
 	storyCharacters?: string | null;
 	requestedPageCount?: number | null;

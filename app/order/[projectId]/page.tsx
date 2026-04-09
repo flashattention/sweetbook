@@ -1,11 +1,12 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserFromCookies } from "@/lib/auth";
 import type { Project } from "@/types";
 import OrderClient from "./OrderClient";
 
-async function getProject(id: string): Promise<Project | null> {
-	const p = await prisma.project.findUnique({
-		where: { id },
+async function getProject(id: string, userId: string): Promise<Project | null> {
+	const p = await prisma.project.findFirst({
+		where: { id, userId },
 		include: { pages: { orderBy: { pageOrder: "asc" } } },
 	});
 	if (!p) return null;
@@ -29,7 +30,14 @@ export default async function OrderPage({
 }: {
 	params: { projectId: string };
 }) {
-	const project = await getProject(params.projectId);
+	const user = await getAuthUserFromCookies();
+	if (!user) {
+		redirect(
+			`/login?next=${encodeURIComponent(`/order/${params.projectId}`)}`,
+		);
+	}
+
+	const project = await getProject(params.projectId, user.id);
 	if (!project) notFound();
 	if (project.status === "DRAFT") {
 		return (

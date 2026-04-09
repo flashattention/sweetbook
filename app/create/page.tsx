@@ -21,6 +21,24 @@ import {
 	getSupportedBookSpec,
 } from "@/lib/book-specs";
 
+interface CreateTemplateItem {
+	templateUid: string;
+	templateName: string;
+	templateKind: string;
+	bookSpecUid: string;
+	publishSupport?: {
+		supported: boolean;
+		reason?: string;
+		unsupportedBindings?: string[];
+	};
+	theme?: string | null;
+	thumbnails?: {
+		layout?: string;
+	} | null;
+}
+
+const TEMPLATE_CACHE_KEY = "sweetbook:create:templates:v1";
+const TEMPLATE_CACHE_TTL_MS = 10 * 60 * 1000;
 export default function CreatePage() {
 	const router = useRouter();
 	const [loading, setLoading] = useState(false);
@@ -48,6 +66,12 @@ export default function CreatePage() {
 		fallback: true,
 	});
 
+	const [templates, setTemplates] = useState<CreateTemplateItem[]>([]);
+	const [templatesLoading, setTemplatesLoading] = useState(true);
+	const [templateLoadError, setTemplateLoadError] = useState("");
+	const [coverTemplateUid, setCoverTemplateUid] = useState("");
+	const [contentTemplateUid, setContentTemplateUid] = useState("");
+
 	const costEstimate =
 		mode === "PHOTOBOOK"
 			? null
@@ -71,6 +95,16 @@ export default function CreatePage() {
 		: 0;
 	const combinedCreativeCostKrw =
 		creativeBookProductionEstimate.estimatedPrice + apiCostKrw;
+	const coverTemplates = templates.filter(
+		(template) =>
+			template.bookSpecUid === bookSpecUid &&
+			String(template.templateKind).toLowerCase() === "cover",
+	);
+	const contentTemplates = templates.filter(
+		(template) =>
+			template.bookSpecUid === bookSpecUid &&
+			String(template.templateKind).toLowerCase() === "content",
+	);
 
 	useEffect(() => {
 		let active = true;
@@ -104,8 +138,11 @@ export default function CreatePage() {
 					updatedAt: json.data.updatedAt || null,
 					fallback: Boolean(json.data.fallback),
 				});
-			} catch (error) {
-				console.error("[CreatePage] exchange rate fetch failed", error);
+			} catch (exchangeError) {
+				console.error(
+					"[CreatePage] exchange rate fetch failed",
+					exchangeError,
+				);
 			}
 		}
 
@@ -116,10 +153,146 @@ export default function CreatePage() {
 		};
 	}, []);
 
+	useEffect(() => {
+		let active = true;
+
+		async function loadTemplates() {
+			try {
+				const cachedRaw = localStorage.getItem(TEMPLATE_CACHE_KEY);
+				if (cachedRaw) {
+					const cached = JSON.parse(cachedRaw) as {
+						expiresAt?: number;
+						templates?: CreateTemplateItem[];
+					};
+					if (
+						typeof cached.expiresAt === "number" &&
+						cached.expiresAt > Date.now() &&
+						Array.isArray(cached.templates)
+					) {
+						if (active) {
+							setTemplates(cached.templates);
+							setTemplatesLoading(false);
+							setTemplateLoadError("");
+						}
+						return;
+					}
+				}
+
+				setTemplatesLoading(true);
+				setTemplateLoadError("");
+				const pageSize = 100;
+				let offset = 0;
+				let hasNext = true;
+				const allTemplates: CreateTemplateItem[] = [];
+
+				while (hasNext) {
+					const response = await fetch(
+						`/api/templates?limit=${pageSize}&offset=${offset}&compatibility=publish`,
+					);
+					const json = (await response.json()) as {
+						success: boolean;
+						error?: string;
+						data?: {
+							templates?: CreateTemplateItem[];
+							pagination?: {
+								hasNext?: boolean;
+							};
+						};
+					};
+
+					if (!response.ok || !json.success) {
+						throw new Error(
+							json.error || "템플릿 목록을 불러오지 못했습니다.",
+						);
+					}
+
+					allTemplates.push(...(json.data?.templates || []));
+					hasNext = json.data?.pagination?.hasNext === true;
+					offset += pageSize;
+
+					if (offset > 5000) {
+						break;
+					}
+				}
+
+				if (!active) {
+					return;
+				}
+
+				setTemplates(allTemplates);
+				try {
+					localStorage.setItem(
+						TEMPLATE_CACHE_KEY,
+						JSON.stringify({
+							expiresAt: Date.now() + TEMPLATE_CACHE_TTL_MS,
+							templates: allTemplates,
+						}),
+					);
+				} catch {
+					// Ignore storage errors and continue.
+				}
+			} catch (loadError) {
+				console.error("[CreatePage] templates fetch failed", loadError);
+				if (!active) {
+					return;
+				}
+				setTemplateLoadError(
+					loadError instanceof Error
+						? loadError.message
+						: "템플릿 목록을 불러오지 못했습니다.",
+				);
+			} finally {
+				if (active) {
+					setTemplatesLoading(false);
+				}
+			}
+		}
+
+		void loadTemplates();
+
+		return () => {
+			active = false;
+		};
+	}, []);
+
+	useEffect(() => {
+		if (
+			coverTemplates.length > 0 &&
+			!coverTemplates.some(
+				(template) => template.templateUid === coverTemplateUid,
+			)
+		) {
+			setCoverTemplateUid(coverTemplates[0].templateUid);
+		}
+		if (coverTemplates.length === 0) {
+			setCoverTemplateUid("");
+		}
+	}, [bookSpecUid, coverTemplateUid, coverTemplates]);
+
+	useEffect(() => {
+		if (
+			contentTemplates.length > 0 &&
+			!contentTemplates.some(
+				(template) => template.templateUid === contentTemplateUid,
+			)
+		) {
+			setContentTemplateUid(contentTemplates[0].templateUid);
+		}
+		if (contentTemplates.length === 0) {
+			setContentTemplateUid("");
+		}
+	}, [bookSpecUid, contentTemplateUid, contentTemplates]);
+
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		setLoading(true);
 		setError("");
+
+		if (!coverTemplateUid || !contentTemplateUid) {
+			setError("표지와 내지 템플릿을 각각 선택해 주세요.");
+			setLoading(false);
+			return;
+		}
 
 		const form = e.currentTarget;
 		const title = (form.elements.namedItem("title") as HTMLInputElement)
@@ -131,11 +304,15 @@ export default function CreatePage() {
 						projectType: "PHOTOBOOK",
 						title,
 						bookSpecUid,
+						coverTemplateUid,
+						contentTemplateUid,
 					}
 				: {
 						projectType: mode,
 						title,
 						bookSpecUid,
+						coverTemplateUid,
+						contentTemplateUid,
 						genre: (
 							form.elements.namedItem("genre") as HTMLInputElement
 						).value,
@@ -351,6 +528,46 @@ export default function CreatePage() {
 									</p>
 								</div>
 							</div>
+
+							<div className="space-y-4">
+								<div className="flex items-center justify-between">
+									<div>
+										<h3 className="text-sm font-semibold text-gray-700">
+											템플릿 선택
+										</h3>
+										<p className="text-xs text-gray-500 mt-1">
+											판형에 맞는 표지/내지 템플릿을
+											미리보기와 함께 선택하세요.
+										</p>
+									</div>
+									{templatesLoading && (
+										<span className="text-xs text-gray-400">
+											템플릿 불러오는 중...
+										</span>
+									)}
+								</div>
+
+								{templateLoadError && (
+									<div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+										{templateLoadError}
+									</div>
+								)}
+
+								<TemplatePicker
+									title="표지 템플릿"
+									templates={coverTemplates}
+									selectedTemplateUid={coverTemplateUid}
+									onSelect={setCoverTemplateUid}
+									emptyMessage="선택한 판형에 자동 발행 가능한 표지 템플릿이 없습니다."
+								/>
+								<TemplatePicker
+									title="내지 템플릿"
+									templates={contentTemplates}
+									selectedTemplateUid={contentTemplateUid}
+									onSelect={setContentTemplateUid}
+									emptyMessage="선택한 판형에 자동 발행 가능한 내지 템플릿이 없습니다."
+								/>
+							</div>
 						</>
 					) : (
 						<>
@@ -525,6 +742,47 @@ export default function CreatePage() {
 								)}
 							</div>
 
+							<div className="space-y-4">
+								<div className="flex items-center justify-between">
+									<div>
+										<h3 className="text-sm font-semibold text-gray-700">
+											출판 템플릿 선택
+										</h3>
+										<p className="text-xs text-gray-500 mt-1">
+											AI로 내용을 만든 뒤 Sweetbook으로
+											보낼 표지와 내지 템플릿을
+											선택합니다.
+										</p>
+									</div>
+									{templatesLoading && (
+										<span className="text-xs text-gray-400">
+											템플릿 불러오는 중...
+										</span>
+									)}
+								</div>
+
+								{templateLoadError && (
+									<div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+										{templateLoadError}
+									</div>
+								)}
+
+								<TemplatePicker
+									title="표지 템플릿"
+									templates={coverTemplates}
+									selectedTemplateUid={coverTemplateUid}
+									onSelect={setCoverTemplateUid}
+									emptyMessage="선택한 판형에 자동 발행 가능한 표지 템플릿이 없습니다."
+								/>
+								<TemplatePicker
+									title="내지 템플릿"
+									templates={contentTemplates}
+									selectedTemplateUid={contentTemplateUid}
+									onSelect={setContentTemplateUid}
+									emptyMessage="선택한 판형에 자동 발행 가능한 내지 템플릿이 없습니다."
+								/>
+							</div>
+
 							{mode === "COMIC" && (
 								<div>
 									<label className="block text-sm font-semibold text-gray-700 mb-1.5">
@@ -678,6 +936,80 @@ export default function CreatePage() {
 						: "생성 후 AI가 구성한 페이지를 즉시 확인할 수 있어요."}
 				</p>
 			</div>
+		</div>
+	);
+}
+
+function TemplatePicker(props: {
+	title: string;
+	templates: CreateTemplateItem[];
+	selectedTemplateUid: string;
+	onSelect: (templateUid: string) => void;
+	emptyMessage: string;
+}) {
+	return (
+		<div>
+			<div className="flex items-center justify-between mb-2">
+				<h4 className="text-sm font-semibold text-gray-700">
+					{props.title}
+				</h4>
+				<p className="text-xs text-gray-400">
+					{props.templates.length}개 선택 가능
+				</p>
+			</div>
+			{props.templates.length === 0 ? (
+				<div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500 text-center">
+					{props.emptyMessage}
+				</div>
+			) : (
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1">
+					{props.templates.map((template) => {
+						const selected =
+							template.templateUid === props.selectedTemplateUid;
+						return (
+							<button
+								key={template.templateUid}
+								type="button"
+								onClick={() =>
+									props.onSelect(template.templateUid)
+								}
+								className={`text-left rounded-2xl border overflow-hidden transition-all ${
+									selected
+										? "border-rose-400 ring-2 ring-rose-200 bg-rose-50"
+										: "border-gray-200 bg-white hover:border-rose-200 hover:bg-rose-50/40"
+								}`}
+							>
+								<div className="aspect-[4/3] bg-gray-100 border-b border-gray-100 overflow-hidden">
+									{template.thumbnails?.layout ? (
+										<img
+											src={template.thumbnails.layout}
+											alt={template.templateName}
+											className="w-full h-full object-cover"
+										/>
+									) : (
+										<div className="w-full h-full flex items-center justify-center text-xs text-gray-400 bg-gradient-to-br from-gray-50 to-gray-100">
+											미리보기 없음
+										</div>
+									)}
+								</div>
+								<div className="p-3">
+									<p className="font-semibold text-sm text-gray-800 line-clamp-2">
+										{template.templateName}
+									</p>
+									<p className="text-xs text-gray-500 mt-1">
+										UID: {template.templateUid}
+									</p>
+									{template.theme && (
+										<p className="text-xs text-rose-500 mt-1">
+											테마: {template.theme}
+										</p>
+									)}
+								</div>
+							</button>
+						);
+					})}
+				</div>
+			)}
 		</div>
 	);
 }

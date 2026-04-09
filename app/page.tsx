@@ -1,11 +1,16 @@
 import Link from "next/link";
-import Image from "next/image";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserFromCookies } from "@/lib/auth";
 import type { Project } from "@/types";
+import { ProjectCard } from "./components/ProjectCard";
+import { AuthMenu } from "./components/AuthMenu";
 
-async function getProjects(): Promise<Project[]> {
+export const dynamic = "force-dynamic";
+
+async function getProjects(userId: string): Promise<Project[]> {
 	try {
 		const rows = await prisma.project.findMany({
+			where: { userId },
 			include: { pages: { orderBy: { pageOrder: "asc" } } },
 			orderBy: { updatedAt: "desc" },
 		});
@@ -53,12 +58,16 @@ const TYPE_MAP: Record<string, string> = {
 };
 
 export default async function HomePage() {
-	const projects = await getProjects();
+	const user = await getAuthUserFromCookies();
+	const projects = user ? await getProjects(user.id) : [];
 
 	return (
 		<div className="min-h-screen">
 			{/* ─── Hero ─── */}
 			<section className="relative overflow-hidden bg-gradient-to-br from-rose-400 via-pink-300 to-purple-400 text-slate-900">
+				<div className="relative max-w-6xl mx-auto px-6 pt-5 flex justify-end">
+					<AuthMenu user={user} />
+				</div>
 				{/* 배경 장식 */}
 				<div className="absolute inset-0 opacity-10 pointer-events-none select-none">
 					<div className="absolute top-10 left-10 text-9xl">♡</div>
@@ -85,12 +94,29 @@ export default async function HomePage() {
 						<br />
 						출판과 주문을 거쳐 실제 책으로 받아보세요.
 					</p>
-					<Link
-						href="/create"
-						className="inline-block bg-slate-900 text-white font-semibold text-lg px-10 py-4 rounded-full shadow-lg hover:bg-slate-800 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
-					>
-						새 프로젝트 만들기 →
-					</Link>
+					{user ? (
+						<Link
+							href="/create"
+							className="inline-block bg-slate-900 text-white font-semibold text-lg px-10 py-4 rounded-full shadow-lg hover:bg-slate-800 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+						>
+							새 프로젝트 만들기 →
+						</Link>
+					) : (
+						<div className="flex items-center justify-center gap-3">
+							<Link
+								href="/login"
+								className="inline-block bg-slate-900 text-white font-semibold text-lg px-8 py-4 rounded-full shadow-lg hover:bg-slate-800"
+							>
+								로그인
+							</Link>
+							<Link
+								href="/signup"
+								className="inline-block bg-white/90 text-slate-900 font-semibold text-lg px-8 py-4 rounded-full shadow-lg hover:bg-white"
+							>
+								회원가입
+							</Link>
+						</div>
+					)}
 
 					{/* 통계 */}
 					<div className="flex justify-center gap-12 mt-16 text-center">
@@ -155,7 +181,7 @@ export default async function HomePage() {
 			</section>
 
 			{/* ─── 프로젝트 목록 ─── */}
-			{projects.length > 0 && (
+			{user && projects.length > 0 && (
 				<section className="max-w-5xl mx-auto px-6 pb-20">
 					<div className="flex items-center justify-between mb-8">
 						<h2 className="text-2xl font-serif font-bold text-gray-800">
@@ -169,73 +195,37 @@ export default async function HomePage() {
 						</Link>
 					</div>
 					<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{projects.map((project) => {
-							const status =
-								STATUS_MAP[getProjectStatus(project)] ??
-								STATUS_MAP.DRAFT;
-							const coverImage =
-								project.coverImageUrl ||
-								project.pages[0]?.imageUrl ||
-								`https://picsum.photos/seed/${project.id}/400/300`;
-							const createdLabel = new Date(
-								project.createdAt,
-							).toLocaleDateString("ko-KR", {
-								year: "numeric",
-								month: "long",
-								day: "numeric",
-							});
+						{projects.map((project) => (
+							<ProjectCard key={project.id} project={project} />
+						))}
+					</div>
+				</section>
+			)}
 
-							return (
-								<div
-									key={project.id}
-									className="bg-white rounded-2xl shadow-sm border border-rose-50 overflow-hidden hover:shadow-md transition-shadow"
-								>
-									{/* 표지 이미지 */}
-									<div className="relative h-44 bg-rose-50">
-										<Image
-											src={coverImage}
-											alt={project.title}
-											fill
-											className="object-cover"
-											unoptimized
-										/>
-										<div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-										<span
-											className={`absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full ${status.color}`}
-										>
-											{status.label}
-										</span>
-										<span className="absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full bg-white/90 text-gray-700">
-											{TYPE_MAP[project.projectType] ||
-												"프로젝트"}
-										</span>
-									</div>
-
-									{/* 정보 */}
-									<div className="p-4">
-										<h3 className="font-bold text-gray-800 text-base mb-1 truncate">
-											{project.title}
-										</h3>
-										{project.storyCharacters && (
-											<p className="text-gray-500 text-sm mb-1 truncate">
-												{project.storyCharacters}
-											</p>
-										)}
-										<p className="text-rose-400 text-xs mb-4">
-											{project.genre
-												? project.genre
-												: `${createdLabel} 생성`}
-										</p>
-										<div className="flex items-center justify-between">
-											<span className="text-gray-400 text-xs">
-												{project.pages.length}페이지
-											</span>
-											<ProjectAction project={project} />
-										</div>
-									</div>
-								</div>
-							);
-						})}
+			{!user && (
+				<section className="max-w-4xl mx-auto px-6 pb-20">
+					<div className="bg-white border border-rose-100 rounded-2xl p-8 text-center">
+						<h3 className="text-xl font-bold text-gray-800 mb-2">
+							내 프로젝트는 로그인 후 저장됩니다
+						</h3>
+						<p className="text-gray-500 mb-5">
+							회원가입 후 포토북/만화/소설 프로젝트를 계정에
+							안전하게 보관하세요.
+						</p>
+						<div className="flex items-center justify-center gap-3">
+							<Link
+								href="/login"
+								className="px-5 py-2.5 rounded-lg bg-rose-500 text-white font-semibold hover:bg-rose-600"
+							>
+								로그인
+							</Link>
+							<Link
+								href="/signup"
+								className="px-5 py-2.5 rounded-lg bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200"
+							>
+								회원가입
+							</Link>
+						</div>
 					</div>
 				</section>
 			)}
@@ -256,93 +246,5 @@ export default async function HomePage() {
 				</p>
 			</footer>
 		</div>
-	);
-}
-
-function ProjectAction({ project }: { project: Project }) {
-	// 생성 중 → 진행 페이지
-	if (
-		project.status === "DRAFT" &&
-		project.generationStage &&
-		project.generationStage !== "COMPLETED" &&
-		project.generationStage !== "FAILED"
-	) {
-		return (
-			<Link
-				href={`/create/progress/${project.id}`}
-				className="text-xs bg-violet-50 text-violet-700 px-3 py-1.5 rounded-lg font-medium hover:bg-violet-100 transition-colors"
-			>
-				생성 현황 보기 →
-			</Link>
-		);
-	}
-	// 생성 실패 → 재시도
-	if (project.status === "DRAFT" && project.generationStage === "FAILED") {
-		return (
-			<Link
-				href={`/create/progress/${project.id}`}
-				className="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg font-medium hover:bg-red-100 transition-colors"
-			>
-				재시도 →
-			</Link>
-		);
-	}
-	// 주문 완료
-	if (project.status === "ORDERED" && project.orderUid) {
-		return (
-			<div className="flex gap-2">
-				<Link
-					href={`/view/${project.id}`}
-					className="text-xs bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-100 transition-colors"
-				>
-					📖 보기
-				</Link>
-				<Link
-					href={`/status/${project.orderUid}`}
-					className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100 transition-colors"
-				>
-					배송 현황 →
-				</Link>
-			</div>
-		);
-	}
-	// 출판 완료(Sweetbook 등록) 또는 AI 생성 완료(스토리) → 주문하기
-	if (project.status === "PUBLISHED") {
-		return (
-			<div className="flex gap-2">
-				<Link
-					href={`/view/${project.id}`}
-					className="text-xs bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-100 transition-colors"
-				>
-					📖 보기
-				</Link>
-				<Link
-					href={`/order/${project.id}`}
-					className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100 transition-colors"
-				>
-					주문하기 →
-				</Link>
-			</div>
-		);
-	}
-	// 포토북 편집 중
-	if (project.projectType === "PHOTOBOOK") {
-		return (
-			<Link
-				href={`/editor/${project.id}`}
-				className="text-xs bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-100 transition-colors"
-			>
-				편집하기 →
-			</Link>
-		);
-	}
-	// 스토리 초안(아직 생성 안 함)
-	return (
-		<Link
-			href={`/create/progress/${project.id}`}
-			className="text-xs bg-violet-50 text-violet-700 px-3 py-1.5 rounded-lg font-medium hover:bg-violet-100 transition-colors"
-		>
-			생성 시작 →
-		</Link>
 	);
 }

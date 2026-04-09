@@ -1,0 +1,1385 @@
+{
+  "summary": {
+    "env": "sandbox",
+    "bookSpecUid": "SQUAREBOOK_HC",
+    "kind": "all",
+    "total": 34,
+    "ok": 27,
+    "fail": 7,
+    "generatedAt": "2026-04-08T16:02:30.264Z"
+  },
+  "results": [
+    {
+      "templateUid": "4slyauW5rkUE",
+      "templateName": "알림장B_내지_fill",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": false,
+      "error": {
+        "message": "일시적 서버 오류, 지속시 고객지원 문의",
+        "status": 500,
+        "body": {
+          "success": false,
+          "message": "Server Error",
+          "data": null,
+          "errors": [
+            "일시적 서버 오류, 지속시 고객지원 문의"
+          ]
+        }
+      },
+      "requiredFields": [
+        {
+          "name": "year",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "년도 (예: 2026)"
+        },
+        {
+          "name": "month",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 숫자 (예: 3)"
+        },
+        {
+          "name": "bookTitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책 제목"
+        },
+        {
+          "name": "date",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 (예: 3월 11일)"
+        },
+        {
+          "name": "weatherLabelX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날씨 라벨 x좌표"
+        },
+        {
+          "name": "weatherValueX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날씨 값 x좌표"
+        },
+        {
+          "name": "mealLabelX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "식사 라벨 x좌표"
+        },
+        {
+          "name": "mealValueX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "식사 값 x좌표"
+        },
+        {
+          "name": "napLabelX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "낮잠 라벨 x좌표"
+        },
+        {
+          "name": "napValueX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "낮잠 값 x좌표"
+        },
+        {
+          "name": "pointColor",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "포인트 색상 (12,1,2=#FF5BA0D0, 3,4,5=#FFFF8B95, 6,7,8=#FF5CBFBF, 9,10,11=#FFE5A86B)"
+        }
+      ]
+    },
+    {
+      "templateUid": "3FhSEhJ94c0T",
+      "templateName": "내지a_contain",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "photo1",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "좌측 전체 사진"
+        },
+        {
+          "name": "date",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 (예: 3.17)"
+        },
+        {
+          "name": "title",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "소제목 (예: 일상에 천천히\\n스며든 봄)"
+        },
+        {
+          "name": "diaryText",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "일기 본문 텍스트"
+        }
+      ]
+    },
+    {
+      "templateUid": "y5Ih0Uo7tuQ3",
+      "templateName": "내지_gallery",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": false,
+      "error": {
+        "message": "CollageGallery 'collagePhotos'는 1~9장의 사진이 필요합니다. (현재: 0장)",
+        "status": 400,
+        "body": {
+          "success": false,
+          "message": "Validation Error",
+          "data": null,
+          "errors": [
+            "CollageGallery 'collagePhotos'는 1~9장의 사진이 필요합니다. (현재: 0장)"
+          ]
+        }
+      },
+      "requiredFields": [
+        {
+          "name": "date",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 (예: 3.17)"
+        },
+        {
+          "name": "collagePhotos",
+          "binding": "collageGallery",
+          "type": "array",
+          "label": null,
+          "description": "콜라주 갤러리 사진들"
+        }
+      ]
+    },
+    {
+      "templateUid": "vHA59XPPKqak",
+      "templateName": "내지b",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "date",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 (예: 3.17)"
+        },
+        {
+          "name": "title",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "소제목 (예: 일상에 천천히\\n스며든 봄)"
+        },
+        {
+          "name": "diaryText",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "일기 본문 텍스트 (긴 텍스트)"
+        }
+      ]
+    },
+    {
+      "templateUid": "6c2HU8tipz1l",
+      "templateName": "내지_gallery",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": false,
+      "error": {
+        "message": "CollageGallery 'collagePhotos'는 1~9장의 사진이 필요합니다. (현재: 0장)",
+        "status": 400,
+        "body": {
+          "success": false,
+          "message": "Validation Error",
+          "data": null,
+          "errors": [
+            "CollageGallery 'collagePhotos'는 1~9장의 사진이 필요합니다. (현재: 0장)"
+          ]
+        }
+      },
+      "requiredFields": [
+        {
+          "name": "monthNum",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 번호 2자리 (예: 04)"
+        },
+        {
+          "name": "dayNum",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "일 번호 2자리 (예: 25)"
+        },
+        {
+          "name": "collagePhotos",
+          "binding": "collageGallery",
+          "type": "array",
+          "label": null,
+          "description": "콜라주 갤러리 사진들"
+        }
+      ]
+    },
+    {
+      "templateUid": "5B4ds6i0Rywx",
+      "templateName": "내지b",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "monthNum",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 번호 2자리 (예: 04)"
+        },
+        {
+          "name": "dayNum",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "일 번호 2자리 (예: 25)"
+        },
+        {
+          "name": "diaryText",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "일기 본문 텍스트"
+        }
+      ]
+    },
+    {
+      "templateUid": "2mi1ao0Z4Vxl",
+      "templateName": "빈내지",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": []
+    },
+    {
+      "templateUid": "2R8uMwVgTrpc",
+      "templateName": "내지a_cover",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "photo1",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "좌측 전체 사진"
+        },
+        {
+          "name": "date",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 (예: 3.17)"
+        },
+        {
+          "name": "title",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "소제목 (예: 일상에 천천히\\n스며든 봄)"
+        },
+        {
+          "name": "diaryText",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "일기 본문 텍스트"
+        }
+      ]
+    },
+    {
+      "templateUid": "4MY2fokVjkeY",
+      "templateName": "표지",
+      "templateKind": "cover",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "frontPhoto",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "앞표지 배경 대형 사진"
+        },
+        {
+          "name": "dateRange",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 범위 (예: 2026.01.01 - \\n2027. 05.30)"
+        },
+        {
+          "name": "spineTitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책등 및 앞표지 세로 제목 (예: 2026 Diary Book)"
+        }
+      ]
+    },
+    {
+      "templateUid": "46VqZhVNOfAp",
+      "templateName": "내지a",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "monthNum",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 번호 2자리 (예: 04)"
+        },
+        {
+          "name": "dayNum",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "일 번호 2자리 (예: 25)"
+        },
+        {
+          "name": "diaryText",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "일기 본문 텍스트"
+        },
+        {
+          "name": "photo",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "메인 사진"
+        }
+      ]
+    },
+    {
+      "templateUid": "6grRwZsJ0GJk",
+      "templateName": "빈내지",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "bookTitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책 제목"
+        },
+        {
+          "name": "year",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "년도 (예: 2025)"
+        },
+        {
+          "name": "month",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 숫자 (예: 4)"
+        }
+      ]
+    },
+    {
+      "templateUid": "22cuXuCxZiD0",
+      "templateName": "내지_월시작",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "year",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "년도 (예: 2026)"
+        },
+        {
+          "name": "month",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 숫자 (예: 4)"
+        },
+        {
+          "name": "monthNameCapitalized",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 영문 대문자 (예: APRIL)"
+        },
+        {
+          "name": "bookTitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책 제목"
+        },
+        {
+          "name": "date",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 (예: 23｜THURSDAY)"
+        },
+        {
+          "name": "parentBalloon",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "부모님 말풍선 아이콘 (b1~b4 월별)"
+        },
+        {
+          "name": "pointColor",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "포인트 색상 = 날짜바 배경색 (3,4,5=#FFFFA281, 6,7,8=민트, 9,10,11=주황, 12,1,2=파랑)"
+        }
+      ]
+    },
+    {
+      "templateUid": "24i8WZm836UJ",
+      "templateName": "내지",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "year",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "년도 (예: 2026)"
+        },
+        {
+          "name": "month",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 숫자 (예: 4)"
+        },
+        {
+          "name": "bookTitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책 제목"
+        },
+        {
+          "name": "date",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 (예: 23｜THURSDAY)"
+        },
+        {
+          "name": "parentBalloon",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "부모님 말풍선 아이콘 (b1~b4 월별)"
+        },
+        {
+          "name": "pointColor",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "포인트 색상 = 날짜바 배경색 (3,4,5=#FFFFA281, 6,7,8=민트, 9,10,11=주황, 12,1,2=파랑)"
+        }
+      ]
+    },
+    {
+      "templateUid": "7ku8dliMDsch",
+      "templateName": "표지",
+      "templateKind": "cover",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "childName",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "아이 이름 (예: 도담이)"
+        },
+        {
+          "name": "schoolName",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "어린이집 이름 (예: 스위트어린이집)"
+        },
+        {
+          "name": "volumeLabel",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "권수 표시 (예: #1)"
+        },
+        {
+          "name": "periodText",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "기간 (예: 2025년 1월 - 2025년 7월)"
+        },
+        {
+          "name": "coverPhoto",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "표지 사진"
+        }
+      ]
+    },
+    {
+      "templateUid": "1GtF7gRSeKAX",
+      "templateName": "빈내지",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "bookTitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책 제목"
+        },
+        {
+          "name": "year",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "년도 (예: 2025)"
+        },
+        {
+          "name": "month",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 숫자 (예: 1)"
+        }
+      ]
+    },
+    {
+      "templateUid": "1Tjgb7UpvetN",
+      "templateName": "내지_월시작",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": false,
+      "error": {
+        "message": "일시적 서버 오류, 지속시 고객지원 문의",
+        "status": 500,
+        "body": {
+          "success": false,
+          "message": "Server Error",
+          "data": null,
+          "errors": [
+            "일시적 서버 오류, 지속시 고객지원 문의"
+          ]
+        }
+      },
+      "requiredFields": [
+        {
+          "name": "year",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "년도 (예: 2026)"
+        },
+        {
+          "name": "month",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 숫자 (예: 3)"
+        },
+        {
+          "name": "monthNameCapitalized",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 영문 첫글자만 대문자 (예: March)"
+        },
+        {
+          "name": "bookTitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책 제목"
+        },
+        {
+          "name": "date",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 (예: 3월 11일)"
+        },
+        {
+          "name": "weatherLabelX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날씨 라벨 x좌표"
+        },
+        {
+          "name": "weatherValueX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날씨 값 x좌표"
+        },
+        {
+          "name": "mealLabelX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "식사 라벨 x좌표"
+        },
+        {
+          "name": "mealValueX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "식사 값 x좌표"
+        },
+        {
+          "name": "napLabelX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "낮잠 라벨 x좌표"
+        },
+        {
+          "name": "napValueX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "낮잠 값 x좌표"
+        },
+        {
+          "name": "pointColor",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "포인트 색상 (12,1,2=#FF5BA0D0, 3,4,5=#FFFF8B95, 6,7,8=#FF5CBFBF, 9,10,11=#FFE5A86B)"
+        }
+      ]
+    },
+    {
+      "templateUid": "2rSDdrabgqlr",
+      "templateName": "내지",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": false,
+      "error": {
+        "message": "일시적 서버 오류, 지속시 고객지원 문의",
+        "status": 500,
+        "body": {
+          "success": false,
+          "message": "Server Error",
+          "data": null,
+          "errors": [
+            "일시적 서버 오류, 지속시 고객지원 문의"
+          ]
+        }
+      },
+      "requiredFields": [
+        {
+          "name": "year",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "년도 (예: 2026)"
+        },
+        {
+          "name": "month",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 숫자 (예: 3)"
+        },
+        {
+          "name": "bookTitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책 제목"
+        },
+        {
+          "name": "date",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 (예: 3월 11일)"
+        },
+        {
+          "name": "weatherLabelX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날씨 라벨 x좌표"
+        },
+        {
+          "name": "weatherValueX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날씨 값 x좌표"
+        },
+        {
+          "name": "mealLabelX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "식사 라벨 x좌표"
+        },
+        {
+          "name": "mealValueX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "식사 값 x좌표"
+        },
+        {
+          "name": "napLabelX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "낮잠 라벨 x좌표"
+        },
+        {
+          "name": "napValueX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "낮잠 값 x좌표"
+        },
+        {
+          "name": "pointColor",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "포인트 색상 (12,1,2=#FF5BA0D0, 3,4,5=#FFFF8B95, 6,7,8=#FF5CBFBF, 9,10,11=#FFE5A86B)"
+        }
+      ]
+    },
+    {
+      "templateUid": "idbMArRHrKTo",
+      "templateName": "표지",
+      "templateKind": "cover",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "childName",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "아이 이름 (예: 도담이)"
+        },
+        {
+          "name": "schoolName",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "어린이집 이름 (예: 스위트어린이집)"
+        },
+        {
+          "name": "volumeLabel",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "권수 표시 (예: #1)"
+        },
+        {
+          "name": "periodText",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "기간 (예: 2025년 1월 ~ 2025년 7월)"
+        },
+        {
+          "name": "coverPhoto",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "표지 사진"
+        }
+      ]
+    },
+    {
+      "templateUid": "3tQ8WjQZOgId",
+      "templateName": "빈내지",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "bookTitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책 제목"
+        },
+        {
+          "name": "lineVertical",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "세로 구분선 이미지 (월별 색상, line1~4.png)"
+        }
+      ]
+    },
+    {
+      "templateUid": "1aHHt1g7uHjw",
+      "templateName": "내지_월시작",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": false,
+      "error": {
+        "message": "일시적 서버 오류, 지속시 고객지원 문의",
+        "status": 500,
+        "body": {
+          "success": false,
+          "message": "Server Error",
+          "data": null,
+          "errors": [
+            "일시적 서버 오류, 지속시 고객지원 문의"
+          ]
+        }
+      },
+      "requiredFields": [
+        {
+          "name": "year",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "년도 (예: 2026)"
+        },
+        {
+          "name": "month",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 숫자 (예: 1)"
+        },
+        {
+          "name": "monthNum",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 숫자 2자리 (예: 01)"
+        },
+        {
+          "name": "monthNameCapitalized",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 영문 첫글자만 대문자 (예: January)"
+        },
+        {
+          "name": "monthColor",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월별 포인트 색상 (#AARRGGBB)"
+        },
+        {
+          "name": "bookTitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책 제목"
+        },
+        {
+          "name": "date",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 (예: 11일)"
+        },
+        {
+          "name": "dayOfWeek",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "요일 (예: 화)"
+        },
+        {
+          "name": "dayOfWeekX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "요일 x좌표 (날짜 글자수에 따라 동적 계산)"
+        },
+        {
+          "name": "lineVertical",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "세로 구분선 이미지 (월별 색상, line1~4.png)"
+        }
+      ]
+    },
+    {
+      "templateUid": "4OfPX6DXS0zU",
+      "templateName": "내지",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": false,
+      "error": {
+        "message": "일시적 서버 오류, 지속시 고객지원 문의",
+        "status": 500,
+        "body": {
+          "success": false,
+          "message": "Server Error",
+          "data": null,
+          "errors": [
+            "일시적 서버 오류, 지속시 고객지원 문의"
+          ]
+        }
+      },
+      "requiredFields": [
+        {
+          "name": "year",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "년도 (예: 2026)"
+        },
+        {
+          "name": "month",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 숫자 (예: 1)"
+        },
+        {
+          "name": "monthNum",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 숫자 2자리 (예: 01)"
+        },
+        {
+          "name": "monthNameCapitalized",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월 영문 첫글자만 대문자 (예: January)"
+        },
+        {
+          "name": "monthColor",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월별 포인트 색상 (#AARRGGBB)"
+        },
+        {
+          "name": "bookTitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책 제목"
+        },
+        {
+          "name": "date",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 (예: 11일)"
+        },
+        {
+          "name": "dayOfWeek",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "요일 (예: 화)"
+        },
+        {
+          "name": "dayOfWeekX",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "요일 x좌표 (날짜 글자수에 따라 동적 계산)"
+        },
+        {
+          "name": "lineVertical",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "세로 구분선 이미지 (월별 색상, line1~4.png)"
+        }
+      ]
+    },
+    {
+      "templateUid": "39kySqmyRhhs",
+      "templateName": "표지",
+      "templateKind": "cover",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "childName",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "아이 이름 (예: 도담이)"
+        },
+        {
+          "name": "schoolName",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "어린이집 이름 (예: 스위트어린이집)"
+        },
+        {
+          "name": "volumeLabel",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "권수 표시 (예: Vol.1, Start)"
+        },
+        {
+          "name": "periodText",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "기간 (예: 2026년 1월~2026년 7월)"
+        },
+        {
+          "name": "coverPhoto",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "표지 사진"
+        }
+      ]
+    },
+    {
+      "templateUid": "6dyq4m8nFCcd",
+      "templateName": "빈내지",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": []
+    },
+    {
+      "templateUid": "79LHkH32MLH1",
+      "templateName": "내지_photo",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "dayLabel",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 라벨 (예: 04\\n25)"
+        },
+        {
+          "name": "photo",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "사진 1장"
+        }
+      ]
+    },
+    {
+      "templateUid": "4B0Nc4myZ17u",
+      "templateName": "내지_monthHeader",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "monthYearLabel",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월+연도 라벨 (예: APRIL 2025)"
+        }
+      ]
+    },
+    {
+      "templateUid": "4Fy1mpIlm1ek",
+      "templateName": "표지",
+      "templateKind": "cover",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "coverPhoto",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "앞표지 메인 사진"
+        },
+        {
+          "name": "subtitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "부제목 (예: 나의 모든 순간들)"
+        },
+        {
+          "name": "dateRange",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 범위 (예: 2024.06 - 2025.12)"
+        }
+      ]
+    },
+    {
+      "templateUid": "6qlvRxFJRX5q",
+      "templateName": "빈내지",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": []
+    },
+    {
+      "templateUid": "6vUcK4Efowmh",
+      "templateName": "내지",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "dateLabel",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 라벨 (예: / 2025.04.23)"
+        },
+        {
+          "name": "photos",
+          "binding": "rowGallery",
+          "type": "array",
+          "label": null,
+          "description": "해당 날짜의 사진들"
+        }
+      ]
+    },
+    {
+      "templateUid": "6OhURGHdlI6y",
+      "templateName": "표지",
+      "templateKind": "cover",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "coverPhoto",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "앞표지 메인 사진"
+        },
+        {
+          "name": "subtitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "부제목 (예: 나의 모든\\n순간들)"
+        },
+        {
+          "name": "dateRange",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 범위 (예: 2024.06 - 2025.12)"
+        }
+      ]
+    },
+    {
+      "templateUid": "1zWsJbGghVO4",
+      "templateName": "빈내지",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": []
+    },
+    {
+      "templateUid": "3T09l6GEd0AL",
+      "templateName": "내지_dateB",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "dayLabel",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "월/일 라벨 (예: 4/9)"
+        },
+        {
+          "name": "photos",
+          "binding": "rowGallery",
+          "type": "array",
+          "label": null,
+          "description": "해당 날짜의 사진들"
+        }
+      ]
+    },
+    {
+      "templateUid": "1vuzMfUnCkXS",
+      "templateName": "내지_dateA",
+      "templateKind": "content",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "monthYearLabel",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": null
+        },
+        {
+          "name": "photos",
+          "binding": "rowGallery",
+          "type": "array",
+          "label": null,
+          "description": "해당 날짜의 사진들"
+        }
+      ]
+    },
+    {
+      "templateUid": "1Es0DP4oARn8",
+      "templateName": "표지",
+      "templateKind": "cover",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "coverPhoto",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "앞표지 메인 사진"
+        },
+        {
+          "name": "subtitle",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "부제목 (예: 나의 모든 순간들)"
+        },
+        {
+          "name": "dateRange",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 범위 (예: 2024.06 - 2025.12)"
+        }
+      ]
+    },
+    {
+      "templateUid": "79yjMH3qRPly",
+      "templateName": "표지",
+      "templateKind": "cover",
+      "bookSpecUid": "SQUAREBOOK_HC",
+      "ok": true,
+      "error": null,
+      "requiredFields": [
+        {
+          "name": "coverPhoto",
+          "binding": "file",
+          "type": "string",
+          "label": null,
+          "description": "앞표지 메인 사진"
+        },
+        {
+          "name": "title",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "책 제목 (예: 나의 하루 기록)"
+        },
+        {
+          "name": "dateRange",
+          "binding": "text",
+          "type": "string",
+          "label": null,
+          "description": "날짜 범위 (예: 26.01 - 27.03)"
+        }
+      ]
+    }
+  ]
+}

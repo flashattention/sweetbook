@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserFromRequest } from "@/lib/auth";
 import { MissingOpenAIKeyError, ComicStyle } from "@/lib/ai-generator";
 import { DEFAULT_STORY_MODEL, isStoryModel } from "@/lib/ai-pricing";
 import {
@@ -18,11 +19,16 @@ interface CreateProjectBody {
 	storyModel?: unknown;
 	imageModel?: unknown;
 	bookSpecUid?: unknown;
+	coverTemplateUid?: unknown;
+	contentTemplateUid?: unknown;
 }
 
 async function createPhotobookProject(params: {
+	userId: string;
 	title: string;
 	bookSpecUid?: string;
+	coverTemplateUid?: string;
+	contentTemplateUid?: string;
 }) {
 	const selectedBookSpecUid = getSupportedBookSpec(
 		params.bookSpecUid,
@@ -30,9 +36,12 @@ async function createPhotobookProject(params: {
 
 	const project = await prisma.project.create({
 		data: {
+			userId: params.userId,
 			title: params.title,
 			projectType: "PHOTOBOOK",
 			bookSpecUid: selectedBookSpecUid,
+			coverTemplateUid: params.coverTemplateUid,
+			contentTemplateUid: params.contentTemplateUid,
 		},
 		include: { pages: true },
 	});
@@ -65,6 +74,7 @@ async function createPhotobookProject(params: {
 }
 
 async function createStoryProject(params: {
+	userId: string;
 	title: string;
 	projectType: "COMIC" | "NOVEL";
 	genre: string;
@@ -74,6 +84,8 @@ async function createStoryProject(params: {
 	comicStyle?: "MANGA" | "CARTOON" | "AMERICAN" | "PICTURE_BOOK";
 	storyModel?: unknown;
 	bookSpecUid?: string;
+	coverTemplateUid?: string;
+	contentTemplateUid?: string;
 }) {
 	const selectedBookSpecUid = getSupportedBookSpec(
 		params.bookSpecUid,
@@ -88,6 +100,7 @@ async function createStoryProject(params: {
 
 	const project = await prisma.project.create({
 		data: {
+			userId: params.userId,
 			title: params.title,
 			storyCharacters: params.characters,
 			requestedPageCount: normalizedCount,
@@ -96,6 +109,8 @@ async function createStoryProject(params: {
 			generationError: null,
 			projectType: params.projectType,
 			bookSpecUid: selectedBookSpecUid,
+			coverTemplateUid: params.coverTemplateUid,
+			contentTemplateUid: params.contentTemplateUid,
 			genre: params.genre,
 			synopsis: params.description,
 			comicStyle:
@@ -128,8 +143,16 @@ async function createStoryProject(params: {
 }
 
 // GET /api/projects — 프로젝트 목록
-export async function GET() {
+export async function GET(req: NextRequest) {
+	const user = await getAuthUserFromRequest(req);
+	if (!user) {
+		return NextResponse.json(
+			{ success: false, error: "로그인이 필요합니다." },
+			{ status: 401 },
+		);
+	}
 	const projects = await prisma.project.findMany({
+		where: { userId: user.id },
 		include: { pages: { orderBy: { pageOrder: "asc" } } },
 		orderBy: { updatedAt: "desc" },
 	});
@@ -139,6 +162,14 @@ export async function GET() {
 // POST /api/projects — 새 프로젝트 생성 (+ Sweetbook book 생성 시도)
 export async function POST(req: NextRequest) {
 	try {
+		const user = await getAuthUserFromRequest(req);
+		if (!user) {
+			return NextResponse.json(
+				{ success: false, error: "로그인이 필요합니다." },
+				{ status: 401 },
+			);
+		}
+
 		const body = (await req.json()) as CreateProjectBody;
 		const {
 			title,
@@ -151,6 +182,8 @@ export async function POST(req: NextRequest) {
 			storyModel,
 			imageModel,
 			bookSpecUid,
+			coverTemplateUid,
+			contentTemplateUid,
 		} = body;
 
 		if (!title) {
@@ -166,9 +199,18 @@ export async function POST(req: NextRequest) {
 
 		if (normalizedProjectType === "PHOTOBOOK") {
 			return createPhotobookProject({
+				userId: user.id,
 				title: normalizedTitle,
 				bookSpecUid:
 					typeof bookSpecUid === "string" ? bookSpecUid : undefined,
+				coverTemplateUid:
+					typeof coverTemplateUid === "string"
+						? coverTemplateUid
+						: undefined,
+				contentTemplateUid:
+					typeof contentTemplateUid === "string"
+						? contentTemplateUid
+						: undefined,
 			});
 		}
 
@@ -183,6 +225,7 @@ export async function POST(req: NextRequest) {
 		}
 
 		return createStoryProject({
+			userId: user.id,
 			title: normalizedTitle,
 			projectType: normalizedProjectType === "NOVEL" ? "NOVEL" : "COMIC",
 			genre: String(genre),
@@ -199,6 +242,14 @@ export async function POST(req: NextRequest) {
 			storyModel,
 			bookSpecUid:
 				typeof bookSpecUid === "string" ? bookSpecUid : undefined,
+			coverTemplateUid:
+				typeof coverTemplateUid === "string"
+					? coverTemplateUid
+					: undefined,
+			contentTemplateUid:
+				typeof contentTemplateUid === "string"
+					? contentTemplateUid
+					: undefined,
 		});
 	} catch (err) {
 		if (err instanceof MissingOpenAIKeyError) {

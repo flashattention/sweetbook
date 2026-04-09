@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserFromCookies } from "@/lib/auth";
 
 const STEPS = [
 	{ key: "PENDING", label: "주문 접수", icon: "📋" },
@@ -8,10 +10,10 @@ const STEPS = [
 	{ key: "DELIVERED", label: "배달 완료", icon: "🎉" },
 ];
 
-async function getOrderData(orderUid: string) {
+async function getOrderData(orderUid: string, userId: string) {
 	// 로컬 DB에서 프로젝트 + 주문 정보 조회
 	const project = await prisma.project.findFirst({
-		where: { orderUid },
+		where: { orderUid, userId },
 	});
 	return project;
 }
@@ -21,8 +23,15 @@ export default async function StatusPage({
 }: {
 	params: { orderId: string };
 }) {
+	const user = await getAuthUserFromCookies();
+	if (!user) {
+		redirect(
+			`/login?next=${encodeURIComponent(`/status/${params.orderId}`)}`,
+		);
+	}
+
 	const { orderId } = params;
-	const project = await getOrderData(orderId);
+	const project = await getOrderData(orderId, user.id);
 
 	if (!project) {
 		return (

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserFromRequest } from "@/lib/auth";
 
 // PATCH /api/projects/[id]/pages/[pageId]
 export async function PATCH(
@@ -7,6 +8,25 @@ export async function PATCH(
 	{ params }: { params: { id: string; pageId: string } },
 ) {
 	try {
+		const user = await getAuthUserFromRequest(req);
+		if (!user) {
+			return NextResponse.json(
+				{ success: false, error: "로그인이 필요합니다." },
+				{ status: 401 },
+			);
+		}
+
+		const project = await prisma.project.findFirst({
+			where: { id: params.id, userId: user.id },
+			select: { id: true },
+		});
+		if (!project) {
+			return NextResponse.json(
+				{ success: false, error: "프로젝트를 찾을 수 없습니다." },
+				{ status: 404 },
+			);
+		}
+
 		const body = await req.json();
 		const { imageUrl, caption, pageOrder } = body;
 
@@ -40,10 +60,29 @@ export async function PATCH(
 
 // DELETE /api/projects/[id]/pages/[pageId]
 export async function DELETE(
-	_req: NextRequest,
+	req: NextRequest,
 	{ params }: { params: { id: string; pageId: string } },
 ) {
 	try {
+		const user = await getAuthUserFromRequest(req);
+		if (!user) {
+			return NextResponse.json(
+				{ success: false, error: "로그인이 필요합니다." },
+				{ status: 401 },
+			);
+		}
+
+		const project = await prisma.project.findFirst({
+			where: { id: params.id, userId: user.id },
+			select: { id: true },
+		});
+		if (!project) {
+			return NextResponse.json(
+				{ success: false, error: "프로젝트를 찾을 수 없습니다." },
+				{ status: 404 },
+			);
+		}
+
 		await prisma.page.deleteMany({
 			where: { id: params.pageId, projectId: params.id },
 		});

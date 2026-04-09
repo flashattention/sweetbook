@@ -9,7 +9,113 @@ interface Props {
 	initialProject: Project;
 }
 
+interface RequiredTemplateInputField {
+	name: string;
+	binding?: string | null;
+	type?: string | null;
+	label?: string | null;
+	description?: string | null;
+}
+
+interface PublishErrorPayload {
+	success?: boolean;
+	error?: string;
+	hint?: string;
+	requiredInputs?: {
+		cover?: RequiredTemplateInputField[];
+		content?: RequiredTemplateInputField[];
+	};
+}
+
 type ActiveTab = "cover" | string; // 'cover' | pageId
+
+function parseUserInputByType(
+	value: string,
+	type: string | null | undefined,
+): unknown {
+	const t = String(type || "").toLowerCase();
+	if (t.includes("boolean")) {
+		return value.toLowerCase() === "true";
+	}
+	if (t.includes("number") || t.includes("integer")) {
+		const n = Number(value);
+		return Number.isFinite(n) ? n : value;
+	}
+	if (t.includes("array")) {
+		return value
+			.split(",")
+			.map((item) => item.trim())
+			.filter(Boolean);
+	}
+	if (t.includes("object")) {
+		try {
+			return JSON.parse(value);
+		} catch {
+			return { value };
+		}
+	}
+	return value;
+}
+
+function collectOverridesFromPrompt(
+	sectionName: "cover" | "content",
+	fields: RequiredTemplateInputField[] | undefined,
+) {
+	if (!fields || fields.length === 0) {
+		return undefined;
+	}
+
+	const parameters: Record<string, unknown> = {};
+	const fileUrls: Record<string, string | string[]> = {};
+
+	for (const field of fields) {
+		const label = field.label || field.name;
+		const description = field.description
+			? `\n설명: ${field.description}`
+			: "";
+		const binding = String(field.binding || "").toLowerCase();
+		const type = String(field.type || "");
+
+		if (binding === "file") {
+			const input = prompt(
+				`[${sectionName}] 파일 필드 ${label} (${field.name}) URL 입력\n여러 개면 콤마(,)로 구분${description}`,
+			);
+			if (!input) {
+				continue;
+			}
+			const urls = input
+				.split(",")
+				.map((url) => url.trim())
+				.filter(Boolean);
+			if (urls.length === 1) {
+				fileUrls[field.name] = urls[0];
+			} else if (urls.length > 1) {
+				fileUrls[field.name] = urls;
+			}
+			continue;
+		}
+
+		const input = prompt(
+			`[${sectionName}] 값 입력 ${label} (${field.name})\n타입: ${type || "string"}${description}`,
+		);
+		if (input === null || input.trim() === "") {
+			continue;
+		}
+		parameters[field.name] = parseUserInputByType(input.trim(), field.type);
+	}
+
+	if (
+		Object.keys(parameters).length === 0 &&
+		Object.keys(fileUrls).length === 0
+	) {
+		return undefined;
+	}
+
+	return {
+		parameters,
+		fileUrls,
+	};
+}
 
 export default function EditorClient({ initialProject }: Props) {
 	const router = useRouter();
@@ -137,10 +243,41 @@ export default function EditorClient({ initialProject }: Props) {
 		}
 		setPublishing(true);
 		try {
-			const res = await fetch(`/api/projects/${project.id}/publish`, {
+			let res = await fetch(`/api/projects/${project.id}/publish`, {
 				method: "POST",
 			});
-			const json = await res.json();
+			let json = (await res.json()) as PublishErrorPayload & {
+				estimate?: { totalPrice?: number };
+			};
+
+			if (!res.ok && json.requiredInputs) {
+				const wantsRetry = confirm(
+					"선택한 템플릿에 추가 입력이 필요합니다. 지금 입력해서 다시 출판할까요?",
+				);
+				if (wantsRetry) {
+					const coverOverrides = collectOverridesFromPrompt(
+						"cover",
+						json.requiredInputs.cover,
+					);
+					const contentOverrides = collectOverridesFromPrompt(
+						"content",
+						json.requiredInputs.content,
+					);
+
+					res = await fetch(`/api/projects/${project.id}/publish`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							coverOverrides,
+							contentOverrides,
+						}),
+					});
+					json = (await res.json()) as PublishErrorPayload & {
+						estimate?: { totalPrice?: number };
+					};
+				}
+			}
+
 			if (!res.ok) throw new Error(json.error || "출판 실패");
 			const estimatedTotal = Number(json?.estimate?.totalPrice);
 			const hasRealEstimate = Number.isFinite(estimatedTotal);
@@ -212,7 +349,7 @@ export default function EditorClient({ initialProject }: Props) {
 
 			<div className="flex flex-1 overflow-hidden">
 				{/* ─── 왼쪽 사이드바 ─── */}
-				<aside className="w-56 bg-white border-r border-rose-100 flex flex-col overflow-y-auto">
+				<aside className="w-56 bg-white border-r border-rose-100 flex flex-col overflow-hidden">
 					{/* 표지 */}
 					<button
 						onClick={() => setActiveTab("cover")}
@@ -240,62 +377,66 @@ export default function EditorClient({ initialProject }: Props) {
 						</div>
 						<span>표지</span>
 					</button>
-
-					{/* 페이지 목록 */}
-					{pages.map((page, idx) => (
-						<div key={page.id} className="relative group">
-							<button
-								onClick={() => setActiveTab(page.id)}
-								className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-									activeTab === page.id
-										? "bg-rose-50 text-rose-600 border-l-2 border-l-rose-500"
-										: "text-gray-600 hover:bg-gray-50"
-								}`}
-							>
-								<div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
-									<Image
-										src={page.imageUrl}
-										alt={`페이지 ${idx + 1}`}
-										width={40}
-										height={40}
-										className="object-cover w-full h-full"
-										unoptimized
-									/>
+					<div className="flex-1 overflow-y-auto">
+						{pages.map((page, idx) => (
+							<div key={page.id} className="relative group">
+								<button
+									onClick={() => setActiveTab(page.id)}
+									className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+										activeTab === page.id
+											? "bg-rose-50 text-rose-600 border-l-2 border-l-rose-500"
+											: "text-gray-600 hover:bg-gray-50"
+									}`}
+								>
+									<div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
+										<Image
+											src={page.imageUrl}
+											alt={`페이지 ${idx + 1}`}
+											width={40}
+											height={40}
+											className="object-cover w-full h-full"
+											unoptimized
+										/>
+									</div>
+									<span className="truncate">
+										{idx + 1}p{" "}
+										{page.caption
+											? `· ${page.caption.slice(0, 10)}…`
+											: ""}
+									</span>
+								</button>
+								{/* 순서 이동 버튼 */}
+								<div className="absolute right-1 top-1 hidden group-hover:flex flex-col gap-0.5">
+									<button
+										onClick={() => movePage(page.id, "up")}
+										className="text-xs text-gray-400 hover:text-rose-500 leading-none"
+										title="위로"
+									>
+										▲
+									</button>
+									<button
+										onClick={() =>
+											movePage(page.id, "down")
+										}
+										className="text-xs text-gray-400 hover:text-rose-500 leading-none"
+										title="아래로"
+									>
+										▼
+									</button>
 								</div>
-								<span className="truncate">
-									{idx + 1}p{" "}
-									{page.caption
-										? `· ${page.caption.slice(0, 10)}…`
-										: ""}
-								</span>
-							</button>
-							{/* 순서 이동 버튼 */}
-							<div className="absolute right-1 top-1 hidden group-hover:flex flex-col gap-0.5">
-								<button
-									onClick={() => movePage(page.id, "up")}
-									className="text-xs text-gray-400 hover:text-rose-500 leading-none"
-									title="위로"
-								>
-									▲
-								</button>
-								<button
-									onClick={() => movePage(page.id, "down")}
-									className="text-xs text-gray-400 hover:text-rose-500 leading-none"
-									title="아래로"
-								>
-									▼
-								</button>
 							</div>
-						</div>
-					))}
+						))}
+					</div>
 
 					{/* 페이지 추가 */}
-					<button
-						onClick={addPage}
-						className="mx-4 my-3 border-2 border-dashed border-rose-200 hover:border-rose-400 text-rose-400 hover:text-rose-500 text-sm py-2.5 rounded-lg transition-colors"
-					>
-						+ 페이지 추가
-					</button>
+					<div className="p-3 border-t border-rose-100 bg-white shrink-0">
+						<button
+							onClick={addPage}
+							className="w-full border-2 border-dashed border-rose-200 hover:border-rose-400 text-rose-400 hover:text-rose-500 text-sm py-2.5 rounded-lg transition-colors"
+						>
+							+ 페이지 추가
+						</button>
+					</div>
 				</aside>
 
 				{/* ─── 오른쪽 에디터 영역 ─── */}

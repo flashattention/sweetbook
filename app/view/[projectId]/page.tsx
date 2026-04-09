@@ -1,12 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserFromCookies } from "@/lib/auth";
 import type { Project } from "@/types";
 
-async function getProject(id: string): Promise<Project | null> {
-	const p = await prisma.project.findUnique({
-		where: { id },
+async function getProject(id: string, userId: string): Promise<Project | null> {
+	const p = await prisma.project.findFirst({
+		where: { id, userId },
 		include: { pages: { orderBy: { pageOrder: "asc" } } },
 	});
 	if (!p) return null;
@@ -17,7 +18,7 @@ async function getProject(id: string): Promise<Project | null> {
 		projectType: p.projectType as Project["projectType"],
 		comicStyle: p.comicStyle as Project["comicStyle"],
 		status: p.status as Project["status"],
-		pages: p.pages.map((pg) => ({
+		pages: p.pages.map((pg: (typeof p.pages)[number]) => ({
 			...pg,
 			createdAt: pg.createdAt.toISOString(),
 			updatedAt: pg.updatedAt.toISOString(),
@@ -36,7 +37,14 @@ export default async function ViewPage({
 }: {
 	params: { projectId: string };
 }) {
-	const project = await getProject(params.projectId);
+	const user = await getAuthUserFromCookies();
+	if (!user) {
+		redirect(
+			`/login?next=${encodeURIComponent(`/view/${params.projectId}`)}`,
+		);
+	}
+
+	const project = await getProject(params.projectId, user.id);
 	if (!project) notFound();
 
 	const coverImage =

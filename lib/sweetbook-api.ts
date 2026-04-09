@@ -101,6 +101,222 @@ function getSweetbookBaseUrl(): string {
 		: "https://api.sweetbook.com/v1";
 }
 
+export interface SweetbookTemplateParameterDefinition {
+	binding?: string | null;
+	type?: string | null;
+	required?: boolean;
+	description?: string | null;
+	default?: unknown;
+	label?: string | null;
+}
+
+export interface SweetbookTemplateDetail {
+	templateUid?: string;
+	templateName?: string;
+	templateKind?: string;
+	bookSpecUid?: string;
+	parameters?: {
+		definitions?: Record<string, SweetbookTemplateParameterDefinition>;
+	};
+}
+
+export interface SweetbookTemplatePublishSupport {
+	supported: boolean;
+	reason?: string;
+	unsupportedBindings?: string[];
+}
+
+function normalizeTemplateSearchText(...values: Array<unknown>): string {
+	return values
+		.filter((value): value is string => typeof value === "string")
+		.join(" ")
+		.toLowerCase()
+		.replace(/[^a-z0-9가-힣]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function hasTemplateKeyword(source: string, keywords: string[]): boolean {
+	return keywords.some((keyword) => source.includes(keyword));
+}
+
+function isPrimaryTemplateImageField(
+	fieldName: string,
+	definition: SweetbookTemplateParameterDefinition,
+	expectedKind: "cover" | "content",
+): boolean {
+	const search = normalizeTemplateSearchText(
+		fieldName,
+		definition.label,
+		definition.description,
+	);
+
+	const decorativeKeywords = [
+		"icon",
+		"logo",
+		"line",
+		"sticker",
+		"mask",
+		"overlay",
+		"frame",
+		"texture",
+		"pattern",
+		"pencil",
+		"shape",
+		"badge",
+		"stamp",
+		"배지",
+		"라인",
+		"아이콘",
+		"프레임",
+		"장식",
+		"구분선",
+	];
+
+	if (hasTemplateKeyword(search, decorativeKeywords)) {
+		return false;
+	}
+
+	const baseKeywords = [
+		"photo",
+		"image",
+		"picture",
+		"img",
+		"art",
+		"illustration",
+		"scene",
+		"background",
+		"foreground",
+		"cut",
+		"panel",
+		"사진",
+		"이미지",
+		"그림",
+	];
+	const kindKeywords =
+		expectedKind === "cover"
+			? ["cover", "표지"]
+			: ["page", "content", "내지", "페이지"];
+
+	return hasTemplateKeyword(search, [...baseKeywords, ...kindKeywords]);
+}
+
+export function analyzeSweetbookTemplatePublishSupport(
+	detail: SweetbookTemplateDetail,
+	expectedKind: "cover" | "content",
+): SweetbookTemplatePublishSupport {
+	const actualKind = String(detail.templateKind || "").toLowerCase();
+	if (actualKind && actualKind !== expectedKind) {
+		return {
+			supported: false,
+			reason: `${expectedKind} 템플릿이 아닙니다.`,
+			unsupportedBindings: [],
+		};
+	}
+
+	const definitions = detail.parameters?.definitions || {};
+	const entries = Object.entries(definitions);
+	if (entries.length === 0) {
+		return { supported: true, unsupportedBindings: [] };
+	}
+
+	const unsupportedBindingEntries = entries.filter(([, definition]) => {
+		const binding = String(definition.binding || "").toLowerCase();
+		return binding && binding !== "text" && binding !== "file";
+	});
+
+	if (unsupportedBindingEntries.length > 0) {
+		return {
+			supported: false,
+			reason: "이 앱은 text/file 바인딩만 자동으로 채울 수 있습니다.",
+			unsupportedBindings: unsupportedBindingEntries.map(
+				([name]) => name,
+			),
+		};
+	}
+
+	const fileEntries = entries.filter(
+		([, definition]) =>
+			String(definition.binding || "").toLowerCase() === "file",
+	);
+	const primaryFileEntries = fileEntries.filter(([name, definition]) =>
+		isPrimaryTemplateImageField(name, definition, expectedKind),
+	);
+
+	if (primaryFileEntries.length > 1) {
+		return {
+			supported: false,
+			reason: "메인 이미지 파일 바인딩이 여러 개라 자동 매핑할 수 없습니다.",
+			unsupportedBindings: primaryFileEntries.map(([name]) => name),
+		};
+	}
+
+	const requiredFileEntries = fileEntries.filter(
+		([, definition]) => definition.required,
+	);
+	const unresolvedRequiredFiles = requiredFileEntries.filter(
+		([name, definition]) =>
+			!isPrimaryTemplateImageField(name, definition, expectedKind),
+	);
+
+	if (requiredFileEntries.length > 0 && primaryFileEntries.length === 0) {
+		return {
+			supported: false,
+			reason: "필수 파일 바인딩을 메인 이미지에 연결할 수 없습니다.",
+			unsupportedBindings: requiredFileEntries.map(([name]) => name),
+		};
+	}
+
+	if (unresolvedRequiredFiles.length > 0) {
+		return {
+			supported: false,
+			reason: "추가 필수 파일이 필요해 자동 발행할 수 없습니다.",
+			unsupportedBindings: unresolvedRequiredFiles.map(([name]) => name),
+		};
+	}
+
+	return { supported: true, unsupportedBindings: [] };
+}
+
+async function fetchSweetbookJson<T>(path: string): Promise<T> {
+	const apiKey = process.env.SWEETBOOK_API_KEY;
+	if (!apiKey || apiKey === "SB_YOUR_API_KEY") {
+		throw new Error(
+			"SWEETBOOK_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요.",
+		);
+	}
+
+	const response = await fetch(`${getSweetbookBaseUrl()}${path}`, {
+		headers: {
+			Authorization: `Bearer ${apiKey}`,
+		},
+		cache: "no-store",
+	});
+
+	const raw = (await response.json()) as {
+		success?: boolean;
+		message?: string;
+		data?: T;
+		errors?: string[];
+	};
+
+	if (!response.ok || raw.success === false) {
+		const detail =
+			raw.errors?.join(", ") || raw.message || `HTTP ${response.status}`;
+		throw new Error(detail);
+	}
+
+	return (raw.data ?? raw) as T;
+}
+
+export async function fetchSweetbookTemplateDetail(
+	templateUid: string,
+): Promise<SweetbookTemplateDetail> {
+	return fetchSweetbookJson<SweetbookTemplateDetail>(
+		`/templates/${templateUid}`,
+	);
+}
+
 function getFileExtFromBlob(file: Blob): string {
 	const mime = (file.type || "").toLowerCase();
 	if (mime === "image/jpeg") return "jpg";

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserFromRequest } from "@/lib/auth";
 import {
 	ComicStyle,
 	MissingOpenAIKeyError,
@@ -30,6 +31,14 @@ export async function POST(
 	{ params }: { params: { id: string } },
 ) {
 	try {
+		const user = await getAuthUserFromRequest(req);
+		if (!user) {
+			return NextResponse.json(
+				{ success: false, error: "로그인이 필요합니다." },
+				{ status: 401 },
+			);
+		}
+
 		const body = await req.json().catch(() => ({}));
 		const storyModel = isStoryModel(body?.storyModel)
 			? body.storyModel
@@ -38,8 +47,8 @@ export async function POST(
 			? body.imageModel
 			: DEFAULT_IMAGE_MODEL;
 
-		const project = await prisma.project.findUnique({
-			where: { id: params.id },
+		const project = await prisma.project.findFirst({
+			where: { id: params.id, userId: user.id },
 			include: { pages: { orderBy: { pageOrder: "asc" } } },
 		});
 		if (!project) {

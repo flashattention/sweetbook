@@ -133,34 +133,51 @@ export default function CreateProgressPage() {
 			router.replace(`/view/${project.id}`);
 			return;
 		}
+		// 이미 생성이 진행 중이면 POST 요청 보내지 않음
+		if (
+			project.generationStage &&
+			project.generationStage !== "QUEUED" &&
+			project.generationStage !== "FAILED"
+		) {
+			return;
+		}
 
-		startedRef.current = true;
-		setStarting(true);
-		const body = {
-			storyModel: searchParams.get("storyModel") || undefined,
-			imageModel: searchParams.get("imageModel") || undefined,
-		};
+		// QUEUED 또는 FAILED 상태일 때만 생성 시작
+		if (
+			!project.generationStage ||
+			project.generationStage === "QUEUED" ||
+			project.generationStage === "FAILED"
+		) {
+			startedRef.current = true;
+			setStarting(true);
+			const body = {
+				storyModel: searchParams.get("storyModel") || undefined,
+				imageModel: searchParams.get("imageModel") || undefined,
+			};
 
-		fetch(`/api/projects/${projectId}/generate`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(body),
-		})
-			.then(async (res) => {
-				const json = (await res.json()) as ProjectResponse;
-				if (!res.ok || !json.success) {
-					throw new Error(json.error || "생성 시작에 실패했습니다.");
-				}
+			fetch(`/api/projects/${projectId}/generate`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
 			})
-			.catch((err: unknown) => {
-				setError(
-					err instanceof Error
-						? err.message
-						: "생성 시작 중 오류가 발생했습니다.",
-				);
-				startedRef.current = false;
-			})
-			.finally(() => setStarting(false));
+				.then(async (res) => {
+					const json = (await res.json()) as ProjectResponse;
+					if (!res.ok || !json.success) {
+						throw new Error(
+							json.error || "생성 시작에 실패했습니다.",
+						);
+					}
+				})
+				.catch((err: unknown) => {
+					setError(
+						err instanceof Error
+							? err.message
+							: "생성 시작 중 오류가 발생했습니다.",
+					);
+					startedRef.current = false;
+				})
+				.finally(() => setStarting(false));
+		}
 	}, [projectId, project, router, searchParams]);
 
 	useEffect(() => {
@@ -301,10 +318,10 @@ export default function CreateProgressPage() {
 
 				<div className="text-center pt-2">
 					<Link
-						href="/create"
+						href="/"
 						className="text-sm text-rose-500 hover:underline"
 					>
-						다른 프로젝트 만들기
+						홈으로
 					</Link>
 				</div>
 			</div>

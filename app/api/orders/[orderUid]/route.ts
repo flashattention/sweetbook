@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserFromRequest } from "@/lib/auth";
 import { getSweetbookClient, isSweetbookConfigured } from "@/lib/sweetbook-api";
 import { normalizeOrderStatus } from "@/lib/order-status";
 
 // GET /api/orders/[orderUid]
 export async function GET(
-	_req: NextRequest,
+	req: NextRequest,
 	{ params }: { params: { orderUid: string } },
 ) {
+	const user = await getAuthUserFromRequest(req);
+	if (!user) {
+		return NextResponse.json(
+			{ success: false, error: "로그인이 필요합니다." },
+			{ status: 401 },
+		);
+	}
+
 	// 로컬 DB에서 먼저 조회
 	const project = await prisma.project.findFirst({
-		where: { orderUid: params.orderUid },
+		where: { orderUid: params.orderUid, userId: user.id },
 	});
 
 	// Sweetbook API에서 최신 상태 조회
