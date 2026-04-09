@@ -21,6 +21,29 @@ interface CreateProjectBody {
 	bookSpecUid?: unknown;
 	coverTemplateUid?: unknown;
 	contentTemplateUid?: unknown;
+	coverTemplateOverrides?: unknown;
+	contentTemplateOverrides?: unknown;
+}
+
+function serializeTemplateOverrides(value: unknown) {
+	if (!value || typeof value !== "object") {
+		return undefined;
+	}
+	const raw = value as Record<string, unknown>;
+	const parameters =
+		raw.parameters && typeof raw.parameters === "object"
+			? (raw.parameters as Record<string, unknown>)
+			: undefined;
+	const fileUrls =
+		raw.fileUrls && typeof raw.fileUrls === "object"
+			? (raw.fileUrls as Record<string, string | string[]>)
+			: undefined;
+
+	if (!parameters && !fileUrls) {
+		return undefined;
+	}
+
+	return JSON.stringify({ parameters, fileUrls });
 }
 
 async function createPhotobookProject(params: {
@@ -29,6 +52,8 @@ async function createPhotobookProject(params: {
 	bookSpecUid?: string;
 	coverTemplateUid?: string;
 	contentTemplateUid?: string;
+	coverTemplateOverrides?: unknown;
+	contentTemplateOverrides?: unknown;
 }) {
 	const selectedBookSpecUid = getSupportedBookSpec(
 		params.bookSpecUid,
@@ -42,6 +67,12 @@ async function createPhotobookProject(params: {
 			bookSpecUid: selectedBookSpecUid,
 			coverTemplateUid: params.coverTemplateUid,
 			contentTemplateUid: params.contentTemplateUid,
+			coverTemplateOverrides: serializeTemplateOverrides(
+				params.coverTemplateOverrides,
+			),
+			contentTemplateOverrides: serializeTemplateOverrides(
+				params.contentTemplateOverrides,
+			),
 		},
 		include: { pages: true },
 	});
@@ -86,10 +117,13 @@ async function createStoryProject(params: {
 	bookSpecUid?: string;
 	coverTemplateUid?: string;
 	contentTemplateUid?: string;
+	coverTemplateOverrides?: unknown;
+	contentTemplateOverrides?: unknown;
 }) {
-	const selectedBookSpecUid = getSupportedBookSpec(
-		params.bookSpecUid,
-	).bookSpecUid;
+	const selectedBookSpecUid =
+		params.projectType === "COMIC"
+			? "SQUAREBOOK_HC"
+			: getSupportedBookSpec(params.bookSpecUid).bookSpecUid;
 	const selectedStoryModel = isStoryModel(params.storyModel)
 		? params.storyModel
 		: DEFAULT_STORY_MODEL;
@@ -111,6 +145,12 @@ async function createStoryProject(params: {
 			bookSpecUid: selectedBookSpecUid,
 			coverTemplateUid: params.coverTemplateUid,
 			contentTemplateUid: params.contentTemplateUid,
+			coverTemplateOverrides: serializeTemplateOverrides(
+				params.coverTemplateOverrides,
+			),
+			contentTemplateOverrides: serializeTemplateOverrides(
+				params.contentTemplateOverrides,
+			),
 			genre: params.genre,
 			synopsis: params.description,
 			comicStyle:
@@ -184,6 +224,8 @@ export async function POST(req: NextRequest) {
 			bookSpecUid,
 			coverTemplateUid,
 			contentTemplateUid,
+			coverTemplateOverrides,
+			contentTemplateOverrides,
 		} = body;
 
 		if (!title) {
@@ -211,6 +253,8 @@ export async function POST(req: NextRequest) {
 					typeof contentTemplateUid === "string"
 						? contentTemplateUid
 						: undefined,
+				coverTemplateOverrides,
+				contentTemplateOverrides,
 			});
 		}
 
@@ -250,6 +294,8 @@ export async function POST(req: NextRequest) {
 				typeof contentTemplateUid === "string"
 					? contentTemplateUid
 					: undefined,
+			coverTemplateOverrides,
+			contentTemplateOverrides,
 		});
 	} catch (err) {
 		if (err instanceof MissingOpenAIKeyError) {

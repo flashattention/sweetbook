@@ -4,6 +4,18 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromCookies } from "@/lib/auth";
 import type { Project } from "@/types";
+import { parseTemplateOverridesFromUnknown } from "@/lib/template-overrides";
+
+function parseTemplateOverrides(value: string | null) {
+	if (!value) {
+		return null;
+	}
+	try {
+		return JSON.parse(value) as Project["coverTemplateOverrides"];
+	} catch {
+		return null;
+	}
+}
 
 async function getProject(id: string, userId: string): Promise<Project | null> {
 	const p = await prisma.project.findFirst({
@@ -13,6 +25,12 @@ async function getProject(id: string, userId: string): Promise<Project | null> {
 	if (!p) return null;
 	return {
 		...p,
+		coverTemplateOverrides: parseTemplateOverrides(
+			p.coverTemplateOverrides,
+		),
+		contentTemplateOverrides: parseTemplateOverrides(
+			p.contentTemplateOverrides,
+		),
 		createdAt: p.createdAt.toISOString(),
 		updatedAt: p.updatedAt.toISOString(),
 		projectType: p.projectType as Project["projectType"],
@@ -20,6 +38,9 @@ async function getProject(id: string, userId: string): Promise<Project | null> {
 		status: p.status as Project["status"],
 		pages: p.pages.map((pg: (typeof p.pages)[number]) => ({
 			...pg,
+			contentTemplateOverrides: parseTemplateOverridesFromUnknown(
+				pg.contentTemplateOverrides,
+			),
 			createdAt: pg.createdAt.toISOString(),
 			updatedAt: pg.updatedAt.toISOString(),
 		})),

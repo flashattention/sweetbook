@@ -1,6 +1,8 @@
 export interface SupportedBookSpec {
 	bookSpecUid: string;
 	name: string;
+	trimWidthMm: number;
+	trimHeightMm: number;
 	pageMin: number;
 	pageMax: number;
 	pageIncrement: number;
@@ -12,6 +14,8 @@ export const SUPPORTED_PHOTOBOOK_SPECS: SupportedBookSpec[] = [
 	{
 		bookSpecUid: "SQUAREBOOK_HC",
 		name: "고화질 스퀘어북 (하드커버)",
+		trimWidthMm: 210,
+		trimHeightMm: 210,
 		pageMin: 24,
 		pageMax: 130,
 		pageIncrement: 2,
@@ -21,6 +25,8 @@ export const SUPPORTED_PHOTOBOOK_SPECS: SupportedBookSpec[] = [
 	{
 		bookSpecUid: "PHOTOBOOK_A4_SC",
 		name: "A4 소프트커버 포토북",
+		trimWidthMm: 210,
+		trimHeightMm: 297,
 		pageMin: 24,
 		pageMax: 130,
 		pageIncrement: 2,
@@ -30,6 +36,8 @@ export const SUPPORTED_PHOTOBOOK_SPECS: SupportedBookSpec[] = [
 	{
 		bookSpecUid: "PHOTOBOOK_A5_SC",
 		name: "A5 소프트커버 포토북",
+		trimWidthMm: 148,
+		trimHeightMm: 210,
 		pageMin: 50,
 		pageMax: 200,
 		pageIncrement: 2,

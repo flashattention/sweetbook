@@ -28,6 +28,8 @@ model Project {
   bookSpecUid          String  @default("SQUAREBOOK_HC")
   coverTemplateUid     String?
   contentTemplateUid   String?
+  coverTemplateOverrides String?
+  contentTemplateOverrides String?
 
   // Cover data (stored locally, used when building book)
   coverImageUrl  String?
@@ -70,6 +72,8 @@ model Page {
   pageOrder Int
   imageUrl  String
   caption   String @default("")
+  contentTemplateUid String?
+  contentTemplateOverrides String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

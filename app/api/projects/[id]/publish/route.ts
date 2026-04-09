@@ -24,6 +24,10 @@ import {
 	DEFAULT_PHOTOBOOK_SPEC_UID,
 	getMinPagesByBookSpec,
 } from "@/lib/book-specs";
+import {
+	parseTemplateOverridesFromUnknown,
+	mergeTemplateOverrides as mergeTemplateOverrideValues,
+} from "@/lib/template-overrides";
 
 interface PublishTemplateOverrides {
 	parameters?: Record<string, unknown>;
@@ -39,7 +43,20 @@ interface PublishRequestBody {
 function sanitizeTemplateOverrides(
 	value: unknown,
 ): PublishTemplateOverrides | undefined {
-	if (!value || typeof value !== "object") {
+	if (!value) {
+		return undefined;
+	}
+
+	if (typeof value === "string") {
+		try {
+			const parsed = JSON.parse(value) as Record<string, unknown>;
+			return sanitizeTemplateOverrides(parsed);
+		} catch {
+			return undefined;
+		}
+	}
+
+	if (typeof value !== "object") {
 		return undefined;
 	}
 	const raw = value as Record<string, unknown>;
@@ -51,6 +68,33 @@ function sanitizeTemplateOverrides(
 		raw.fileUrls && typeof raw.fileUrls === "object"
 			? (raw.fileUrls as Record<string, string | string[]>)
 			: undefined;
+	return { parameters, fileUrls };
+}
+
+function mergeTemplateOverrides(
+	base: PublishTemplateOverrides | undefined,
+	override: PublishTemplateOverrides | undefined,
+): PublishTemplateOverrides | undefined {
+	if (!base && !override) {
+		return undefined;
+	}
+
+	const parameters = {
+		...(base?.parameters || {}),
+		...(override?.parameters || {}),
+	};
+	const fileUrls = {
+		...(base?.fileUrls || {}),
+		...(override?.fileUrls || {}),
+	};
+
+	if (
+		Object.keys(parameters).length === 0 &&
+		Object.keys(fileUrls).length === 0
+	) {
+		return undefined;
+	}
+
 	return { parameters, fileUrls };
 }
 
@@ -161,6 +205,94 @@ function normalizeTemplateSearchText(...values: Array<unknown>): string {
 
 function hasTemplateKeyword(source: string, keywords: string[]): boolean {
 	return keywords.some((keyword) => source.includes(keyword));
+}
+
+function isDisallowedStoryCoverTemplate(
+	detail: SweetbookTemplateDetail,
+): boolean {
+	const search = normalizeTemplateSearchText(
+		detail.templateName,
+		detail.templateUid,
+	);
+	return (
+		hasTemplateKeyword(search, ["알림장", "diary", "notice"]) ||
+		hasTemplateKeyword(search, ["noticebook", "notification"])
+	);
+}
+
+function isComicAllowedContentTemplate(
+	detail: SweetbookTemplateDetail,
+): boolean {
+	const search = normalizeTemplateSearchText(
+		detail.templateName,
+		(detail as { theme?: string | null }).theme || null,
+		detail.templateUid,
+	);
+	return (
+		hasTemplateKeyword(search, [
+			"내지 gallery",
+			"내지gallery",
+			"gallery",
+		]) &&
+		hasTemplateKeyword(search, ["일기장 b", "일기장b", "diary b", "diaryb"])
+	);
+}
+
+function isNovelAllowedContentTemplate(
+	detail: SweetbookTemplateDetail,
+): boolean {
+	const search = normalizeTemplateSearchText(
+		detail.templateName,
+		(detail as { theme?: string | null }).theme || null,
+		detail.templateUid,
+	);
+	return (
+		hasTemplateKeyword(search, [
+			"내지 b",
+			"내지b",
+			"content b",
+			"contentb",
+		]) &&
+		!hasTemplateKeyword(search, ["gallery"]) &&
+		hasTemplateKeyword(search, ["일기장 b", "일기장b", "diary b", "diaryb"])
+	);
+}
+
+function isStoryDateParameterKey(name: string): boolean {
+	const search = normalizeTemplateSearchText(name);
+	const tokens = search.split(" ").filter(Boolean);
+	return (
+		tokens.includes("date") ||
+		tokens.includes("daterange") ||
+		tokens.includes("startdate") ||
+		tokens.includes("enddate")
+	);
+}
+
+function normalizeParameterKey(name: string): string {
+	return normalizeTemplateSearchText(name).replace(/\s+/g, "");
+}
+
+function isNovelTitleParameterKey(name: string): boolean {
+	const normalized = normalizeParameterKey(name);
+	return normalized === "title" || normalized === "booktitle";
+}
+
+function isNovelDiaryTextParameterKey(name: string): boolean {
+	return normalizeParameterKey(name) === "diarytext";
+}
+
+function isStoryCoverTitleParameterKey(name: string): boolean {
+	const normalized = normalizeParameterKey(name);
+	return normalized === "title" || normalized === "booktitle";
+}
+
+function isStoryCoverSubtitleParameterKey(name: string): boolean {
+	return normalizeParameterKey(name) === "subtitle";
+}
+
+function isStoryCoverSpineTitleParameterKey(name: string): boolean {
+	return normalizeParameterKey(name) === "spinetitle";
 }
 
 function getMonthNameCapitalized(month: number): string {
@@ -282,7 +414,7 @@ function buildTemplateTextRuntimeContext(params: {
 		monthNameCapitalized,
 		monthYearLabel,
 		dateLabel,
-		dateRange,
+		dateRange: project.projectType === "PHOTOBOOK" ? dateRange : "",
 		fallbackText,
 		coverSubtitle,
 		spineTitle,
@@ -969,6 +1101,15 @@ export async function POST(
 	}
 
 	const bookSpecUid = project.bookSpecUid || DEFAULT_PHOTOBOOK_SPEC_UID;
+	if (project.projectType === "COMIC" && bookSpecUid !== "SQUAREBOOK_HC") {
+		return NextResponse.json(
+			{
+				success: false,
+				error: "만화책은 고화질 스퀘어북(SQUAREBOOK_HC) 판형만 지원합니다.",
+			},
+			{ status: 400 },
+		);
+	}
 	const minPages = getMinPagesByBookSpec(bookSpecUid);
 	if (project.pages.length < minPages) {
 		return NextResponse.json(
@@ -1006,7 +1147,18 @@ export async function POST(
 	let failedStep = "initial";
 
 	try {
-		const publishBody = await parsePublishRequestBody(req);
+		const requestBody = await parsePublishRequestBody(req);
+		const publishBody: PublishRequestBody = {
+			coverOverrides: mergeTemplateOverrideValues(
+				sanitizeTemplateOverrides(project.coverTemplateOverrides),
+				requestBody.coverOverrides,
+			),
+			contentOverrides: mergeTemplateOverrideValues(
+				sanitizeTemplateOverrides(project.contentTemplateOverrides),
+				requestBody.contentOverrides,
+			),
+			contentPageOverrides: requestBody.contentPageOverrides,
+		};
 		const client = getSweetbookClient();
 
 		let bookUid = project.bookUid;
@@ -1026,7 +1178,7 @@ export async function POST(
 		const coverTemplateUid =
 			project.coverTemplateUid ||
 			process.env.SWEETBOOK_COVER_TEMPLATE_UID;
-		const contentTemplateUid =
+		const fallbackContentTemplateUid =
 			project.contentTemplateUid ||
 			process.env.SWEETBOOK_CONTENT_TEMPLATE_UID;
 
@@ -1036,15 +1188,6 @@ export async function POST(
 		) {
 			throw new Error(
 				"SWEETBOOK_COVER_TEMPLATE_UID가 설정되지 않았습니다. GET /api/templates 로 템플릿 목록을 조회한 후 .env 에 입력하세요.",
-			);
-		}
-
-		if (
-			!contentTemplateUid ||
-			contentTemplateUid === "YOUR_CONTENT_TEMPLATE_UID"
-		) {
-			throw new Error(
-				"SWEETBOOK_CONTENT_TEMPLATE_UID가 설정되지 않았습니다. GET /api/templates 로 템플릿 목록을 조회한 후 .env 에 입력하세요.",
 			);
 		}
 
@@ -1058,8 +1201,15 @@ export async function POST(
 			: new Date();
 		coverTemplateDetail =
 			await fetchSweetbookTemplateDetail(coverTemplateUid);
-		contentTemplateDetail =
-			await fetchSweetbookTemplateDetail(contentTemplateUid);
+
+		if (
+			project.projectType !== "PHOTOBOOK" &&
+			isDisallowedStoryCoverTemplate(coverTemplateDetail)
+		) {
+			throw new Error(
+				"만화책/소설 프로젝트에서는 알림장 계열 표지 템플릿을 사용할 수 없습니다.",
+			);
+		}
 
 		assertTemplateCompatibility({
 			detail: coverTemplateDetail,
@@ -1067,13 +1217,6 @@ export async function POST(
 			expectedKind: "cover",
 			bookSpecUid,
 		});
-		assertTemplateCompatibility({
-			detail: contentTemplateDetail,
-			templateUid: contentTemplateUid,
-			expectedKind: "content",
-			bookSpecUid,
-		});
-
 		const templateProject: TemplateProjectContext = {
 			title: project.title,
 			coverCaption: project.coverCaption,
@@ -1094,6 +1237,23 @@ export async function POST(
 			...coverPayload.parameters,
 			...(publishBody.coverOverrides?.parameters || {}),
 		};
+		if (
+			project.projectType === "COMIC" ||
+			project.projectType === "NOVEL"
+		) {
+			for (const key of Object.keys(mergedCoverParameters)) {
+				if (isStoryCoverTitleParameterKey(key)) {
+					mergedCoverParameters[key] = project.title;
+					continue;
+				}
+				if (
+					isStoryCoverSubtitleParameterKey(key) ||
+					isStoryCoverSpineTitleParameterKey(key)
+				) {
+					mergedCoverParameters[key] = "";
+				}
+			}
+		}
 		const mergedCoverFiles = await applyFileUrlOverrides({
 			baseFiles: coverPayload.files,
 			fileUrls: publishBody.coverOverrides?.fileUrls,
@@ -1108,13 +1268,66 @@ export async function POST(
 			mergedCoverFiles,
 		);
 
+		const contentTemplateDetailMap = new Map<
+			string,
+			SweetbookTemplateDetail
+		>();
+
 		for (const page of project.pages) {
+			const pageContentTemplateUid =
+				page.contentTemplateUid || fallbackContentTemplateUid;
+			if (
+				!pageContentTemplateUid ||
+				pageContentTemplateUid === "YOUR_CONTENT_TEMPLATE_UID"
+			) {
+				throw new Error(
+					`${page.pageOrder}페이지 내지 템플릿이 설정되지 않았습니다. 페이지별 내지 템플릿을 선택해 주세요.`,
+				);
+			}
+
+			let pageContentTemplateDetail = contentTemplateDetailMap.get(
+				pageContentTemplateUid,
+			);
+			if (!pageContentTemplateDetail) {
+				pageContentTemplateDetail = await fetchSweetbookTemplateDetail(
+					pageContentTemplateUid,
+				);
+				contentTemplateDetailMap.set(
+					pageContentTemplateUid,
+					pageContentTemplateDetail,
+				);
+			}
+
+			contentTemplateDetail = pageContentTemplateDetail;
+			if (
+				project.projectType === "COMIC" &&
+				!isComicAllowedContentTemplate(pageContentTemplateDetail)
+			) {
+				throw new Error(
+					`만화책은 내지_gallery 테마의 일기장 B 템플릿만 사용할 수 있습니다. (${page.pageOrder}페이지)`,
+				);
+			}
+			if (
+				project.projectType === "NOVEL" &&
+				!isNovelAllowedContentTemplate(pageContentTemplateDetail)
+			) {
+				throw new Error(
+					`소설은 내지 B의 일기장 B 템플릿만 사용할 수 있습니다. (${page.pageOrder}페이지)`,
+				);
+			}
+			assertTemplateCompatibility({
+				detail: pageContentTemplateDetail,
+				templateUid: pageContentTemplateUid,
+				expectedKind: "content",
+				bookSpecUid,
+			});
+
 			const pageBlob = await fetchImageBlob(
 				page.imageUrl,
 				req.nextUrl.origin,
 			);
 			const contentPayload = buildTemplatePayload({
-				detail: contentTemplateDetail,
+				detail: pageContentTemplateDetail,
 				kind: "content",
 				project: templateProject,
 				createdDate,
@@ -1124,13 +1337,38 @@ export async function POST(
 					caption: page.caption || "",
 				},
 			});
-			const pageOverrides =
+			const requestPageOverrides =
 				publishBody.contentPageOverrides?.[String(page.pageOrder)];
+			const persistedPageOverrides = parseTemplateOverridesFromUnknown(
+				page.contentTemplateOverrides,
+			);
+			const pageOverrides = mergeTemplateOverrideValues(
+				persistedPageOverrides,
+				requestPageOverrides,
+			);
 			const mergedContentParameters = {
 				...contentPayload.parameters,
 				...(publishBody.contentOverrides?.parameters || {}),
 				...(pageOverrides?.parameters || {}),
 			};
+			if (project.projectType !== "PHOTOBOOK") {
+				for (const key of Object.keys(mergedContentParameters)) {
+					if (isStoryDateParameterKey(key)) {
+						mergedContentParameters[key] = "";
+					}
+				}
+			}
+			if (project.projectType === "NOVEL") {
+				for (const key of Object.keys(mergedContentParameters)) {
+					if (isNovelTitleParameterKey(key)) {
+						mergedContentParameters[key] = "";
+						continue;
+					}
+					if (isNovelDiaryTextParameterKey(key)) {
+						mergedContentParameters[key] = page.caption || "";
+					}
+				}
+			}
 			const mergedContentFiles = await applyFileUrlOverrides({
 				baseFiles: contentPayload.files,
 				fileUrls: {
@@ -1143,7 +1381,7 @@ export async function POST(
 			failedStep = `create-content-page-${page.pageOrder}`;
 			await postSweetbookTemplateForm(
 				`/Books/${bookUid}/contents`,
-				contentTemplateUid,
+				pageContentTemplateUid,
 				mergedContentParameters,
 				mergedContentFiles,
 				{ breakBefore: "page" },

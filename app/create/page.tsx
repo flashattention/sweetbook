@@ -20,12 +20,17 @@ import {
 	estimateBookProductionCost,
 	getSupportedBookSpec,
 } from "@/lib/book-specs";
+import {
+	buildTemplateOverrides,
+	type TemplateRequiredInput,
+} from "@/lib/template-overrides";
 
 interface CreateTemplateItem {
 	templateUid: string;
 	templateName: string;
 	templateKind: string;
 	bookSpecUid: string;
+	requiredInputs?: TemplateRequiredInput[];
 	publishSupport?: {
 		supported: boolean;
 		reason?: string;
@@ -37,8 +42,224 @@ interface CreateTemplateItem {
 	} | null;
 }
 
+interface BookSpecApiItem {
+	bookSpecUid?: string;
+	name?: string;
+	[key: string]: unknown;
+}
+
 const TEMPLATE_CACHE_KEY = "sweetbook:create:templates:v1";
 const TEMPLATE_CACHE_TTL_MS = 10 * 60 * 1000;
+const BOOK_SPEC_PREVIEW_FALLBACK: Record<string, string> = {
+	SQUAREBOOK_HC: "/book-specs/squarebook-hc.svg",
+	PHOTOBOOK_A4_SC: "/book-specs/photobook-a4-sc.svg",
+	PHOTOBOOK_A5_SC: "/book-specs/photobook-a5-sc.svg",
+};
+
+function pickImageUrlFromUnknown(value: unknown): string | undefined {
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (
+			trimmed.startsWith("https://") ||
+			trimmed.startsWith("http://") ||
+			trimmed.startsWith("/")
+		) {
+			return trimmed;
+		}
+	}
+
+	if (value && typeof value === "object") {
+		const obj = value as Record<string, unknown>;
+		for (const nested of [
+			obj.url,
+			obj.src,
+			obj.imageUrl,
+			obj.thumbnailUrl,
+			obj.previewUrl,
+		]) {
+			const parsed = pickImageUrlFromUnknown(nested);
+			if (parsed) {
+				return parsed;
+			}
+		}
+	}
+
+	return undefined;
+}
+
+function getBookSpecPreviewFromApi(spec: BookSpecApiItem): string | undefined {
+	for (const candidate of [
+		spec.thumbnailUrl,
+		spec.thumbnail,
+		spec.previewUrl,
+		spec.previewImageUrl,
+		spec.mockupImageUrl,
+		spec.coverImageUrl,
+		spec.imageUrl,
+		spec.image,
+		spec.photoUrl,
+		spec.media,
+		spec.images,
+	]) {
+		const imageUrl = pickImageUrlFromUnknown(candidate);
+		if (imageUrl) {
+			return imageUrl;
+		}
+	}
+
+	return undefined;
+}
+
+function formatBookSpecRatio(widthMm: number, heightMm: number): string {
+	if (widthMm <= 0 || heightMm <= 0) {
+		return "-";
+	}
+	const ratio = (heightMm / widthMm).toFixed(3);
+	return `1:${ratio}`;
+}
+
+function isDisallowedStoryCoverTemplate(template: CreateTemplateItem): boolean {
+	const search = `${template.templateName || ""} ${template.theme || ""}`
+		.toLowerCase()
+		.trim();
+	return (
+		search.includes("알림장") ||
+		search.includes("diary") ||
+		search.includes("notice")
+	);
+}
+
+function normalizeTemplateSearchText(...values: Array<unknown>): string {
+	return values
+		.filter((value): value is string => typeof value === "string")
+		.join(" ")
+		.toLowerCase()
+		.replace(/[^a-z0-9가-힣]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function hasTemplateKeyword(source: string, keywords: string[]): boolean {
+	return keywords.some((keyword) => source.includes(keyword));
+}
+
+function isDiaryThemeBTemplate(template: CreateTemplateItem): boolean {
+	const search = normalizeTemplateSearchText(
+		template.templateName,
+		template.theme,
+		template.templateUid,
+	);
+	return hasTemplateKeyword(search, [
+		"일기장 b",
+		"일기장b",
+		"diary b",
+		"diaryb",
+	]);
+}
+
+function isStoryCoverAutoFilledField(field: TemplateRequiredInput): boolean {
+	const search =
+		`${field.name || ""} ${field.label || ""} ${field.binding || ""}`
+			.toLowerCase()
+			.replace(/[^a-z0-9가-힣]+/g, " ");
+
+	return (
+		search.includes("coverphoto") ||
+		search.includes("cover photo") ||
+		search.includes("frontphoto") ||
+		search.includes("front photo") ||
+		search.includes("date range") ||
+		search.includes("daterange")
+	);
+}
+
+function isStoryCoverTitleAutoField(field: TemplateRequiredInput): boolean {
+	const key = normalizeParameterKey(field.name || "");
+	return (
+		key === "title" ||
+		key === "booktitle" ||
+		key === "subtitle" ||
+		key === "spinetitle"
+	);
+}
+
+function isComicAllowedContentTemplate(template: CreateTemplateItem): boolean {
+	const search = normalizeTemplateSearchText(
+		template.templateName,
+		template.theme,
+		template.templateUid,
+	);
+	return (
+		hasTemplateKeyword(search, [
+			"내지 gallery",
+			"내지gallery",
+			"gallery",
+		]) && isDiaryThemeBTemplate(template)
+	);
+}
+
+function isNovelAllowedContentTemplate(template: CreateTemplateItem): boolean {
+	const search = normalizeTemplateSearchText(
+		template.templateName,
+		template.theme,
+		template.templateUid,
+	);
+	return (
+		hasTemplateKeyword(search, [
+			"내지 b",
+			"내지b",
+			"content b",
+			"contentb",
+		]) &&
+		!hasTemplateKeyword(search, ["gallery"]) &&
+		isDiaryThemeBTemplate(template)
+	);
+}
+
+function isStoryContentDateAutoEmptyField(
+	field: TemplateRequiredInput,
+): boolean {
+	const search = normalizeTemplateSearchText(
+		field.name,
+		field.label,
+		field.binding,
+	);
+	const tokens = search.split(" ").filter(Boolean);
+	return (
+		tokens.includes("date") ||
+		tokens.includes("daterange") ||
+		tokens.includes("startdate") ||
+		tokens.includes("enddate")
+	);
+}
+
+function normalizeParameterKey(name: string): string {
+	return normalizeTemplateSearchText(name).replace(/\s+/g, "");
+}
+
+function isNovelContentAutoField(field: TemplateRequiredInput): boolean {
+	const key = normalizeParameterKey(field.name || "");
+	return key === "title" || key === "booktitle" || key === "diarytext";
+}
+
+function buildStoryContentAutoInputValues(
+	fields: TemplateRequiredInput[],
+	mode: "COMIC" | "NOVEL",
+): Record<string, string> {
+	const values: Record<string, string> = {};
+	for (const field of fields) {
+		if (isStoryContentDateAutoEmptyField(field)) {
+			values[field.name] = "";
+			continue;
+		}
+
+		if (mode === "NOVEL" && isNovelContentAutoField(field)) {
+			values[field.name] = "";
+		}
+	}
+	return values;
+}
+
 export default function CreatePage() {
 	const router = useRouter();
 	const [loading, setLoading] = useState(false);
@@ -71,6 +292,14 @@ export default function CreatePage() {
 	const [templateLoadError, setTemplateLoadError] = useState("");
 	const [coverTemplateUid, setCoverTemplateUid] = useState("");
 	const [contentTemplateUid, setContentTemplateUid] = useState("");
+	const [coverTemplateInputValues, setCoverTemplateInputValues] = useState<
+		Record<string, Record<string, string>>
+	>({});
+	const [contentTemplateInputValues, setContentTemplateInputValues] =
+		useState<Record<string, Record<string, string>>>({});
+	const [bookSpecPreviewUrls, setBookSpecPreviewUrls] = useState<
+		Record<string, string>
+	>({});
 
 	const costEstimate =
 		mode === "PHOTOBOOK"
@@ -95,16 +324,58 @@ export default function CreatePage() {
 		: 0;
 	const combinedCreativeCostKrw =
 		creativeBookProductionEstimate.estimatedPrice + apiCostKrw;
-	const coverTemplates = templates.filter(
+	const allCoverTemplates = templates.filter(
 		(template) =>
 			template.bookSpecUid === bookSpecUid &&
 			String(template.templateKind).toLowerCase() === "cover",
 	);
-	const contentTemplates = templates.filter(
+	const coverTemplates =
+		mode === "PHOTOBOOK"
+			? allCoverTemplates
+			: allCoverTemplates.filter(
+					(template) => !isDisallowedStoryCoverTemplate(template),
+				);
+	const allContentTemplates = templates.filter(
 		(template) =>
 			template.bookSpecUid === bookSpecUid &&
 			String(template.templateKind).toLowerCase() === "content",
 	);
+	const contentTemplates =
+		mode === "COMIC"
+			? allContentTemplates.filter((template) =>
+					isComicAllowedContentTemplate(template),
+				)
+			: mode === "NOVEL"
+				? allContentTemplates.filter((template) =>
+						isNovelAllowedContentTemplate(template),
+					)
+				: allContentTemplates;
+	const selectedCoverTemplate =
+		coverTemplates.find(
+			(template) => template.templateUid === coverTemplateUid,
+		) || null;
+	const selectedContentTemplate =
+		contentTemplates.find(
+			(template) => template.templateUid === contentTemplateUid,
+		) || null;
+	const selectedCoverRequiredInputsRaw =
+		selectedCoverTemplate?.requiredInputs || [];
+	const selectedCoverRequiredInputs =
+		mode === "PHOTOBOOK"
+			? selectedCoverRequiredInputsRaw
+			: mode === "COMIC" || mode === "NOVEL"
+				? selectedCoverRequiredInputsRaw.filter(
+						(field) =>
+							!isStoryCoverAutoFilledField(field) &&
+							!isStoryCoverTitleAutoField(field),
+					)
+				: selectedCoverRequiredInputsRaw.filter(
+						(field) => !isStoryCoverAutoFilledField(field),
+					);
+	const selectedContentRequiredInputsRaw =
+		selectedContentTemplate?.requiredInputs || [];
+	const selectedCoverInputValues =
+		coverTemplateInputValues[coverTemplateUid] || {};
 
 	useEffect(() => {
 		let active = true;
@@ -147,6 +418,56 @@ export default function CreatePage() {
 		}
 
 		void loadExchangeRate();
+
+		return () => {
+			active = false;
+		};
+	}, []);
+
+	useEffect(() => {
+		let active = true;
+
+		async function loadBookSpecPreviewUrls() {
+			try {
+				const response = await fetch("/api/book-specs", {
+					cache: "no-store",
+				});
+				if (!response.ok || !active) {
+					return;
+				}
+
+				const json = (await response.json()) as {
+					success?: boolean;
+					data?: unknown;
+				};
+				const rawData = json.data;
+				const list = Array.isArray(rawData)
+					? (rawData as BookSpecApiItem[])
+					: Array.isArray(
+								(rawData as { bookSpecs?: unknown })?.bookSpecs,
+						  )
+						? (((rawData as { bookSpecs?: unknown }).bookSpecs ||
+								[]) as BookSpecApiItem[])
+						: [];
+
+				const nextPreviewUrls: Record<string, string> = {};
+				for (const spec of list) {
+					if (!spec.bookSpecUid) {
+						continue;
+					}
+					const imageUrl = getBookSpecPreviewFromApi(spec);
+					if (imageUrl) {
+						nextPreviewUrls[spec.bookSpecUid] = imageUrl;
+					}
+				}
+
+				setBookSpecPreviewUrls(nextPreviewUrls);
+			} catch {
+				// Ignore preview loading failures and keep fallback images.
+			}
+		}
+
+		void loadBookSpecPreviewUrls();
 
 		return () => {
 			active = false;
@@ -256,6 +577,12 @@ export default function CreatePage() {
 	}, []);
 
 	useEffect(() => {
+		if (mode === "COMIC" && bookSpecUid !== "SQUAREBOOK_HC") {
+			setBookSpecUid("SQUAREBOOK_HC");
+		}
+	}, [mode, bookSpecUid]);
+
+	useEffect(() => {
 		if (
 			coverTemplates.length > 0 &&
 			!coverTemplates.some(
@@ -288,8 +615,23 @@ export default function CreatePage() {
 		setLoading(true);
 		setError("");
 
-		if (!coverTemplateUid || !contentTemplateUid) {
+		if (
+			mode !== "PHOTOBOOK" &&
+			(!coverTemplateUid || !contentTemplateUid)
+		) {
 			setError("표지와 내지 템플릿을 각각 선택해 주세요.");
+			setLoading(false);
+			return;
+		}
+
+		const missingCoverField = selectedCoverRequiredInputs.find((field) => {
+			const value = selectedCoverInputValues[field.name];
+			return !value || value.trim() === "";
+		});
+		if (mode !== "PHOTOBOOK" && missingCoverField) {
+			setError(
+				`표지 템플릿 추가 입력값을 확인해 주세요: ${missingCoverField.label || missingCoverField.name}`,
+			);
 			setLoading(false);
 			return;
 		}
@@ -304,8 +646,10 @@ export default function CreatePage() {
 						projectType: "PHOTOBOOK",
 						title,
 						bookSpecUid,
-						coverTemplateUid,
-						contentTemplateUid,
+						coverTemplateUid: undefined,
+						contentTemplateUid: undefined,
+						coverTemplateOverrides: undefined,
+						contentTemplateOverrides: undefined,
 					}
 				: {
 						projectType: mode,
@@ -313,6 +657,11 @@ export default function CreatePage() {
 						bookSpecUid,
 						coverTemplateUid,
 						contentTemplateUid,
+						coverTemplateOverrides: buildTemplateOverrides({
+							fields: selectedCoverRequiredInputs,
+							values: selectedCoverInputValues,
+						}),
+						contentTemplateOverrides: undefined,
 						genre: (
 							form.elements.namedItem("genre") as HTMLInputElement
 						).value,
@@ -346,6 +695,7 @@ export default function CreatePage() {
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error || "프로젝트 생성 실패");
+
 			if (mode === "PHOTOBOOK") {
 				router.push(`/editor/${json.data.id}`);
 			} else {
@@ -445,28 +795,26 @@ export default function CreatePage() {
 									포토북 판형{" "}
 									<span className="text-rose-400">*</span>
 								</label>
-								<select
-									name="bookSpecUid"
-									value={bookSpecUid}
-									onChange={(e) =>
-										setBookSpecUid(e.target.value)
-									}
-									className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
-								>
-									{SUPPORTED_PHOTOBOOK_SPECS.map((spec) => (
-										<option
-											key={spec.bookSpecUid}
-											value={spec.bookSpecUid}
-										>
-											{spec.name}
-										</option>
-									))}
-								</select>
+								<BookSpecPicker
+									selectedBookSpecUid={bookSpecUid}
+									onChange={setBookSpecUid}
+									previewUrls={bookSpecPreviewUrls}
+								/>
 								<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 mt-3">
 									<p className="font-semibold text-slate-900 mb-1">
-										선택 판형 안내
+										{selectedPhotobookSpec.name}
 									</p>
-									<p>{selectedPhotobookSpec.name}</p>
+									<p className="mt-1">
+										내지 기준 크기:{" "}
+										{selectedPhotobookSpec.trimWidthMm}x{" "}
+										{selectedPhotobookSpec.trimHeightMm} mm
+										(비율{" "}
+										{formatBookSpecRatio(
+											selectedPhotobookSpec.trimWidthMm,
+											selectedPhotobookSpec.trimHeightMm,
+										)}
+										)
+									</p>
 									<p className="mt-1">
 										최소 {selectedPhotobookSpec.pageMin}
 										페이지, 최대{" "}
@@ -529,44 +877,9 @@ export default function CreatePage() {
 								</div>
 							</div>
 
-							<div className="space-y-4">
-								<div className="flex items-center justify-between">
-									<div>
-										<h3 className="text-sm font-semibold text-gray-700">
-											템플릿 선택
-										</h3>
-										<p className="text-xs text-gray-500 mt-1">
-											판형에 맞는 표지/내지 템플릿을
-											미리보기와 함께 선택하세요.
-										</p>
-									</div>
-									{templatesLoading && (
-										<span className="text-xs text-gray-400">
-											템플릿 불러오는 중...
-										</span>
-									)}
-								</div>
-
-								{templateLoadError && (
-									<div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-										{templateLoadError}
-									</div>
-								)}
-
-								<TemplatePicker
-									title="표지 템플릿"
-									templates={coverTemplates}
-									selectedTemplateUid={coverTemplateUid}
-									onSelect={setCoverTemplateUid}
-									emptyMessage="선택한 판형에 자동 발행 가능한 표지 템플릿이 없습니다."
-								/>
-								<TemplatePicker
-									title="내지 템플릿"
-									templates={contentTemplates}
-									selectedTemplateUid={contentTemplateUid}
-									onSelect={setContentTemplateUid}
-									emptyMessage="선택한 판형에 자동 발행 가능한 내지 템플릿이 없습니다."
-								/>
+							<div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600">
+								포토북 생성 후 제작 페이지에서 표지 템플릿과
+								페이지별 내지 템플릿을 설정합니다.
 							</div>
 						</>
 					) : (
@@ -616,39 +929,47 @@ export default function CreatePage() {
 								</div>
 							</div>
 
-							<div className="grid md:grid-cols-2 gap-3">
+							<div className="space-y-3">
 								<div>
 									<label className="block text-sm font-semibold text-gray-700 mb-1.5">
 										책 판형
 									</label>
-									<select
-										name="bookSpecUid"
-										value={bookSpecUid}
-										onChange={(e) =>
-											setBookSpecUid(e.target.value)
+									<BookSpecPicker
+										selectedBookSpecUid={bookSpecUid}
+										onChange={setBookSpecUid}
+										previewUrls={bookSpecPreviewUrls}
+										allowedBookSpecUids={
+											mode === "COMIC"
+												? ["SQUAREBOOK_HC"]
+												: undefined
 										}
-										className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
-									>
-										{SUPPORTED_PHOTOBOOK_SPECS.map(
-											(spec) => (
-												<option
-													key={spec.bookSpecUid}
-													value={spec.bookSpecUid}
-												>
-													{spec.name}
-												</option>
-											),
-										)}
-									</select>
+										disabled={mode === "COMIC"}
+									/>
+									{mode === "COMIC" && (
+										<p className="text-xs text-indigo-600 mt-1.5">
+											만화책은 고화질 스퀘어북 판형만
+											지원합니다.
+										</p>
+									)}
 									<p className="text-xs text-gray-500 mt-1.5">
 										선택한 판형 기준으로 출력용 페이지와
 										제작비를 함께 계산합니다.
 									</p>
 									<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 mt-3">
 										<p className="font-semibold text-slate-900 mb-1">
-											선택 판형 안내
+											{selectedPhotobookSpec.name}
 										</p>
-										<p>{selectedPhotobookSpec.name}</p>
+										<p className="mt-1">
+											내지 기준 크기:{" "}
+											{selectedPhotobookSpec.trimWidthMm}x{" "}
+											{selectedPhotobookSpec.trimHeightMm}{" "}
+											mm (비율{" "}
+											{formatBookSpecRatio(
+												selectedPhotobookSpec.trimWidthMm,
+												selectedPhotobookSpec.trimHeightMm,
+											)}
+											)
+										</p>
 										<p className="mt-1">
 											최소 {selectedPhotobookSpec.pageMin}
 											페이지, 최대{" "}
@@ -688,46 +1009,22 @@ export default function CreatePage() {
 									</div>
 								</div>
 
-								<div>
-									<label className="block text-sm font-semibold text-gray-700 mb-1.5">
-										줄거리 생성 모델
-									</label>
-									<select
-										value={storyModel}
-										onChange={(e) =>
-											setStoryModel(
-												e.target.value as StoryModel,
-											)
-										}
-										className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
-									>
-										{STORY_MODEL_OPTIONS.map((option) => (
-											<option
-												key={option.value}
-												value={option.value}
-											>
-												{option.label}
-											</option>
-										))}
-									</select>
-								</div>
-
-								{mode === "COMIC" && (
+								<div className="grid md:grid-cols-2 gap-3">
 									<div>
 										<label className="block text-sm font-semibold text-gray-700 mb-1.5">
-											만화 이미지 생성 모델
+											줄거리 생성 모델
 										</label>
 										<select
-											value={imageModel}
+											value={storyModel}
 											onChange={(e) =>
-												setImageModel(
+												setStoryModel(
 													e.target
-														.value as ImageModel,
+														.value as StoryModel,
 												)
 											}
 											className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
 										>
-											{IMAGE_MODEL_OPTIONS.map(
+											{STORY_MODEL_OPTIONS.map(
 												(option) => (
 													<option
 														key={option.value}
@@ -739,7 +1036,36 @@ export default function CreatePage() {
 											)}
 										</select>
 									</div>
-								)}
+
+									{mode === "COMIC" && (
+										<div>
+											<label className="block text-sm font-semibold text-gray-700 mb-1.5">
+												만화 이미지 생성 모델
+											</label>
+											<select
+												value={imageModel}
+												onChange={(e) =>
+													setImageModel(
+														e.target
+															.value as ImageModel,
+													)
+												}
+												className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
+											>
+												{IMAGE_MODEL_OPTIONS.map(
+													(option) => (
+														<option
+															key={option.value}
+															value={option.value}
+														>
+															{option.label}
+														</option>
+													),
+												)}
+											</select>
+										</div>
+									)}
+								</div>
 							</div>
 
 							<div className="space-y-4">
@@ -769,18 +1095,40 @@ export default function CreatePage() {
 
 								<TemplatePicker
 									title="표지 템플릿"
+									loading={templatesLoading}
 									templates={coverTemplates}
 									selectedTemplateUid={coverTemplateUid}
 									onSelect={setCoverTemplateUid}
 									emptyMessage="선택한 판형에 자동 발행 가능한 표지 템플릿이 없습니다."
 								/>
+								<TemplateRequiredInputForm
+									title="표지 템플릿 추가 입력"
+									fields={selectedCoverRequiredInputs}
+									values={selectedCoverInputValues}
+									onChange={(fieldName, value) =>
+										setCoverTemplateInputValues((prev) => ({
+											...prev,
+											[coverTemplateUid]: {
+												...(prev[coverTemplateUid] ||
+													{}),
+												[fieldName]: value,
+											},
+										}))
+									}
+								/>
 								<TemplatePicker
 									title="내지 템플릿"
+									loading={templatesLoading}
 									templates={contentTemplates}
 									selectedTemplateUid={contentTemplateUid}
 									onSelect={setContentTemplateUid}
 									emptyMessage="선택한 판형에 자동 발행 가능한 내지 템플릿이 없습니다."
 								/>
+								<p className="text-xs text-gray-500 mt-1">
+									{mode === "NOVEL"
+										? "소설 내지는 추가 입력 없이, 각 페이지의 AI 본문과 페이지 이미지 1장이 템플릿에 자동 연결됩니다. title/date는 자동 처리됩니다."
+										: "만화 내지는 추가 입력 없이, 각 페이지의 AI 장면 이미지 1장이 템플릿에 자동 연결됩니다. collagePhotos 같은 다중 이미지 필드도 현재 페이지 이미지 1장을 배열로 넣어 자동 처리합니다."}
+								</p>
 							</div>
 
 							{mode === "COMIC" && (
@@ -942,74 +1290,229 @@ export default function CreatePage() {
 
 function TemplatePicker(props: {
 	title: string;
+	loading: boolean;
 	templates: CreateTemplateItem[];
 	selectedTemplateUid: string;
 	onSelect: (templateUid: string) => void;
 	emptyMessage: string;
 }) {
+	if (props.loading) {
+		return (
+			<div>
+				<div className="flex items-center justify-between mb-2">
+					<h3 className="text-sm font-semibold text-gray-700">
+						{props.title}
+					</h3>
+					<p className="text-xs text-gray-400">불러오는 중...</p>
+				</div>
+				<div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+					{Array.from({ length: 3 }).map((_, idx) => (
+						<div
+							key={`${props.title}-skeleton-${idx}`}
+							className="rounded-2xl border border-gray-200 bg-white overflow-hidden"
+						>
+							<div className="aspect-[4/3] bg-gray-100 animate-pulse" />
+							<div className="p-3 space-y-2">
+								<div className="h-3 bg-gray-100 rounded w-full" />
+								<div className="h-3 bg-gray-100 rounded w-2/3" />
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		);
+	}
+
+	if (props.templates.length === 0) {
+		return (
+			<div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
+				{props.emptyMessage}
+			</div>
+		);
+	}
+
 	return (
 		<div>
 			<div className="flex items-center justify-between mb-2">
-				<h4 className="text-sm font-semibold text-gray-700">
+				<h3 className="text-sm font-semibold text-gray-700">
 					{props.title}
-				</h4>
+				</h3>
 				<p className="text-xs text-gray-400">
-					{props.templates.length}개 선택 가능
+					{props.templates.length}개 템플릿
 				</p>
 			</div>
-			{props.templates.length === 0 ? (
-				<div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500 text-center">
-					{props.emptyMessage}
-				</div>
-			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1">
-					{props.templates.map((template) => {
-						const selected =
-							template.templateUid === props.selectedTemplateUid;
-						return (
-							<button
-								key={template.templateUid}
-								type="button"
-								onClick={() =>
-									props.onSelect(template.templateUid)
-								}
-								className={`text-left rounded-2xl border overflow-hidden transition-all ${
-									selected
-										? "border-rose-400 ring-2 ring-rose-200 bg-rose-50"
-										: "border-gray-200 bg-white hover:border-rose-200 hover:bg-rose-50/40"
-								}`}
-							>
-								<div className="aspect-[4/3] bg-gray-100 border-b border-gray-100 overflow-hidden">
-									{template.thumbnails?.layout ? (
-										<img
-											src={template.thumbnails.layout}
-											alt={template.templateName}
-											className="w-full h-full object-cover"
-										/>
-									) : (
-										<div className="w-full h-full flex items-center justify-center text-xs text-gray-400 bg-gradient-to-br from-gray-50 to-gray-100">
-											미리보기 없음
-										</div>
-									)}
-								</div>
-								<div className="p-3">
-									<p className="font-semibold text-sm text-gray-800 line-clamp-2">
-										{template.templateName}
+			<div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+				{props.templates.map((template) => {
+					const selected =
+						template.templateUid === props.selectedTemplateUid;
+
+					return (
+						<button
+							key={template.templateUid}
+							type="button"
+							onClick={() => props.onSelect(template.templateUid)}
+							className={`text-left rounded-2xl border overflow-hidden transition-all ${
+								selected
+									? "border-rose-400 ring-2 ring-rose-200 bg-rose-50"
+									: "border-gray-200 bg-white hover:border-rose-200 hover:bg-rose-50/40"
+							}`}
+						>
+							<div className="aspect-[4/3] bg-gray-100 border-b border-gray-100 overflow-hidden">
+								{template.thumbnails?.layout ? (
+									<img
+										src={template.thumbnails.layout}
+										alt={template.templateName}
+										className="w-full h-full object-cover"
+									/>
+								) : (
+									<div className="w-full h-full flex items-center justify-center text-xs text-gray-400 bg-gradient-to-br from-gray-50 to-gray-100">
+										미리보기 없음
+									</div>
+								)}
+							</div>
+							<div className="p-3">
+								<p className="font-semibold text-sm text-gray-800 line-clamp-2">
+									{template.templateName}
+								</p>
+								<p className="text-xs text-gray-500 mt-1">
+									UID: {template.templateUid}
+								</p>
+								{template.theme && (
+									<p className="text-xs text-rose-500 mt-1">
+										테마: {template.theme}
 									</p>
-									<p className="text-xs text-gray-500 mt-1">
-										UID: {template.templateUid}
-									</p>
-									{template.theme && (
-										<p className="text-xs text-rose-500 mt-1">
-											테마: {template.theme}
-										</p>
-									)}
+								)}
+							</div>
+						</button>
+					);
+				})}
+			</div>
+		</div>
+	);
+}
+
+function BookSpecPicker(props: {
+	selectedBookSpecUid: string;
+	onChange: (bookSpecUid: string) => void;
+	previewUrls: Record<string, string>;
+	allowedBookSpecUids?: string[];
+	disabled?: boolean;
+}) {
+	const specs = props.allowedBookSpecUids
+		? SUPPORTED_PHOTOBOOK_SPECS.filter((spec) =>
+				props.allowedBookSpecUids?.includes(spec.bookSpecUid),
+			)
+		: SUPPORTED_PHOTOBOOK_SPECS;
+
+	return (
+		<div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+			{specs.map((spec) => {
+				const selected = spec.bookSpecUid === props.selectedBookSpecUid;
+				const imageUrl =
+					props.previewUrls[spec.bookSpecUid] ||
+					BOOK_SPEC_PREVIEW_FALLBACK[spec.bookSpecUid];
+
+				return (
+					<button
+						key={spec.bookSpecUid}
+						type="button"
+						onClick={() => {
+							if (!props.disabled) {
+								props.onChange(spec.bookSpecUid);
+							}
+						}}
+						className={`rounded-xl border text-left overflow-hidden transition-all ${
+							selected
+								? "border-rose-400 ring-2 ring-rose-200 bg-rose-50"
+								: "border-gray-200 bg-white hover:border-rose-200"
+						}`}
+						disabled={props.disabled}
+					>
+						<div className="aspect-[4/3] bg-gray-100 overflow-hidden">
+							{imageUrl ? (
+								<img
+									src={imageUrl}
+									alt={spec.name}
+									className="w-full h-full object-cover"
+								/>
+							) : (
+								<div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+									미리보기 없음
 								</div>
-							</button>
-						);
-					})}
-				</div>
-			)}
+							)}
+						</div>
+						<div className="px-3 py-2">
+							<p className="text-xs font-semibold text-gray-800 line-clamp-2">
+								{spec.name}
+							</p>
+							<p className="text-[11px] text-gray-500 mt-1">
+								{spec.trimWidthMm} x {spec.trimHeightMm} mm
+							</p>
+							<p className="text-[11px] text-gray-500">
+								비율{" "}
+								{formatBookSpecRatio(
+									spec.trimWidthMm,
+									spec.trimHeightMm,
+								)}
+							</p>
+						</div>
+					</button>
+				);
+			})}
+		</div>
+	);
+}
+
+function TemplateRequiredInputForm(props: {
+	title: string;
+	fields: TemplateRequiredInput[];
+	values: Record<string, string>;
+	onChange: (fieldName: string, value: string) => void;
+}) {
+	if (props.fields.length === 0) {
+		return null;
+	}
+
+	return (
+		<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 space-y-3">
+			<p className="text-sm font-semibold text-slate-800">
+				{props.title}
+			</p>
+			{props.fields.map((field) => {
+				const binding = String(field.binding || "").toLowerCase();
+				const type = field.type || "string";
+				const placeholder =
+					binding === "file"
+						? "파일 URL 입력 (여러 개는 콤마로 구분)"
+						: `값 입력 (${type})`;
+
+				return (
+					<div key={field.name}>
+						<label className="block text-xs font-semibold text-slate-700 mb-1">
+							{field.label || field.name}
+							<span className="text-rose-500 ml-1">*</span>
+						</label>
+						<input
+							type="text"
+							value={props.values[field.name] || ""}
+							onChange={(event) =>
+								props.onChange(field.name, event.target.value)
+							}
+							placeholder={placeholder}
+							className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
+						/>
+						<p className="text-[11px] text-slate-500 mt-1">
+							필드명: {field.name} · 바인딩:{" "}
+							{field.binding || "unknown"}· 타입: {type}
+						</p>
+						{field.description && (
+							<p className="text-[11px] text-slate-500 mt-0.5">
+								{field.description}
+							</p>
+						)}
+					</div>
+				);
+			})}
 		</div>
 	);
 }

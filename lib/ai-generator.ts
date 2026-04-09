@@ -255,3 +255,39 @@ export async function generateComicImages(params: {
 
 	return { coverImageUrl, pageImageUrls };
 }
+
+export async function generateStoryCoverImage(params: {
+	title: string;
+	synopsis: string;
+	genre?: string;
+	imageModel?: ImageModel;
+}): Promise<string> {
+	const client = getOpenAIClient();
+	const imageModel = params.imageModel || DEFAULT_IMAGE_MODEL;
+
+	const coverPrompt = [
+		"Book cover illustration",
+		`Title: ${params.title}`,
+		params.genre ? `Genre: ${params.genre}` : "",
+		`Synopsis: ${params.synopsis}`,
+		"No text, no letters on image. Clean composition, emotionally expressive, high quality.",
+	]
+		.filter(Boolean)
+		.join(". ");
+
+	const response = await client.images.generate({
+		model: imageModel,
+		prompt: coverPrompt,
+		size: "1024x1024",
+	});
+
+	const image = response.data?.[0];
+	if (!image) {
+		throw new Error("소설 표지 이미지 생성에 실패했습니다.");
+	}
+
+	return persistGeneratedImage({
+		image,
+		prefix: "story-cover",
+	});
+}

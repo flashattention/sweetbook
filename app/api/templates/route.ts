@@ -22,6 +22,19 @@ interface TemplateListItem {
 	[key: string]: unknown;
 }
 
+function collectRequiredTemplateInputs(detail: SweetbookTemplateDetail) {
+	const definitions = detail.parameters?.definitions || {};
+	return Object.entries(definitions)
+		.filter(([, definition]) => Boolean(definition.required))
+		.map(([name, definition]) => ({
+			name,
+			binding: definition.binding || null,
+			type: definition.type || null,
+			label: definition.label || null,
+			description: definition.description || null,
+		}));
+}
+
 const templateCacheGlobal = globalThis as typeof globalThis & {
 	__templateListCache?: Map<string, CacheEntry<Record<string, unknown>>>;
 	__templateDetailCache?: Map<string, CacheEntry<SweetbookTemplateDetail>>;
@@ -181,8 +194,12 @@ export async function GET(request: Request) {
 							detail as SweetbookTemplateDetail,
 							expectedKind,
 						);
+						const requiredInputs = collectRequiredTemplateInputs(
+							detail as SweetbookTemplateDetail,
+						);
 						return {
 							...template,
+							requiredInputs,
 							publishSupport: {
 								supported: true,
 								reason: analyzed.supported

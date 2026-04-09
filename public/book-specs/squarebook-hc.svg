@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-label="SQUAREBOOK_HC">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef3c7" />
+      <stop offset="100%" stop-color="#fde68a" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg)" />
+  <rect x="280" y="70" width="640" height="640" rx="26" fill="#ffffff" stroke="#eab308" stroke-width="8" />
+  <rect x="340" y="145" width="520" height="470" rx="16" fill="#fefce8" />
+  <text x="600" y="365" font-size="64" text-anchor="middle" fill="#a16207" font-family="Verdana, sans-serif" font-weight="700">SQUAREBOOK</text>
+  <text x="600" y="445" font-size="46" text-anchor="middle" fill="#a16207" font-family="Verdana, sans-serif">Hard Cover</text>
+  <text x="600" y="805" font-size="36" text-anchor="middle" fill="#92400e" font-family="Verdana, sans-serif">210 x 210 mm · 1:1</text>
+</svg>

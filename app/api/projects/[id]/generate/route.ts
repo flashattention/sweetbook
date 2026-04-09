@@ -6,6 +6,7 @@ import {
 	MissingOpenAIKeyError,
 	generateBookPlan,
 	generateComicImages,
+	generateStoryCoverImage,
 } from "@/lib/ai-generator";
 import {
 	DEFAULT_IMAGE_MODEL,
@@ -152,6 +153,14 @@ export async function POST(
 			runningCostUsd += IMAGE_PRICING_PER_IMAGE_USD[imageModel];
 			coverImageUrl = generatedImages.coverImageUrl;
 			pageImageUrls = generatedImages.pageImageUrls;
+		} else {
+			const generatedCoverImageUrl = await generateStoryCoverImage({
+				title: project.title,
+				synopsis: plan.synopsis,
+				genre: project.genre || undefined,
+				imageModel,
+			});
+			coverImageUrl = generatedCoverImageUrl;
 		}
 
 		await prisma.project.update({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromRequest } from "@/lib/auth";
+import { serializeTemplateOverrides } from "@/lib/template-overrides";
 
 // GET /api/projects/[id]/pages
 export async function GET(
@@ -59,7 +60,13 @@ export async function POST(
 		}
 
 		const body = await req.json();
-		const { imageUrl, caption = "", pageOrder } = body;
+		const {
+			imageUrl,
+			caption = "",
+			pageOrder,
+			contentTemplateUid,
+			contentTemplateOverrides,
+		} = body;
 
 		if (!imageUrl) {
 			return NextResponse.json(
@@ -81,6 +88,13 @@ export async function POST(
 				imageUrl,
 				caption,
 				pageOrder: order,
+				contentTemplateUid:
+					typeof contentTemplateUid === "string"
+						? contentTemplateUid
+						: undefined,
+				contentTemplateOverrides: serializeTemplateOverrides(
+					contentTemplateOverrides,
+				),
 			},
 		});
 		return NextResponse.json(

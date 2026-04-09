@@ -37,13 +37,6 @@ export function middleware(req: NextRequest) {
 		return NextResponse.redirect(loginUrl);
 	}
 
-	if ((pathname === "/login" || pathname === "/signup") && hasSession) {
-		const homeUrl = req.nextUrl.clone();
-		homeUrl.pathname = "/";
-		homeUrl.search = "";
-		return NextResponse.redirect(homeUrl);
-	}
-
 	return NextResponse.next();
 }
 
@@ -55,8 +48,6 @@ export const config = {
 		"/order/:path*",
 		"/status/:path*",
 		"/view/:path*",
-		"/login",
-		"/signup",
 		"/api/projects/:path*",
 		"/api/orders/:path*",
 		"/api/upload",

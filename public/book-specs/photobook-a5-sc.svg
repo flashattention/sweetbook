@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-label="PHOTOBOOK_A5_SC">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#dcfce7" />
+      <stop offset="100%" stop-color="#bbf7d0" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg)" />
+  <rect x="390" y="65" width="420" height="596" rx="22" fill="#ffffff" stroke="#16a34a" stroke-width="8" />
+  <rect x="450" y="145" width="300" height="450" rx="12" fill="#f0fdf4" />
+  <text x="600" y="375" font-size="92" text-anchor="middle" fill="#166534" font-family="Verdana, sans-serif" font-weight="700">A5</text>
+  <text x="600" y="470" font-size="46" text-anchor="middle" fill="#166534" font-family="Verdana, sans-serif">Soft Cover</text>
+  <text x="600" y="815" font-size="34" text-anchor="middle" fill="#166534" font-family="Verdana, sans-serif">148 x 210 mm · 1:1.419</text>
+</svg>

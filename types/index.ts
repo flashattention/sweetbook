@@ -15,6 +15,14 @@ export interface Project {
 	bookSpecUid: string;
 	coverTemplateUid: string | null;
 	contentTemplateUid: string | null;
+	coverTemplateOverrides?: {
+		parameters?: Record<string, unknown>;
+		fileUrls?: Record<string, string | string[]>;
+	} | null;
+	contentTemplateOverrides?: {
+		parameters?: Record<string, unknown>;
+		fileUrls?: Record<string, string | string[]>;
+	} | null;
 	coverImageUrl: string | null;
 	coverCaption: string | null;
 	bookUid: string | null;
@@ -33,6 +41,11 @@ export interface Page {
 	pageOrder: number;
 	imageUrl: string;
 	caption: string;
+	contentTemplateUid?: string | null;
+	contentTemplateOverrides?: {
+		parameters?: Record<string, unknown>;
+		fileUrls?: Record<string, string | string[]>;
+	} | null;
 	createdAt: string;
 	updatedAt: string;
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromRequest } from "@/lib/auth";
+import { serializeTemplateOverrides } from "@/lib/template-overrides";
 
 // PATCH /api/projects/[id]/pages/[pageId]
 export async function PATCH(
@@ -28,12 +29,26 @@ export async function PATCH(
 		}
 
 		const body = await req.json();
-		const { imageUrl, caption, pageOrder } = body;
+		const {
+			imageUrl,
+			caption,
+			pageOrder,
+			contentTemplateUid,
+			contentTemplateOverrides,
+		} = body;
 
 		const data: Record<string, unknown> = {};
 		if (imageUrl !== undefined) data.imageUrl = imageUrl;
 		if (caption !== undefined) data.caption = caption;
 		if (pageOrder !== undefined) data.pageOrder = pageOrder;
+		if (contentTemplateUid !== undefined) {
+			data.contentTemplateUid = contentTemplateUid;
+		}
+		if (contentTemplateOverrides !== undefined) {
+			data.contentTemplateOverrides = serializeTemplateOverrides(
+				contentTemplateOverrides,
+			);
+		}
 
 		const page = await prisma.page.findFirst({
 			where: { id: params.pageId, projectId: params.id },

@@ -12,24 +12,27 @@ export async function POST(req: NextRequest) {
 			const signature = req.headers.get("x-sweetbook-signature");
 			const timestamp = req.headers.get("x-sweetbook-timestamp");
 
-			if (signature && timestamp) {
-				// eslint-disable-next-line @typescript-eslint/no-require-imports
-				const { verifySignature } = require("../../../lib/webhook") as {
-					verifySignature: (
-						payload: string,
-						sig: string,
-						secret: string,
-						ts: string,
-					) => boolean;
-				};
-				if (
-					!verifySignature(body, signature, webhookSecret, timestamp)
-				) {
-					return NextResponse.json(
-						{ error: "서명 검증 실패" },
-						{ status: 401 },
-					);
-				}
+			if (!signature || !timestamp) {
+				return NextResponse.json(
+					{ error: "서명 헤더가 누락되었습니다." },
+					{ status: 401 },
+				);
+			}
+
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const { verifySignature } = require("../../../lib/webhook") as {
+				verifySignature: (
+					payload: string,
+					sig: string,
+					secret: string,
+					ts: string,
+				) => boolean;
+			};
+			if (!verifySignature(body, signature, webhookSecret, timestamp)) {
+				return NextResponse.json(
+					{ error: "서명 검증 실패" },
+					{ status: 401 },
+				);
 			}
 
 			const event = JSON.parse(body);

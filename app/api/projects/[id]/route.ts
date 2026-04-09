@@ -66,6 +66,8 @@ export async function PATCH(
 			"coverCaption",
 			"coverTemplateUid",
 			"contentTemplateUid",
+			"coverTemplateOverrides",
+			"contentTemplateOverrides",
 			"bookUid",
 			"orderUid",
 			"orderStatus",
@@ -75,7 +77,16 @@ export async function PATCH(
 		const data: Record<string, unknown> = {};
 		for (const key of allowed) {
 			if (key in body) {
-				data[key] = body[key];
+				if (
+					(key === "coverTemplateOverrides" ||
+						key === "contentTemplateOverrides") &&
+					body[key] !== null &&
+					typeof body[key] === "object"
+				) {
+					data[key] = JSON.stringify(body[key]);
+				} else {
+					data[key] = body[key];
+				}
 			}
 		}
 		const updated = await prisma.project.update({
