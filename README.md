@@ -1,9 +1,10 @@
-# Dreamcatcher
+# Sweetbook
 
 Next.js 14 기반 멀티 북 제작 웹앱입니다.
 
 - 포토북: 생성 -> 편집 -> 출판 -> 주문
-- AI 만화/소설: 생성 -> 출판 -> 주문
+- AI 만화: 생성(병렬 이미지 생성 + 체크포인트) -> 출판 -> 주문
+- AI 소설: 아웃라인 생성 -> 페이지별 본문 생성(연속성 유지) -> 출판 -> 주문
 - 계정 기반 접근 제어(회원가입/로그인/세션)
 - Sweetbook Sandbox/Live 연동
 
@@ -12,7 +13,7 @@ Next.js 14 기반 멀티 북 제작 웹앱입니다.
 - Next.js 14 (App Router)
 - TypeScript
 - Prisma + SQLite
-- OpenAI API
+- OpenAI API (gpt-4o-mini / gpt-4.1-mini, dall-e-2 / gpt-image-1)
 - Tailwind CSS
 - Sweetbook API
 
@@ -33,6 +34,23 @@ Next.js 14 기반 멀티 북 제작 웹앱입니다.
 - 제작/주문
   - 포토북 편집/출판/주문/상태 조회
   - AI 만화/소설 생성 후 출판/주문
+- AI 만화 생성 (`lib/ai-generator.ts`)
+  - 1단계: 스토리 플랜 생성(전체 줄거리 + 캐릭터 프로필 + 페이지별 대사/숏방향)
+  - 2단계: 표지 이미지 먼저 생성 → 캐릭터 외형 고정(visual lock) → 각 페이지 이미지 병렬 생성
+  - 병렬 워커: dall-e-2 최대 6개, gpt-image-1 최대 4개
+  - 이미지 생성 실패 시 자동 재시도 2회
+  - 체크포인트(`.cache/comic-checkpoints/<projectId>.json`)로 중단 재개 지원
+  - 스토리 모델: `gpt-4o-mini` (기본, 가성비) / `gpt-4.1-mini` (품질 우선)
+  - 이미지 모델: `gpt-image-1` (기본, 품질 우선) / `dall-e-2` (가성비)
+- AI 소설 생성 (`lib/ai-generator.ts`)
+  - 1단계: 전체 아웃라인 생성(tagline/synopsis/characterProfiles/chapters/pageBlueprints)
+  - 2단계: 페이지별 본문 순차 생성 — 이전 1~2페이지 내용 + 페이지 블루프린트(beat/emotion/keyDetail) 포함
+  - 목표 분량: 1000자 내외(800~1200자 권장), 짧으면 자동 강화 재시도 1회
+  - 표지 이미지는 `generateStoryCoverImage()`로 별도 생성
+- OpenAI 쿼타 오류 처리
+  - HTTP 429 + 쿼타 관련 코드/메시지 감지 시 즉시 생성 중단
+  - API 라우트(`/api/projects/:id/generate`)에서 HTTP 429 + `errorCode: "OPENAI_QUOTA_EXCEEDED"` 반환
+  - 프로그레스 페이지에서 감지 시 한국어 경고 알림 표시 후 홈으로 리다이렉트
 
 ## 실행 방법
 
@@ -111,6 +129,8 @@ npm run dev
 - 생성/출판
   - POST /api/projects/:id/generate
   - POST /api/projects/:id/publish
+- AI 생성 (내부)
+  - POST /api/ai/generate-book
 - 템플릿/판형
   - GET /api/templates
   - GET /api/book-specs
@@ -209,23 +229,41 @@ npm run probe-templates -- --bookSpec SQUAREBOOK_HC --kind cover --limit 10
 ```text
 app/
   api/
-    auth/
+    ai/
+      generate-book/     # AI 생성 내부 API
+    auth/                # 회원가입/로그인/로그아웃/me
+    book-specs/
+    exchange-rate/
+    orders/
+    projects/
+      [id]/
+        generate/        # AI 만화·소설 생성
+        pages/
+        publish/
+    templates/
+    upload/
+    webhook/
   components/
   create/
-  editor/
+    progress/[projectId] # AI 생성 진행 화면(폴링 + 쿼타 에러 처리)
+  editor/                # 포토북 편집기
   login/
   order/
   signup/
   status/
   view/
 lib/
+  ai-generator.ts        # AI 만화·소설 생성 엔진
+  ai-pricing.ts          # 모델 옵션 및 비용 계산
   auth.ts
-  ai-pricing.ts
   book-specs.ts
+  client.js
+  core.js
   order-status.ts
   prisma.ts
   sweetbook-api.ts
   template-mappings.ts
+  template-overrides.ts
 scripts/
   smoke-test.js
   probe-templates.js
@@ -234,4 +272,6 @@ prisma/
   schema.prisma
   seed.js
 types/
+.cache/
+  comic-checkpoints/     # 만화 이미지 생성 체크포인트 (자동 생성)
 ```
