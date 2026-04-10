@@ -1,4 +1,4 @@
-# Sweetbook
+# Dreamcatcher
 
 Next.js 14 기반 멀티 북 제작 웹앱입니다.
 
