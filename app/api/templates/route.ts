@@ -22,17 +22,105 @@ interface TemplateListItem {
 	[key: string]: unknown;
 }
 
+function toTemplateOptionItem(
+	raw: unknown,
+): { label: string; value: string } | null {
+	if (raw === null || raw === undefined) {
+		return null;
+	}
+
+	if (typeof raw === "string" || typeof raw === "number") {
+		const value = String(raw).trim();
+		if (!value) {
+			return null;
+		}
+		return { label: value, value };
+	}
+
+	if (typeof raw === "object") {
+		const obj = raw as Record<string, unknown>;
+		const valueCandidate =
+			obj.value ?? obj.key ?? obj.code ?? obj.id ?? obj.name;
+		const labelCandidate = obj.label ?? obj.name ?? valueCandidate;
+		if (valueCandidate === null || valueCandidate === undefined) {
+			return null;
+		}
+		const value = String(valueCandidate).trim();
+		if (!value) {
+			return null;
+		}
+		const label = String(labelCandidate ?? value).trim() || value;
+		return { label, value };
+	}
+
+	return null;
+}
+
+function collectTemplateFieldOptions(
+	definition: Record<string, unknown>,
+): Array<{ label: string; value: string }> {
+	const sources = [
+		definition.enum,
+		definition.options,
+		definition.values,
+		definition.items,
+	];
+	const items: Array<{ label: string; value: string }> = [];
+	const seen = new Set<string>();
+
+	for (const source of sources) {
+		if (!Array.isArray(source)) {
+			continue;
+		}
+		for (const raw of source) {
+			const mapped = toTemplateOptionItem(raw);
+			if (!mapped) {
+				continue;
+			}
+			if (seen.has(mapped.value)) {
+				continue;
+			}
+			seen.add(mapped.value);
+			items.push(mapped);
+		}
+	}
+
+	return items;
+}
+
+function collectTemplateFieldDefaultValue(
+	definition: Record<string, unknown>,
+): string | null {
+	const raw = definition.default;
+	if (raw === null || raw === undefined) {
+		return null;
+	}
+
+	if (typeof raw === "string" || typeof raw === "number") {
+		const value = String(raw).trim();
+		return value || null;
+	}
+
+	return null;
+}
+
 function collectRequiredTemplateInputs(detail: SweetbookTemplateDetail) {
 	const definitions = detail.parameters?.definitions || {};
 	return Object.entries(definitions)
 		.filter(([, definition]) => Boolean(definition.required))
-		.map(([name, definition]) => ({
-			name,
-			binding: definition.binding || null,
-			type: definition.type || null,
-			label: definition.label || null,
-			description: definition.description || null,
-		}));
+		.map(([name, definition]) => {
+			const rawDefinition = definition as Record<string, unknown>;
+			const options = collectTemplateFieldOptions(rawDefinition);
+			return {
+				name,
+				binding: definition.binding || null,
+				type: definition.type || null,
+				label: definition.label || null,
+				description: definition.description || null,
+				defaultValue: collectTemplateFieldDefaultValue(rawDefinition),
+				options,
+			};
+		});
 }
 
 const templateCacheGlobal = globalThis as typeof globalThis & {

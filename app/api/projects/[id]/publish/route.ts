@@ -40,6 +40,8 @@ interface PublishRequestBody {
 	contentPageOverrides?: Record<string, PublishTemplateOverrides>;
 }
 
+const TEMPLATE_FINGERPRINT_PARAM_KEY = "__sbTemplateFingerprint";
+
 function sanitizeTemplateOverrides(
 	value: unknown,
 ): PublishTemplateOverrides | undefined {
@@ -62,7 +64,12 @@ function sanitizeTemplateOverrides(
 	const raw = value as Record<string, unknown>;
 	const parameters =
 		raw.parameters && typeof raw.parameters === "object"
-			? (raw.parameters as Record<string, unknown>)
+			? (() => {
+					const source = raw.parameters as Record<string, unknown>;
+					const sanitized = { ...source };
+					delete sanitized[TEMPLATE_FINGERPRINT_PARAM_KEY];
+					return sanitized;
+				})()
 			: undefined;
 	const fileUrls =
 		raw.fileUrls && typeof raw.fileUrls === "object"
@@ -96,6 +103,33 @@ function mergeTemplateOverrides(
 	}
 
 	return { parameters, fileUrls };
+}
+
+function extractImageUrlCandidate(value: unknown): string | null {
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		return trimmed || null;
+	}
+
+	if (!value || typeof value !== "object") {
+		return null;
+	}
+
+	const record = value as Record<string, unknown>;
+	const candidateKeys = ["url", "image", "photo", "src", "href", "fileUrl"];
+
+	for (const key of candidateKeys) {
+		const candidate = record[key];
+		if (typeof candidate !== "string") {
+			continue;
+		}
+		const trimmed = candidate.trim();
+		if (trimmed) {
+			return trimmed;
+		}
+	}
+
+	return null;
 }
 
 async function parsePublishRequestBody(
@@ -148,12 +182,45 @@ async function applyFileUrlOverrides(params: {
 	}
 
 	const merged: Record<string, Blob | Blob[]> = { ...baseFiles };
-	for (const [fieldName, value] of Object.entries(fileUrls)) {
-		const urls = Array.isArray(value) ? value : [value];
-		const cleanedUrls = urls
-			.filter((url): url is string => typeof url === "string")
+	const parseFileUrlList = (value: string | string[]): string[] => {
+		if (Array.isArray(value)) {
+			return value
+				.map((item) => extractImageUrlCandidate(item))
+				.filter((url): url is string => Boolean(url))
+				.filter(Boolean);
+		}
+
+		if (typeof value !== "string") {
+			return [];
+		}
+
+		const trimmed = value.trim();
+		if (!trimmed) {
+			return [];
+		}
+
+		if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+			try {
+				const parsed = JSON.parse(trimmed);
+				if (Array.isArray(parsed)) {
+					return parsed
+						.map((item) => extractImageUrlCandidate(item))
+						.filter((url): url is string => Boolean(url))
+						.filter(Boolean);
+				}
+			} catch {
+				// Fall through to comma-separated parsing.
+			}
+		}
+
+		return trimmed
+			.split(",")
 			.map((url) => url.trim())
 			.filter(Boolean);
+	};
+
+	for (const [fieldName, value] of Object.entries(fileUrls)) {
+		const cleanedUrls = parseFileUrlList(value);
 
 		if (cleanedUrls.length === 0) {
 			continue;
@@ -169,6 +236,47 @@ async function applyFileUrlOverrides(params: {
 	}
 
 	return merged;
+}
+
+function isFileLikeBinding(binding: string | null | undefined): boolean {
+	const normalized = String(binding || "").toLowerCase();
+	return normalized === "file" || normalized.includes("gallery");
+}
+
+function parsePotentialFileUrls(value: unknown): string[] {
+	if (Array.isArray(value)) {
+		return value
+			.map((item) => extractImageUrlCandidate(item))
+			.filter((url): url is string => Boolean(url));
+	}
+
+	if (typeof value !== "string") {
+		return [];
+	}
+
+	const trimmed = value.trim();
+	if (!trimmed) {
+		return [];
+	}
+
+	if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+		try {
+			const parsed = JSON.parse(trimmed);
+			if (Array.isArray(parsed)) {
+				return parsed
+					.map((item) => extractImageUrlCandidate(item))
+					.filter((url): url is string => Boolean(url))
+					.filter(Boolean);
+			}
+		} catch {
+			// Fall through to comma-separated parsing.
+		}
+	}
+
+	return trimmed
+		.split(",")
+		.map((item) => item.trim())
+		.filter(Boolean);
 }
 
 function collectTemplateRequiredFields(detail: SweetbookTemplateDetail) {
@@ -369,7 +477,6 @@ function buildTemplateTextRuntimeContext(params: {
 	} = params;
 	const fallbackText =
 		pickFirstString(
-			templateKind === "content" ? page?.caption : null,
 			project.coverCaption,
 			project.synopsis,
 			project.storyCharacters,
@@ -493,10 +600,8 @@ function resolveTemplateSpecificTextValue(
 
 	if (hasTemplateKeyword(search, ["parentcomment", "parent comment"])) {
 		return (
-			pickFirstString(
-				runtime.page?.caption,
-				runtime.project.coverCaption,
-			) || "오늘도 즐거운 하루였어요."
+			pickFirstString(runtime.project.coverCaption) ||
+			"오늘도 즐거운 하루였어요."
 		);
 	}
 
@@ -1007,22 +1112,6 @@ function buildTemplatePayload(params: {
 		}
 	}
 
-	// 일부 템플릿은 메인 이미지 필드를 file binding이 아닌 확장 바인딩으로 요구하므로,
-	// parameters에도 URL 기반 폴백을 추가한다.
-	for (const [name, definition] of Object.entries(definitions)) {
-		const binding = String(definition.binding || "").toLowerCase();
-		if (binding !== "file") {
-			continue;
-		}
-		if (name in parameters) {
-			continue;
-		}
-		if (isPrimaryTemplateImageField(name, definition, kind)) {
-			parameters[name] =
-				"https://picsum.photos/seed/momento-template/1200/900";
-		}
-	}
-
 	return { parameters, files };
 }
 
@@ -1160,19 +1249,24 @@ export async function POST(
 			contentPageOverrides: requestBody.contentPageOverrides,
 		};
 		const client = getSweetbookClient();
-
-		let bookUid = project.bookUid;
-		if (!bookUid) {
+		const createBookAndGetUid = async () => {
 			const book = (await client.books.create({
 				bookSpecUid,
 				title: project.title,
 				creationType: "NORMAL",
 			})) as { bookUid?: string };
 
-			bookUid = book.bookUid || null;
-			if (!bookUid) {
+			const nextBookUid = book.bookUid || null;
+			if (!nextBookUid) {
 				throw new Error("Book 생성 후 bookUid를 받지 못했습니다.");
 			}
+
+			return nextBookUid;
+		};
+
+		let bookUid = project.bookUid;
+		if (!bookUid) {
+			bookUid = await createBookAndGetUid();
 		}
 
 		const coverTemplateUid =
@@ -1261,12 +1355,36 @@ export async function POST(
 		});
 
 		failedStep = "create-cover";
-		await postSweetbookTemplateForm(
-			`/Books/${bookUid}/cover`,
-			coverTemplateUid,
-			mergedCoverParameters,
-			mergedCoverFiles,
-		);
+		try {
+			await postSweetbookTemplateForm(
+				`/Books/${bookUid}/cover`,
+				coverTemplateUid,
+				mergedCoverParameters,
+				mergedCoverFiles,
+			);
+		} catch (coverError) {
+			const coverErrorMessage =
+				coverError instanceof Error
+					? coverError.message
+					: String(coverError || "");
+			const shouldRetryWithNewBook =
+				coverErrorMessage.includes("이미 표지가 존재") ||
+				coverErrorMessage
+					.toLowerCase()
+					.includes("cover already exists");
+
+			if (!shouldRetryWithNewBook) {
+				throw coverError;
+			}
+
+			bookUid = await createBookAndGetUid();
+			await postSweetbookTemplateForm(
+				`/Books/${bookUid}/cover`,
+				coverTemplateUid,
+				mergedCoverParameters,
+				mergedCoverFiles,
+			);
+		}
 
 		const contentTemplateDetailMap = new Map<
 			string,
@@ -1322,10 +1440,12 @@ export async function POST(
 				bookSpecUid,
 			});
 
-			const pageBlob = await fetchImageBlob(
-				page.imageUrl,
-				req.nextUrl.origin,
-			);
+			const pageTemplateHasFileBinding = Object.values(
+				pageContentTemplateDetail.parameters?.definitions || {},
+			).some((def) => String(def.binding || "").toLowerCase() === "file");
+			const pageBlob = pageTemplateHasFileBinding
+				? await fetchImageBlob(page.imageUrl, req.nextUrl.origin)
+				: new Blob();
 			const contentPayload = buildTemplatePayload({
 				detail: pageContentTemplateDetail,
 				kind: "content",
@@ -1369,12 +1489,38 @@ export async function POST(
 					}
 				}
 			}
+			const mergedContentFileUrls: Record<string, string | string[]> = {
+				...(publishBody.contentOverrides?.fileUrls || {}),
+				...(pageOverrides?.fileUrls || {}),
+			};
+			const pageParameterDefinitions =
+				pageContentTemplateDetail.parameters?.definitions || {};
+			for (const [paramName, definition] of Object.entries(
+				pageParameterDefinitions,
+			)) {
+				if (!isFileLikeBinding(definition.binding)) {
+					continue;
+				}
+
+				if (mergedContentFileUrls[paramName] !== undefined) {
+					continue;
+				}
+
+				const urls = parsePotentialFileUrls(
+					mergedContentParameters[paramName],
+				);
+				if (urls.length === 0) {
+					continue;
+				}
+
+				mergedContentFileUrls[paramName] =
+					urls.length === 1 ? urls[0] : urls;
+				delete mergedContentParameters[paramName];
+			}
+
 			const mergedContentFiles = await applyFileUrlOverrides({
 				baseFiles: contentPayload.files,
-				fileUrls: {
-					...(publishBody.contentOverrides?.fileUrls || {}),
-					...(pageOverrides?.fileUrls || {}),
-				},
+				fileUrls: mergedContentFileUrls,
 				origin: req.nextUrl.origin,
 			});
 

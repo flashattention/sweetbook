@@ -2,6 +2,7 @@ node_modules/
 .env
 .next/
 out/
+.venv
 
 # SQLite — 시딩된 dev.db 는 커밋 허용 (심사자 즉시 실행용)
 prisma/*.db-journal

@@ -1357,15 +1357,15 @@ function TemplatePicker(props: {
 									: "border-gray-200 bg-white hover:border-rose-200 hover:bg-rose-50/40"
 							}`}
 						>
-							<div className="aspect-[4/3] bg-gray-100 border-b border-gray-100 overflow-hidden">
+							<div className="bg-gray-100 border-b border-gray-100 overflow-hidden">
 								{template.thumbnails?.layout ? (
 									<img
 										src={template.thumbnails.layout}
 										alt={template.templateName}
-										className="w-full h-full object-cover"
+										className="block w-full h-auto object-contain"
 									/>
 								) : (
-									<div className="w-full h-full flex items-center justify-center text-xs text-gray-400 bg-gradient-to-br from-gray-50 to-gray-100">
+									<div className="w-full min-h-40 flex items-center justify-center text-xs text-gray-400 bg-gradient-to-br from-gray-50 to-gray-100">
 										미리보기 없음
 									</div>
 								)}

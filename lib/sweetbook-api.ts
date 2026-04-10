@@ -108,6 +108,7 @@ export interface SweetbookTemplateParameterDefinition {
 	description?: string | null;
 	default?: unknown;
 	label?: string | null;
+	[key: string]: unknown;
 }
 
 export interface SweetbookTemplateDetail {

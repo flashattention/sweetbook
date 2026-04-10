@@ -26,6 +26,27 @@ function toComicStyle(value: string | null | undefined): ComicStyle {
 		: "MANGA";
 }
 
+function isOpenAIQuotaExceededError(error: unknown): boolean {
+	const e = error as {
+		status?: number;
+		code?: string;
+		error?: { code?: string; message?: string };
+		message?: string;
+	};
+
+	const status = Number(e?.status);
+	const code = String(e?.code || e?.error?.code || "").toLowerCase();
+	const message = String(e?.message || e?.error?.message || "").toLowerCase();
+
+	return (
+		status === 429 &&
+		(code.includes("insufficient_quota") ||
+			message.includes("insufficient_quota") ||
+			message.includes("current quota") ||
+			message.includes("quota exceeded"))
+	);
+}
+
 // POST /api/projects/[id]/generate
 export async function POST(
 	req: NextRequest,
@@ -127,6 +148,7 @@ export async function POST(
 					generationProgress: 35,
 				} as any,
 			});
+			let lastDoneCount = 0;
 
 			const generatedImages = await generateComicImages({
 				title: project.title,
@@ -135,10 +157,17 @@ export async function POST(
 				pages: plan.pages,
 				characterProfiles: plan.characterProfiles,
 				imageModel,
+				maxParallel: imageModel === "dall-e-2" ? 6 : 4,
+				retryCount: 2,
+				checkpointKey: project.id,
 				onPageDone: async (done, total) => {
 					const progress = 35 + Math.floor((done / total) * 50);
-					// 이미지 1장 단가 누적 (표지 포함 done+1번째)
-					runningCostUsd += IMAGE_PRICING_PER_IMAGE_USD[imageModel];
+					const delta = Math.max(0, done - lastDoneCount);
+					lastDoneCount = done;
+					if (delta > 0) {
+						runningCostUsd +=
+							delta * IMAGE_PRICING_PER_IMAGE_USD[imageModel];
+					}
 					await prisma.project.update({
 						where: { id: project.id },
 						data: {
@@ -209,7 +238,12 @@ export async function POST(
 			);
 		}
 
-		const message = err instanceof Error ? err.message : "스토리 생성 실패";
+		const isQuotaExceeded = isOpenAIQuotaExceededError(err);
+		const message = isQuotaExceeded
+			? "OpenAI API 크레딧이 부족합니다. 충전 후 홈에서 다시 시도해 주세요."
+			: err instanceof Error
+				? err.message
+				: "스토리 생성 실패";
 		console.error("[POST /api/projects/[id]/generate]", err);
 		await prisma.project
 			.update({
@@ -221,8 +255,14 @@ export async function POST(
 			})
 			.catch(() => {});
 		return NextResponse.json(
-			{ success: false, error: message },
-			{ status: 500 },
+			{
+				success: false,
+				error: message,
+				errorCode: isQuotaExceeded
+					? "OPENAI_QUOTA_EXCEEDED"
+					: undefined,
+			},
+			{ status: isQuotaExceeded ? 429 : 500 },
 		);
 	}
 }

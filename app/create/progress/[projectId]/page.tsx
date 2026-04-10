@@ -23,6 +23,7 @@ interface ProjectResponse {
 	success: boolean;
 	data?: ProgressProject;
 	error?: string;
+	errorCode?: string;
 }
 
 const STAGE_LABEL_COMIC: Record<string, string> = {
@@ -73,7 +74,34 @@ export default function CreateProgressPage() {
 	const [project, setProject] = useState<ProgressProject | null>(null);
 	const [error, setError] = useState("");
 	const [starting, setStarting] = useState(false);
+	const [quotaBlocked, setQuotaBlocked] = useState(false);
 	const startedRef = useRef(false);
+	const quotaAlertedRef = useRef(false);
+
+	function isQuotaError(text?: string | null) {
+		const message = String(text || "").toLowerCase();
+		return (
+			message.includes("insufficient_quota") ||
+			message.includes("current quota") ||
+			message.includes("quota exceeded") ||
+			message.includes("api 크레딧")
+		);
+	}
+
+	function handleQuotaBlockedWarning(message?: string) {
+		if (quotaAlertedRef.current) {
+			return;
+		}
+
+		quotaAlertedRef.current = true;
+		setQuotaBlocked(true);
+		startedRef.current = true;
+		window.alert(
+			message ||
+				"OpenAI API 크레딧이 부족합니다. 충전 후 홈에서 다시 시도해 주세요.",
+		);
+		router.replace("/");
+	}
 
 	const stageLabel = useMemo(() => {
 		if (!project?.generationStage) return "준비 중";
@@ -90,7 +118,7 @@ export default function CreateProgressPage() {
 	}, [project?.generationStage, project?.projectType]);
 
 	useEffect(() => {
-		if (!projectId) return;
+		if (!projectId || quotaBlocked) return;
 
 		let stopped = false;
 
@@ -127,7 +155,7 @@ export default function CreateProgressPage() {
 	}, [projectId]);
 
 	useEffect(() => {
-		if (!projectId || startedRef.current) return;
+		if (!projectId || startedRef.current || quotaBlocked) return;
 		if (!project) return;
 		if (project.status === "PUBLISHED") {
 			router.replace(`/view/${project.id}`);
@@ -163,12 +191,23 @@ export default function CreateProgressPage() {
 				.then(async (res) => {
 					const json = (await res.json()) as ProjectResponse;
 					if (!res.ok || !json.success) {
+						if (
+							json.errorCode === "OPENAI_QUOTA_EXCEEDED" ||
+							isQuotaError(json.error)
+						) {
+							handleQuotaBlockedWarning(json.error);
+							return;
+						}
 						throw new Error(
 							json.error || "생성 시작에 실패했습니다.",
 						);
 					}
 				})
 				.catch((err: unknown) => {
+					if (err instanceof Error && isQuotaError(err.message)) {
+						handleQuotaBlockedWarning(err.message);
+						return;
+					}
 					setError(
 						err instanceof Error
 							? err.message
@@ -178,7 +217,7 @@ export default function CreateProgressPage() {
 				})
 				.finally(() => setStarting(false));
 		}
-	}, [projectId, project, router, searchParams]);
+	}, [projectId, project, quotaBlocked, router, searchParams]);
 
 	useEffect(() => {
 		if (!project) return;

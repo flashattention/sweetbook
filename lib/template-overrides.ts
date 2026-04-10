@@ -4,6 +4,11 @@ export interface TemplateRequiredInput {
 	type?: string | null;
 	label?: string | null;
 	description?: string | null;
+	defaultValue?: string | null;
+	options?: Array<{
+		label: string;
+		value: string;
+	}>;
 }
 
 export interface PublishTemplateOverrides {
@@ -15,6 +20,36 @@ export interface ProjectTemplateOverrides {
 	coverOverrides?: PublishTemplateOverrides;
 	contentOverrides?: PublishTemplateOverrides;
 	createdAt: number;
+}
+
+function isFileLikeBinding(binding: string | null | undefined): boolean {
+	const normalized = String(binding || "").toLowerCase();
+	return normalized === "file" || normalized.includes("gallery");
+}
+
+function parseFileUrlValues(raw: string): string[] {
+	const trimmed = raw.trim();
+	if (!trimmed) {
+		return [];
+	}
+
+	if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+		try {
+			const parsed = JSON.parse(trimmed);
+			if (Array.isArray(parsed)) {
+				return parsed
+					.map((item) => String(item || "").trim())
+					.filter(Boolean);
+			}
+		} catch {
+			// Fall through to comma-separated parsing.
+		}
+	}
+
+	return trimmed
+		.split(",")
+		.map((url) => url.trim())
+		.filter(Boolean);
 }
 
 function parseUserInputByType(
@@ -30,6 +65,17 @@ function parseUserInputByType(
 		return Number.isFinite(n) ? n : value;
 	}
 	if (t.includes("array")) {
+		const trimmed = value.trim();
+		if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+			try {
+				const parsed = JSON.parse(trimmed);
+				if (Array.isArray(parsed)) {
+					return parsed;
+				}
+			} catch {
+				// Fall back to comma-separated parsing.
+			}
+		}
 		return value
 			.split(",")
 			.map((item) => item.trim())
@@ -62,12 +108,8 @@ export function buildTemplateOverrides(params: {
 			continue;
 		}
 
-		const binding = String(field.binding || "").toLowerCase();
-		if (binding === "file") {
-			const urls = value
-				.split(",")
-				.map((url) => url.trim())
-				.filter(Boolean);
+		if (isFileLikeBinding(field.binding)) {
+			const urls = parseFileUrlValues(value);
 			if (urls.length === 1) {
 				fileUrls[field.name] = urls[0];
 			} else if (urls.length > 1) {
