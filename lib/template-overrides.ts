@@ -8,6 +8,9 @@ export interface TemplateRequiredInput {
 	options?: Array<{
 		label: string;
 		value: string;
+		iconUrl?: string;
+		thumbnailUrl?: string;
+		previewUrl?: string;
 	}>;
 }
 

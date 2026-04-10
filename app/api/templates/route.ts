@@ -22,9 +22,13 @@ interface TemplateListItem {
 	[key: string]: unknown;
 }
 
-function toTemplateOptionItem(
-	raw: unknown,
-): { label: string; value: string } | null {
+function toTemplateOptionItem(raw: unknown): {
+	label: string;
+	value: string;
+	iconUrl?: string;
+	thumbnailUrl?: string;
+	previewUrl?: string;
+} | null {
 	if (raw === null || raw === undefined) {
 		return null;
 	}
@@ -42,6 +46,15 @@ function toTemplateOptionItem(
 		const valueCandidate =
 			obj.value ?? obj.key ?? obj.code ?? obj.id ?? obj.name;
 		const labelCandidate = obj.label ?? obj.name ?? valueCandidate;
+		const iconUrlCandidate =
+			obj.iconUrl ??
+			obj.icon ??
+			obj.imageUrl ??
+			obj.image ??
+			obj.thumbnailUrl ??
+			obj.thumbnail ??
+			obj.previewUrl ??
+			obj.preview;
 		if (valueCandidate === null || valueCandidate === undefined) {
 			return null;
 		}
@@ -50,7 +63,18 @@ function toTemplateOptionItem(
 			return null;
 		}
 		const label = String(labelCandidate ?? value).trim() || value;
-		return { label, value };
+		const iconUrl =
+			typeof iconUrlCandidate === "string" &&
+			String(iconUrlCandidate).trim()
+				? String(iconUrlCandidate).trim()
+				: undefined;
+		return {
+			label,
+			value,
+			iconUrl,
+			thumbnailUrl: iconUrl,
+			previewUrl: iconUrl,
+		};
 	}
 
 	return null;
@@ -58,7 +82,13 @@ function toTemplateOptionItem(
 
 function collectTemplateFieldOptions(
 	definition: Record<string, unknown>,
-): Array<{ label: string; value: string }> {
+): Array<{
+	label: string;
+	value: string;
+	iconUrl?: string;
+	thumbnailUrl?: string;
+	previewUrl?: string;
+}> {
 	const sources = [
 		definition.enum,
 		definition.options,

@@ -48,7 +48,11 @@ export async function POST(req: NextRequest) {
 
 		const project = await prisma.project.findFirst({
 			where: { id: projectId, userId: user.id },
-			select: { projectType: true },
+			select: {
+				projectType: true,
+				status: true,
+				bookUid: true,
+			},
 		});
 		if (!project) {
 			return NextResponse.json(
@@ -56,11 +60,29 @@ export async function POST(req: NextRequest) {
 				{ status: 404 },
 			);
 		}
-		if (project.projectType !== "PHOTOBOOK") {
+		if (project.status === "DRAFT") {
 			return NextResponse.json(
 				{
 					success: false,
-					error: "포토북 프로젝트만 주문할 수 있습니다.",
+					error: "출판이 완료되지 않은 프로젝트입니다. 먼저 출판을 완료해 주세요.",
+				},
+				{ status: 400 },
+			);
+		}
+		if (!project.bookUid) {
+			return NextResponse.json(
+				{
+					success: false,
+					error: "Book UID가 없습니다. 메인에서 출판 재시도를 진행해 주세요.",
+				},
+				{ status: 400 },
+			);
+		}
+		if (project.bookUid !== bookUid) {
+			return NextResponse.json(
+				{
+					success: false,
+					error: "프로젝트의 Book UID와 요청 값이 일치하지 않습니다.",
 				},
 				{ status: 400 },
 			);

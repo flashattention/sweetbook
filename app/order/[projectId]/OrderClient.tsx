@@ -55,6 +55,11 @@ export default function OrderClient({ project }: Props) {
 		address2: "",
 		shippingMemo: "부재 시 경비실에 맡겨주세요",
 	});
+	const estimateHint = !project.bookUid
+		? "출판이 완료되지 않아 견적을 조회할 수 없습니다. 메인에서 '출판 재시도'를 눌러주세요."
+		: !estimating && !estimate
+			? "샌드박스 견적 조회에 실패했습니다. 잠시 후 다시 시도해 주세요."
+			: "";
 
 	// 가격 견적 조회
 	useEffect(() => {
@@ -89,7 +94,9 @@ export default function OrderClient({ project }: Props) {
 	async function handleOrder(e: React.FormEvent) {
 		e.preventDefault();
 		if (!project.bookUid) {
-			setError("bookUid 가 없습니다. 먼저 포토북을 출판해 주세요.");
+			setError(
+				"출판이 완료되지 않아 주문할 수 없습니다. 메인에서 '출판 재시도'를 진행해 주세요.",
+			);
 			return;
 		}
 		setOrdering(true);
@@ -141,18 +148,20 @@ export default function OrderClient({ project }: Props) {
 		<div className="min-h-screen bg-gradient-to-br from-rose-50 to-purple-50 p-6">
 			<div className="max-w-4xl mx-auto">
 				<div className="mb-6">
-					<a
-						href={
-							project.projectType === "PHOTOBOOK"
-								? `/editor/${project.id}`
-								: `/view/${project.id}`
-						}
-						className="text-rose-400 text-sm hover:underline"
-					>
-						{project.projectType === "PHOTOBOOK"
-							? "← 에디터로 돌아가기"
-							: "← 보기로 돌아가기"}
-					</a>
+					<div className="flex items-center justify-between gap-3">
+						<a
+							href={`/view/${project.id}`}
+							className="text-rose-400 text-sm hover:underline"
+						>
+							← 보기로 돌아가기
+						</a>
+						<a
+							href={`/editor/${project.id}`}
+							className="text-sm font-semibold text-rose-500 hover:text-rose-600"
+						>
+							✏️ 수정하기
+						</a>
+					</div>
 					<h1 className="text-3xl font-serif font-bold text-gray-800 mt-3">
 						주문하기
 					</h1>
@@ -262,10 +271,15 @@ export default function OrderClient({ project }: Props) {
 										: estimate
 											? `${estimate.totalPrice.toLocaleString()}원`
 											: !project.bookUid
-												? "(API 키 필요)"
+												? "(출판 미완료: Book UID 없음)"
 												: "—"}
 								</span>
 							</div>
+							{estimateHint ? (
+								<p className="text-xs text-amber-600 pt-1 border-t border-gray-100">
+									{estimateHint}
+								</p>
+							) : null}
 						</div>
 					</div>
 

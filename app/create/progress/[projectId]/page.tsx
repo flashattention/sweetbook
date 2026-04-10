@@ -31,14 +31,17 @@ const STAGE_LABEL_COMIC: Record<string, string> = {
 	PLANNING: "스토리 기획 중",
 	IMAGING: "컷 이미지 생성 중",
 	SAVING: "페이지 저장 중",
+	PUBLISHING: "출판 처리 중",
 	COMPLETED: "완료",
 	FAILED: "실패",
 };
 
 const STAGE_LABEL_NOVEL: Record<string, string> = {
 	QUEUED: "대기 중",
-	PLANNING: "스토리 집필 중",
+	PLANNING: "스토리 아웃라인 기획 중",
+	WRITING: "페이지 집필 중",
 	SAVING: "페이지 저장 중",
+	PUBLISHING: "출판 처리 중",
 	COMPLETED: "완료",
 	FAILED: "실패",
 };
@@ -112,6 +115,13 @@ export default function CreateProgressPage() {
 			const total = Number(totalStr);
 			if (done === 0) return `컷 이미지 생성 중 (0 / ${total})...`;
 			return `컷 이미지 생성 중 (${done} / ${total})...`;
+		}
+		if (stage.startsWith("WRITING:")) {
+			const [, doneStr, totalStr] = stage.split(":");
+			const done = Number(doneStr);
+			const total = Number(totalStr);
+			if (done === 0) return `소설 페이지 집필 준비 중 (0 / ${total})...`;
+			return `소설 페이지 집필 중 (${done} / ${total})...`;
 		}
 		const map = getStageLabelMap(project.projectType);
 		return map[stage] || stage;

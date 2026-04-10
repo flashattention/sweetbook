@@ -5,56 +5,69 @@
  */
 
 const { PrismaClient } = require("@prisma/client");
+const { randomBytes, scrypt: scryptCallback } = require("crypto");
+const { promisify } = require("util");
 const prisma = new PrismaClient();
+const scrypt = promisify(scryptCallback);
+
+const DEFAULT_TEST_USER_EMAIL = "a@a.a";
+const DEFAULT_TEST_USER_NAME = "테스트1";
+const DEFAULT_TEST_USER_PASSWORD = "Test1234!";
+
+function buildPhotoPages(seedPrefix, count, captionPrefix) {
+	return Array.from({ length: count }, (_, index) => {
+		const pageOrder = index + 1;
+		return {
+			pageOrder,
+			imageUrl: `https://picsum.photos/seed/${seedPrefix}-${pageOrder}/800/600`,
+			caption: `${captionPrefix} ${pageOrder}페이지`,
+		};
+	});
+}
+
+async function hashPassword(password) {
+	const salt = randomBytes(16);
+	const hash = await scrypt(password, salt, 64);
+	return `scrypt$${salt.toString("hex")}$${hash.toString("hex")}`;
+}
 
 async function main() {
 	// 기존 데이터 초기화
 	await prisma.page.deleteMany();
 	await prisma.project.deleteMany();
 
+	const passwordHash = await hashPassword(DEFAULT_TEST_USER_PASSWORD);
+	const testUser = await prisma.user.upsert({
+		where: { email: DEFAULT_TEST_USER_EMAIL },
+		update: {
+			name: DEFAULT_TEST_USER_NAME,
+			passwordHash,
+		},
+		create: {
+			email: DEFAULT_TEST_USER_EMAIL,
+			name: DEFAULT_TEST_USER_NAME,
+			passwordHash,
+		},
+	});
+
 	// ─────────────────────────────────────────────────────────
 	// 프로젝트 1: 편집 중인 초안 (DRAFT)
 	// ─────────────────────────────────────────────────────────
 	await prisma.project.create({
 		data: {
+			user: { connect: { id: testUser.id } },
 			title: "우리의 첫 번째 이야기",
-			coupleNameA: "지은",
-			coupleNameB: "민준",
-			anniversaryDate: new Date("2025-03-14"),
 			projectType: "PHOTOBOOK",
 			status: "DRAFT",
+			bookSpecUid: "SQUAREBOOK_HC",
 			coverImageUrl: "https://picsum.photos/seed/cover-momento1/800/600",
 			coverCaption: "사랑은 매일 선택하는 것",
 			pages: {
-				create: [
-					{
-						pageOrder: 1,
-						imageUrl:
-							"https://picsum.photos/seed/momento-p1/800/600",
-						caption:
-							"처음 만난 날, 봄바람이 불었다. 그 날의 설렘이 아직도 생생하다.",
-					},
-					{
-						pageOrder: 2,
-						imageUrl:
-							"https://picsum.photos/seed/momento-p2/800/600",
-						caption:
-							"제주도에서의 3일, 잊을 수 없는 기억들로 가득 찬 시간.",
-					},
-					{
-						pageOrder: 3,
-						imageUrl:
-							"https://picsum.photos/seed/momento-p3/800/600",
-						caption:
-							"첫 번째 기념일, 작은 카페에서 나눈 달콤한 케이크.",
-					},
-					{
-						pageOrder: 4,
-						imageUrl:
-							"https://picsum.photos/seed/momento-p4/800/600",
-						caption: "함께 걷는 모든 길이 행복하다.",
-					},
-				],
+				create: buildPhotoPages(
+					"momento-draft",
+					24,
+					"우리의 첫 번째 이야기",
+				),
 			},
 		},
 	});
@@ -64,10 +77,8 @@ async function main() {
 	// ─────────────────────────────────────────────────────────
 	await prisma.project.create({
 		data: {
+			user: { connect: { id: testUser.id } },
 			title: "100일의 기적",
-			coupleNameA: "소연",
-			coupleNameB: "태준",
-			anniversaryDate: new Date("2025-08-01"),
 			projectType: "PHOTOBOOK",
 			status: "ORDERED",
 			bookUid: "demo-book-001",
@@ -105,10 +116,8 @@ async function main() {
 	// ─────────────────────────────────────────────────────────
 	await prisma.project.create({
 		data: {
+			user: { connect: { id: testUser.id } },
 			title: "여름, 그리고 너",
-			coupleNameA: "하린",
-			coupleNameB: "준호",
-			anniversaryDate: new Date("2024-07-07"),
 			projectType: "PHOTOBOOK",
 			status: "PUBLISHED",
 			bookUid: "demo-book-002",
@@ -139,9 +148,6 @@ async function main() {
 	await prisma.project.create({
 		data: {
 			title: "벚꽃 아래, 우리",
-			coupleNameA: "유진",
-			coupleNameB: "도윤",
-			anniversaryDate: new Date("2025-04-10"),
 			projectType: "COMIC",
 			comicStyle: "MANGA",
 			genre: "로맨스",
@@ -192,9 +198,6 @@ async function main() {
 	await prisma.project.create({
 		data: {
 			title: "한강의 소년, 세계를 걷다",
-			coupleNameA: "서진",
-			coupleNameB: "할머니",
-			anniversaryDate: new Date("2025-01-01"),
 			projectType: "COMIC",
 			comicStyle: "AMERICAN",
 			genre: "성장 드라마",
@@ -239,6 +242,9 @@ async function main() {
 	});
 
 	console.log("✅ 시드 완료: 5개의 프로젝트가 생성되었습니다.");
+	console.log(
+		`✅ 기본 테스트 계정: ${DEFAULT_TEST_USER_EMAIL} / ${DEFAULT_TEST_USER_PASSWORD}`,
+	);
 }
 
 main()

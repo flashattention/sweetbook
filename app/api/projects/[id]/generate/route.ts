@@ -17,6 +17,7 @@ import {
 	IMAGE_PRICING_PER_IMAGE_USD,
 	type ImageModel,
 } from "@/lib/ai-pricing";
+import { isSweetbookConfigured } from "@/lib/sweetbook-api";
 
 function toComicStyle(value: string | null | undefined): ComicStyle {
 	return value === "CARTOON" ||
@@ -110,6 +111,7 @@ export async function POST(
 			),
 		);
 		const comicStyle = toComicStyle(project.comicStyle);
+		let runningCostUsd = 0;
 		const plan = await generateBookPlan(
 			{
 				title: project.title,
@@ -120,26 +122,44 @@ export async function POST(
 				bookKind: normalizedType,
 				comicStyle,
 			},
-			{ storyModel },
+			{
+				storyModel,
+				onNovelPageDone: async (done, total, usage) => {
+					if (normalizedType !== "NOVEL") {
+						return;
+					}
+					const safeTotal = Math.max(1, total);
+					const safeDone = Math.max(0, Math.min(done, safeTotal));
+					const progress =
+						12 + Math.floor((safeDone / safeTotal) * 76);
+					runningCostUsd = calcStoryActualCostUsd(usage, storyModel);
+					await prisma.project.update({
+						where: { id: project.id },
+						data: {
+							generationStage: `WRITING:${safeDone}:${safeTotal}`,
+							generationProgress: progress,
+							generationCostUsd: runningCostUsd,
+						} as any,
+					});
+				},
+			},
 		);
 
 		// 실제 스토리 생성 비용 계산 후 저장
-		let runningCostUsd = calcStoryActualCostUsd(
-			plan.actualUsage,
-			storyModel,
-		);
+		runningCostUsd = calcStoryActualCostUsd(plan.actualUsage, storyModel);
 		await prisma.project.update({
 			where: { id: project.id },
 			data: { generationCostUsd: runningCostUsd } as any,
 		});
 
 		let coverImageUrl = `https://picsum.photos/seed/${encodeURIComponent(project.title)}-cover/900/700`;
-		let pageImageUrls = plan.pages.map(
-			(page) =>
-				`https://picsum.photos/seed/${encodeURIComponent(project.title)}-${page.pageOrder}/900/700`,
-		);
+		let pageImageUrls: string[] = [];
 
 		if (normalizedType === "COMIC") {
+			pageImageUrls = plan.pages.map(
+				(page) =>
+					`https://picsum.photos/seed/${encodeURIComponent(project.title)}-${page.pageOrder}/900/700`,
+			);
 			const totalPages = plan.pages.length;
 			await prisma.project.update({
 				where: { id: project.id },
@@ -205,15 +225,52 @@ export async function POST(
 						pageOrder: page.pageOrder,
 						caption: page.caption,
 						imageUrl:
-							pageImageUrls[index] ||
-							`https://picsum.photos/seed/${encodeURIComponent(project.title)}-${page.pageOrder}/900/700`,
+							normalizedType === "NOVEL"
+								? ""
+								: pageImageUrls[index] ||
+									`https://picsum.photos/seed/${encodeURIComponent(project.title)}-${page.pageOrder}/900/700`,
 					})),
 				},
-				status: "PUBLISHED",
 				generationStage: "SAVING",
 				generationProgress: 92,
 			} as any,
 		});
+
+		await prisma.project.update({
+			where: { id: project.id },
+			data: {
+				generationStage: "PUBLISHING",
+				generationProgress: 96,
+			} as any,
+		});
+
+		const publishRes = await fetch(
+			`${req.nextUrl.origin}/api/projects/${project.id}/publish`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					cookie: req.headers.get("cookie") || "",
+				},
+				body: JSON.stringify({}),
+			},
+		);
+		const publishJson = (await publishRes.json().catch(() => ({}))) as {
+			success?: boolean;
+			error?: string;
+			bookUid?: string;
+		};
+		if (!publishRes.ok || !publishJson.success) {
+			throw new Error(
+				publishJson.error ||
+					"출판 단계에서 실패했습니다. 잠시 후 다시 시도해 주세요.",
+			);
+		}
+		if (isSweetbookConfigured() && !publishJson.bookUid) {
+			throw new Error(
+				"출판은 성공했지만 bookUid를 받지 못했습니다. 템플릿/API 설정을 확인해 주세요.",
+			);
+		}
 
 		await prisma.project.update({
 			where: { id: project.id },

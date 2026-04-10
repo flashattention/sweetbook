@@ -39,7 +39,15 @@ function getProjectStatus(project: Project): string {
 	return "DRAFT";
 }
 
-function ProjectAction({ project }: { project: Project }) {
+function ProjectActionWithHandlers({
+	project,
+	isPublishing,
+	onRetryPublish,
+}: {
+	project: Project;
+	isPublishing: boolean;
+	onRetryPublish: () => Promise<void> | void;
+}) {
 	// 생성 중 → 진행 페이지
 	if (
 		project.status === "DRAFT" &&
@@ -65,6 +73,27 @@ function ProjectAction({ project }: { project: Project }) {
 			>
 				재시도 →
 			</Link>
+		);
+	}
+	// 출판 상태이지만 bookUid가 없는 비정상 상태 → 출판 재시도
+	if (project.status === "PUBLISHED" && !project.bookUid) {
+		return (
+			<div className="flex gap-2">
+				<Link
+					href={`/view/${project.id}`}
+					className="text-xs bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-100 transition-colors"
+				>
+					📖 보기
+				</Link>
+				<button
+					type="button"
+					onClick={() => void onRetryPublish()}
+					disabled={isPublishing}
+					className="text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
+				>
+					{isPublishing ? "출판 재시도 중..." : "출판 재시도 →"}
+				</button>
+			</div>
 		);
 	}
 	// 주문 완료
@@ -131,6 +160,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 	const router = useRouter();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const [isPublishing, setIsPublishing] = useState(false);
 
 	const status = STATUS_MAP[getProjectStatus(project)] ?? STATUS_MAP.DRAFT;
 	const coverImage =
@@ -164,6 +194,38 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 			alert("삭제에 실패했습니다");
 		} finally {
 			setIsDeleting(false);
+		}
+	};
+
+	const handleRetryPublish = async () => {
+		if (isPublishing) return;
+		setIsPublishing(true);
+		try {
+			const response = await fetch(
+				`/api/projects/${project.id}/publish`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({}),
+				},
+			);
+			const json = (await response.json().catch(() => ({}))) as {
+				success?: boolean;
+				error?: string;
+			};
+			if (!response.ok || !json.success) {
+				throw new Error(json.error || "출판 재시도에 실패했습니다.");
+			}
+			router.refresh();
+		} catch (error) {
+			console.error("[ProjectCard] Publish retry failed:", error);
+			alert(
+				error instanceof Error
+					? error.message
+					: "출판 재시도 중 오류가 발생했습니다.",
+			);
+		} finally {
+			setIsPublishing(false);
 		}
 	};
 
@@ -211,10 +273,14 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 
 					{/* 버튼 영역 - 항상 아래에 위치 */}
 					<div className="mt-auto pt-4 flex items-center justify-between gap-2">
-						<ProjectAction project={project} />
+						<ProjectActionWithHandlers
+							project={project}
+							isPublishing={isPublishing}
+							onRetryPublish={handleRetryPublish}
+						/>
 						<button
 							onClick={() => setShowDeleteConfirm(true)}
-							disabled={isDeleting}
+							disabled={isDeleting || isPublishing}
 							className="text-xs bg-red-50 text-red-500 px-3 py-1.5 rounded-lg font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
 						>
 							삭제

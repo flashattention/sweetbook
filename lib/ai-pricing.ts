@@ -44,8 +44,16 @@ export function calcStoryActualCostUsd(
 	);
 }
 
-function estimateStoryTokens(pageCount: number) {
+function estimateStoryTokens(pageCount: number, kind: StoryKind) {
 	const safeCount = Math.max(4, Math.min(120, pageCount || 12));
+	if (kind === "NOVEL") {
+		// 아웃라인 호출 1회 + 페이지별 순차 호출 N회 + 강화 재시도 ~30%
+		// 페이지 호출마다 synopsis + 이전 페이지 컨텍스트 포함 → 호출당 입력 토큰이 큼
+		const inputTokens = 800 + safeCount * 1500;
+		const outputTokens = 500 + safeCount * 700;
+		return { inputTokens, outputTokens };
+	}
+	// COMIC: 단일 플래닝 호출
 	const inputTokens = 1400 + safeCount * 150;
 	const outputTokens = 1800 + safeCount * 260;
 	return { inputTokens, outputTokens };
@@ -85,14 +93,18 @@ export function estimateOpenAICost(input: {
 	imageModel?: ImageModel;
 }): OpenAICostEstimate {
 	const safeCount = Math.max(4, Math.min(120, input.pageCount || 12));
-	const { inputTokens, outputTokens } = estimateStoryTokens(safeCount);
+	const { inputTokens, outputTokens } = estimateStoryTokens(
+		safeCount,
+		input.kind,
+	);
 	const storyPricing = STORY_PRICING_PER_1M_TOKENS[input.storyModel];
 	const storyUsd =
 		(inputTokens / 1_000_000) * storyPricing.inputUsd +
 		(outputTokens / 1_000_000) * storyPricing.outputUsd;
 
 	const selectedImageModel = input.imageModel || DEFAULT_IMAGE_MODEL;
-	const imageCount = input.kind === "COMIC" ? safeCount + 1 : 0;
+	// COMIC: 페이지 수 + 표지 1장 / NOVEL: 표지 1장
+	const imageCount = input.kind === "COMIC" ? safeCount + 1 : 1;
 	const imageUsd =
 		imageCount > 0
 			? imageCount * IMAGE_PRICING_PER_IMAGE_USD[selectedImageModel]

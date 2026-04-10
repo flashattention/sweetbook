@@ -202,7 +202,14 @@ function isNovelPageLengthPreferred(text: string): boolean {
 
 export async function generateBookPlan(
 	input: GenerateBookInput,
-	options?: { storyModel?: StoryModel },
+	options?: {
+		storyModel?: StoryModel;
+		onNovelPageDone?: (
+			doneCount: number,
+			totalCount: number,
+			usage: { inputTokens: number; outputTokens: number },
+		) => Promise<void> | void;
+	},
 ): Promise<GenerateBookOutput> {
 	const client = getOpenAIClient();
 	const model = options?.storyModel || DEFAULT_STORY_MODEL;
@@ -297,6 +304,11 @@ export async function generateBookPlan(
 				};
 			},
 		);
+
+		await options?.onNovelPageDone?.(0, input.pageCount, {
+			inputTokens: usageCounter.inputTokens,
+			outputTokens: usageCounter.outputTokens,
+		});
 
 		const pages: Array<{ pageOrder: number; caption: string }> = [];
 		for (let idx = 0; idx < input.pageCount; idx++) {
@@ -403,6 +415,10 @@ export async function generateBookPlan(
 			}
 
 			pages.push({ pageOrder, caption: pageCaption });
+			await options?.onNovelPageDone?.(pages.length, input.pageCount, {
+				inputTokens: usageCounter.inputTokens,
+				outputTokens: usageCounter.outputTokens,
+			});
 		}
 
 		return {

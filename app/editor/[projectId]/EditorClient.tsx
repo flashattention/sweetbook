@@ -496,7 +496,9 @@ function validatePublishRequirements(params: {
 		}
 
 		const requiredInputs = (template.requiredInputs || []).filter(
-			(field) => !isAutoManagedPagePhotoField(field),
+			(field) =>
+				!isAutoManagedPagePhotoField(field) &&
+				!isAutoManagedBookTitleField(field),
 		);
 		if (requiredInputs.length === 0) {
 			continue;
@@ -637,6 +639,45 @@ function isAutoManagedPagePhotoField(field: TemplateRequiredInput): boolean {
 		field.binding,
 	);
 	return search.includes("photo") && !isCollagePhotoField(field);
+}
+
+function isAutoManagedBookTitleField(field: TemplateRequiredInput): boolean {
+	const search = normalizeTemplateFieldSearch(
+		field.name,
+		field.label,
+		field.description,
+	);
+
+	return (
+		search.includes("booktitle") ||
+		(search.includes("book") && search.includes("title"))
+	);
+}
+
+function getOptionImageUrl(option: {
+	iconUrl?: string;
+	thumbnailUrl?: string;
+	previewUrl?: string;
+}): string | null {
+	for (const candidate of [
+		option.iconUrl,
+		option.thumbnailUrl,
+		option.previewUrl,
+	]) {
+		if (typeof candidate === "string" && candidate.trim()) {
+			return candidate.trim();
+		}
+	}
+	return null;
+}
+
+function isBalloonLikeField(field: TemplateRequiredInput): boolean {
+	const search = normalizeTemplateFieldSearch(
+		field.name,
+		field.label,
+		field.description,
+	);
+	return search.includes("balloon") || search.includes("말풍선");
 }
 
 function parseOverrides(value: unknown): PublishTemplateOverrides | null {
@@ -1117,7 +1158,9 @@ export default function EditorClient({ initialProject }: Props) {
 				}
 
 				const fields = (selectedTemplate.requiredInputs || []).filter(
-					(field) => !isAutoManagedPagePhotoField(field),
+					(field) =>
+						!isAutoManagedPagePhotoField(field) &&
+						!isAutoManagedBookTitleField(field),
 				);
 				const savedValues = toInputValueMap(
 					parseOverrides(page.contentTemplateOverrides),
@@ -1439,7 +1482,9 @@ function CoverPanel({
 			(template) => template.templateUid === coverTemplateUid,
 		) || null;
 	const requiredInputs = (selectedTemplate?.requiredInputs || []).filter(
-		(field) => !isAutoManagedCoverTemplateField(field),
+		(field) =>
+			!isAutoManagedCoverTemplateField(field) &&
+			!isAutoManagedBookTitleField(field),
 	);
 	const selectedTemplateValues =
 		templateInputValuesByUid[coverTemplateUid] || {};
@@ -1741,6 +1786,9 @@ function CoverPanel({
 							const isDecorativeLine =
 								isDecorativeLineField(field);
 							const optionItems = field.options || [];
+							const hasOptionIcons = optionItems.some((option) =>
+								Boolean(getOptionImageUrl(option)),
+							);
 							const hasDefaultValue = Boolean(
 								String(field.defaultValue || "").trim(),
 							);
@@ -1806,6 +1854,72 @@ function CoverPanel({
 											선택 값:{" "}
 											{selectedColor || "선택 안됨"}
 										</p>
+										{exampleHint && (
+											<p className="text-[11px] text-slate-500 mt-1">
+												{exampleHint}
+											</p>
+										)}
+									</div>
+								);
+							}
+
+							if (
+								optionItems.length > 0 &&
+								isBalloonLikeField(field) &&
+								hasOptionIcons
+							) {
+								return (
+									<div key={field.name}>
+										<label className="block text-xs font-semibold text-slate-700 mb-2">
+											{displayLabel}
+										</label>
+										<div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+											{optionItems.map((option) => {
+												const iconUrl =
+													getOptionImageUrl(option);
+												const selected =
+													(selectedTemplateValues[
+														field.name
+													] || "") === option.value;
+
+												return (
+													<button
+														type="button"
+														key={`${field.name}-${option.value}`}
+														onClick={() =>
+															setTemplateInputValuesByUid(
+																(prev) => ({
+																	...prev,
+																	[coverTemplateUid]:
+																		{
+																			...(prev[
+																				coverTemplateUid
+																			] ||
+																				{}),
+																			[field.name]:
+																				option.value,
+																		},
+																}),
+															)
+														}
+														className={`rounded-lg border p-2 bg-white text-left transition-colors ${selected ? "ring-2 ring-offset-1 ring-blue-500 border-blue-500" : "border-slate-200 hover:border-rose-300"}`}
+													>
+														{iconUrl ? (
+															<img
+																src={iconUrl}
+																alt={
+																	option.label
+																}
+																className="w-full h-16 object-contain rounded bg-slate-50"
+															/>
+														) : null}
+														<p className="text-[11px] text-slate-700 mt-1 line-clamp-2">
+															{option.label}
+														</p>
+													</button>
+												);
+											})}
+										</div>
 										{exampleHint && (
 											<p className="text-[11px] text-slate-500 mt-1">
 												{exampleHint}
@@ -2024,7 +2138,9 @@ function PagePanel({
 		) || null;
 	const templateRequiredInputs = selectedTemplate?.requiredInputs || [];
 	const requiredInputs = templateRequiredInputs.filter(
-		(field) => !isAutoManagedPagePhotoField(field),
+		(field) =>
+			!isAutoManagedPagePhotoField(field) &&
+			!isAutoManagedBookTitleField(field),
 	);
 	const collagePhotoFields = templateRequiredInputs.filter((field) =>
 		isCollagePhotoField(field),
@@ -2405,6 +2521,9 @@ function PagePanel({
 							const isDecorativeLine =
 								isDecorativeLineField(field);
 							const optionItems = field.options || [];
+							const hasOptionIcons = optionItems.some((option) =>
+								Boolean(getOptionImageUrl(option)),
+							);
 							const hasDefaultValue = Boolean(
 								String(field.defaultValue || "").trim(),
 							);
@@ -2543,6 +2662,72 @@ function PagePanel({
 											선택 값:{" "}
 											{selectedColor || "선택 안됨"}
 										</p>
+										{exampleHint && (
+											<p className="text-[11px] text-slate-500 mt-1">
+												{exampleHint}
+											</p>
+										)}
+									</div>
+								);
+							}
+
+							if (
+								optionItems.length > 0 &&
+								isBalloonLikeField(field) &&
+								hasOptionIcons
+							) {
+								return (
+									<div key={field.name}>
+										<label className="block text-xs font-semibold text-slate-700 mb-2">
+											{displayLabel}
+										</label>
+										<div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+											{optionItems.map((option) => {
+												const iconUrl =
+													getOptionImageUrl(option);
+												const selected =
+													(selectedTemplateValues[
+														field.name
+													] || "") === option.value;
+
+												return (
+													<button
+														type="button"
+														key={`${field.name}-${option.value}`}
+														onClick={() =>
+															setTemplateInputValuesByUid(
+																(prev) => ({
+																	...prev,
+																	[contentTemplateUid]:
+																		{
+																			...(prev[
+																				contentTemplateUid
+																			] ||
+																				{}),
+																			[field.name]:
+																				option.value,
+																		},
+																}),
+															)
+														}
+														className={`rounded-lg border p-2 bg-white text-left transition-colors ${selected ? "ring-2 ring-offset-1 ring-blue-500 border-blue-500" : "border-slate-200 hover:border-rose-300"}`}
+													>
+														{iconUrl ? (
+															<img
+																src={iconUrl}
+																alt={
+																	option.label
+																}
+																className="w-full h-16 object-contain rounded bg-slate-50"
+															/>
+														) : null}
+														<p className="text-[11px] text-slate-700 mt-1 line-clamp-2">
+															{option.label}
+														</p>
+													</button>
+												);
+											})}
+										</div>
 										{exampleHint && (
 											<p className="text-[11px] text-slate-500 mt-1">
 												{exampleHint}

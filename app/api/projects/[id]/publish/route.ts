@@ -1443,7 +1443,11 @@ export async function POST(
 			const pageTemplateHasFileBinding = Object.values(
 				pageContentTemplateDetail.parameters?.definitions || {},
 			).some((def) => String(def.binding || "").toLowerCase() === "file");
-			const pageBlob = pageTemplateHasFileBinding
+			const shouldAttachPageImage =
+				project.projectType !== "NOVEL" &&
+				pageTemplateHasFileBinding &&
+				Boolean(String(page.imageUrl || "").trim());
+			const pageBlob = shouldAttachPageImage
 				? await fetchImageBlob(page.imageUrl, req.nextUrl.origin)
 				: new Blob();
 			const contentPayload = buildTemplatePayload({
@@ -1489,15 +1493,21 @@ export async function POST(
 					}
 				}
 			}
-			const mergedContentFileUrls: Record<string, string | string[]> = {
-				...(publishBody.contentOverrides?.fileUrls || {}),
-				...(pageOverrides?.fileUrls || {}),
-			};
+			const mergedContentFileUrls: Record<string, string | string[]> =
+				project.projectType === "NOVEL"
+					? {}
+					: {
+							...(publishBody.contentOverrides?.fileUrls || {}),
+							...(pageOverrides?.fileUrls || {}),
+						};
 			const pageParameterDefinitions =
 				pageContentTemplateDetail.parameters?.definitions || {};
 			for (const [paramName, definition] of Object.entries(
 				pageParameterDefinitions,
 			)) {
+				if (project.projectType === "NOVEL") {
+					break;
+				}
 				if (!isFileLikeBinding(definition.binding)) {
 					continue;
 				}
@@ -1519,7 +1529,8 @@ export async function POST(
 			}
 
 			const mergedContentFiles = await applyFileUrlOverrides({
-				baseFiles: contentPayload.files,
+				baseFiles:
+					project.projectType === "NOVEL" ? {} : contentPayload.files,
 				fileUrls: mergedContentFileUrls,
 				origin: req.nextUrl.origin,
 			});

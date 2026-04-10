@@ -10,6 +10,27 @@ const STEPS = [
 	{ key: "DELIVERED", label: "배달 완료", icon: "🎉" },
 ];
 
+function getProjectTypeLabel(projectType: string): string {
+	if (projectType === "COMIC") return "만화책";
+	if (projectType === "NOVEL") return "소설";
+	return "포토북";
+}
+
+function getProjectSubject(project: {
+	projectType: string;
+	genre: string | null;
+	synopsis: string | null;
+	coverCaption: string | null;
+	title: string;
+}): string {
+	return (
+		project.genre ||
+		project.synopsis ||
+		project.coverCaption ||
+		project.title
+	);
+}
+
 async function getOrderData(orderUid: string, userId: string) {
 	// 로컬 DB에서 프로젝트 + 주문 정보 조회
 	const project = await prisma.project.findFirst({
@@ -57,6 +78,8 @@ export default async function StatusPage({
 
 	const currentStatus = project.orderStatus || "PENDING";
 	const currentStepIdx = STEPS.findIndex((s) => s.key === currentStatus);
+	const typeLabel = getProjectTypeLabel(project.projectType);
+	const subjectText = getProjectSubject(project);
 
 	const createdDate = new Date(project.createdAt).toLocaleDateString(
 		"ko-KR",
@@ -83,8 +106,8 @@ export default async function StatusPage({
 					</div>
 					<h1 className="text-2xl font-serif font-bold text-gray-800">
 						{currentStatus === "DELIVERED"
-							? "포토북이 도착했어요!"
-							: "포토북 제작 현황"}
+							? `${typeLabel}이(가) 도착했어요!`
+							: `${typeLabel} 제작 현황`}
 					</h1>
 					<p className="text-gray-500 text-sm mt-2">
 						주문번호:{" "}
@@ -149,8 +172,11 @@ export default async function StatusPage({
 					<h2 className="text-base font-bold text-gray-800 border-b border-gray-100 pb-3 mb-3">
 						주문 정보
 					</h2>
-					<DetailRow label="포토북 제목" value={project.title} />
-					<DetailRow label="주제" value="자유 주제 포토북" />
+					<DetailRow
+						label={`${typeLabel} 제목`}
+						value={project.title}
+					/>
+					<DetailRow label="주제" value={subjectText} />
 					<DetailRow label="생성일" value={createdDate} />
 					{project.bookUid && (
 						<DetailRow
@@ -170,6 +196,12 @@ export default async function StatusPage({
 				{/* 버튼 */}
 				<div className="flex gap-3">
 					<Link
+						href={`/editor/${project.id}`}
+						className="flex-1 text-center bg-white hover:bg-rose-50 border border-rose-200 text-rose-500 font-medium py-3 rounded-xl text-sm transition-colors"
+					>
+						✏️ 수정하기
+					</Link>
+					<Link
 						href="/"
 						className="flex-1 text-center bg-white hover:bg-rose-50 border border-rose-200 text-rose-500 font-medium py-3 rounded-xl text-sm transition-colors"
 					>
@@ -179,7 +211,7 @@ export default async function StatusPage({
 						href={`/view/${project.id}`}
 						className="flex-1 text-center bg-rose-500 hover:bg-rose-600 text-white font-medium py-3 rounded-xl text-sm transition-colors"
 					>
-						📖 포토북 보기
+						📖 {typeLabel} 보기
 					</Link>
 				</div>
 			</div>
