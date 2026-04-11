@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromCookies } from "@/lib/auth";
+import HomeLink from "./HomeLink";
 
 const STEPS = [
 	{ key: "PENDING", label: "주문 접수", icon: "📋" },
@@ -65,12 +66,9 @@ export default async function StatusPage({
 					<p className="text-gray-500 text-sm mb-6">
 						주문 번호: {orderId}
 					</p>
-					<Link
-						href="/"
-						className="inline-block bg-rose-500 hover:bg-rose-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
-					>
+					<HomeLink className="inline-block bg-rose-500 hover:bg-rose-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors">
 						홈으로
-					</Link>
+					</HomeLink>
 				</div>
 			</div>
 		);
@@ -95,12 +93,9 @@ export default async function StatusPage({
 			<div className="max-w-2xl mx-auto">
 				{/* 헤더 */}
 				<div className="text-center mb-10">
-					<Link
-						href="/"
-						className="text-rose-400 text-sm hover:underline"
-					>
+					<HomeLink className="text-rose-400 text-sm hover:underline">
 						← 홈으로
-					</Link>
+					</HomeLink>
 					<div className="mt-6 text-5xl mb-4">
 						{currentStatus === "DELIVERED" ? "🎁" : "📦"}
 					</div>
@@ -201,12 +196,9 @@ export default async function StatusPage({
 					>
 						✏️ 수정하기
 					</Link>
-					<Link
-						href="/"
-						className="flex-1 text-center bg-white hover:bg-rose-50 border border-rose-200 text-rose-500 font-medium py-3 rounded-xl text-sm transition-colors"
-					>
+					<HomeLink className="flex-1 text-center bg-white hover:bg-rose-50 border border-rose-200 text-rose-500 font-medium py-3 rounded-xl text-sm transition-colors">
 						홈으로
-					</Link>
+					</HomeLink>
 					<Link
 						href={`/view/${project.id}`}
 						className="flex-1 text-center bg-rose-500 hover:bg-rose-600 text-white font-medium py-3 rounded-xl text-sm transition-colors"

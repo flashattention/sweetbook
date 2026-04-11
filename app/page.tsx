@@ -85,7 +85,10 @@ async function syncProjectsFromSweetbookForUser(userId: string): Promise<void> {
 			}
 
 			const existing = await prisma.project.findFirst({
-				where: { userId, bookUid },
+				where: {
+					bookUid,
+					OR: [{ userId }, { isDefault: true }],
+				},
 				select: { id: true },
 			});
 			if (existing) {
@@ -140,12 +143,30 @@ async function getProjects(userId: string): Promise<Project[]> {
 			include: { pages: { orderBy: { pageOrder: "asc" } } },
 			orderBy: [{ isDefault: "asc" }, { updatedAt: "desc" }],
 		})) as any[];
-		// 중복 제거: 동일 id가 두 번 나올 수 없지만 사용자 소유 우선
+
+		// 사용자가 클론을 가진 isDefault 프로젝트는 숨김 (클론이 우선)
+		const userOwnedBookUids = new Set<string>(
+			rows
+				.filter(
+					(p: any) =>
+						!p.isDefault && p.userId === userId && p.bookUid,
+				)
+				.map((p: any) => p.bookUid),
+		);
+
 		const seen = new Set<string>();
 		return rows
 			.filter((p: any) => {
 				if (seen.has(p.id)) return false;
 				seen.add(p.id);
+				// isDefault이면서 사용자 클론이 있으면 숨김
+				if (
+					p.isDefault &&
+					p.bookUid &&
+					userOwnedBookUids.has(p.bookUid)
+				) {
+					return false;
+				}
 				return true;
 			})
 			.map((p: any) => ({

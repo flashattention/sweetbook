@@ -120,7 +120,10 @@ async function syncProjectsFromSweetbookForUser(userId: string): Promise<void> {
 			}
 
 			const existing = await prisma.project.findFirst({
-				where: { userId, bookUid },
+				where: {
+					bookUid,
+					OR: [{ userId }, { isDefault: true }],
+				},
 				select: { id: true },
 			});
 			if (existing) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromRequest } from "@/lib/auth";
 import { getSweetbookClient, isSweetbookConfigured } from "@/lib/sweetbook-api";
@@ -133,6 +134,9 @@ export async function POST(req: NextRequest) {
 			where: { id: projectId },
 			data: { orderUid, orderStatus, trackingInfo, status: "ORDERED" },
 		});
+
+		// 홈 페이지 캐시 무효화 (주문 후 홈으로 돌아갔을 때 최신 상태 반영)
+		revalidatePath("/");
 
 		return NextResponse.json({ success: true, data: { orderUid } });
 	} catch (err) {
