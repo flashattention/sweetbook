@@ -296,7 +296,7 @@ sweetbook/
 | DB / ORM | Prisma + SQLite |
 | 스타일링 | Tailwind CSS |
 | 인증 | 자체 구현 (scrypt 해시, HttpOnly 세션 쿠키) |
-| AI 텍스트 | OpenAI API (`gpt-4.1-mini`) |
+| AI 텍스트 | OpenAI API (`gpt-4o-mini`, `gpt-4.1-mini` 선택 가능) |
 | AI 이미지 | OpenAI API (`gpt-image-1`, `dall-e-2`) |
 | 외부 API | Sweetbook Book Print API |
 
@@ -325,7 +325,7 @@ sweetbook/
 | AI 도구 | 활용 내용 |
 |---|---|
 | GitHub Copilot Chat | 라우트 구현·상태 흐름·템플릿 처리 로직 구현 및 리팩터링 |
-| OpenAI `gpt-4.1-mini` | AI 만화·소설 텍스트 및 페이지 캡션 생성 |
+| OpenAI `gpt-4o-mini` / `gpt-4.1-mini` | AI 만화·소설 텍스트 및 페이지 캡션 생성 (기본: gpt-4o-mini) |
 | OpenAI `gpt-image-1` / `dall-e-2` | AI 만화 표지·페이지 이미지 생성 |
 
 ---
