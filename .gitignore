@@ -4,8 +4,10 @@ node_modules/
 out/
 .venv
 
-# SQLite — 시딩된 dev.db 는 커밋 허용 (심사자 즉시 실행용)
+# SQLite — DB 파일은 커밋하지 않습니다 (npm run db:setup 으로 재생성)
+prisma/dev.db
 prisma/*.db-journal
+prisma/backups/
 
 # 사용자 업로드 사진 (더미 데이터 아님)
 public/uploads/*
@@ -40,3 +42,7 @@ public/uploads/*
 
 # scripts/probe-results.json — API 탐색 결과 캐시 (생성 파일)
 scripts/probe-results.json
+
+# 개발자 개인 환경 자동 백업 설정 스크립트 (macOS launchd 전용)
+scripts/install-db-backup-launchd.sh
+scripts/uninstall-db-backup-launchd.sh
