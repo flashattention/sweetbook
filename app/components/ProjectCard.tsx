@@ -250,6 +250,11 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 					<span className="absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full bg-white/90 text-gray-700">
 						{TYPE_MAP[project.projectType] || "프로젝트"}
 					</span>
+					{project.isDefault && (
+						<span className="absolute bottom-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full bg-violet-500/90 text-white">
+							샘플
+						</span>
+					)}
 				</div>
 
 				{/* 정보 */}
@@ -278,13 +283,15 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 							isPublishing={isPublishing}
 							onRetryPublish={handleRetryPublish}
 						/>
-						<button
-							onClick={() => setShowDeleteConfirm(true)}
-							disabled={isDeleting || isPublishing}
-							className="text-xs bg-red-50 text-red-500 px-3 py-1.5 rounded-lg font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
-						>
-							삭제
-						</button>
+						{!project.isDefault && (
+							<button
+								onClick={() => setShowDeleteConfirm(true)}
+								disabled={isDeleting || isPublishing}
+								className="text-xs bg-red-50 text-red-500 px-3 py-1.5 rounded-lg font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
+							>
+								삭제
+							</button>
+						)}
 					</div>
 				</div>
 			</div>

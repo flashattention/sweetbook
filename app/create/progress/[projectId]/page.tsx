@@ -78,6 +78,7 @@ export default function CreateProgressPage() {
 	const [error, setError] = useState("");
 	const [starting, setStarting] = useState(false);
 	const [quotaBlocked, setQuotaBlocked] = useState(false);
+	const [retryPending, setRetryPending] = useState(false);
 	const startedRef = useRef(false);
 	const quotaAlertedRef = useRef(false);
 
@@ -175,16 +176,16 @@ export default function CreateProgressPage() {
 		if (
 			project.generationStage &&
 			project.generationStage !== "QUEUED" &&
-			project.generationStage !== "FAILED"
+			!(project.generationStage === "FAILED" && retryPending)
 		) {
 			return;
 		}
 
-		// QUEUED 또는 FAILED 상태일 때만 생성 시작
+		// QUEUED 상태이거나 사용자가 명시적으로 재시도 버튼을 누른 경우에만 생성 시작
 		if (
 			!project.generationStage ||
 			project.generationStage === "QUEUED" ||
-			project.generationStage === "FAILED"
+			(project.generationStage === "FAILED" && retryPending)
 		) {
 			startedRef.current = true;
 			setStarting(true);
@@ -227,7 +228,7 @@ export default function CreateProgressPage() {
 				})
 				.finally(() => setStarting(false));
 		}
-	}, [projectId, project, quotaBlocked, router, searchParams]);
+	}, [projectId, project, quotaBlocked, retryPending, router, searchParams]);
 
 	useEffect(() => {
 		if (!project) return;
@@ -350,18 +351,33 @@ export default function CreateProgressPage() {
 				) : null}
 
 				{(error || project?.generationError) && (
-					<div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm p-3 space-y-2">
-						<p>{error || project?.generationError}</p>
-						<button
-							type="button"
-							onClick={() => {
-								startedRef.current = false;
-								setError("");
-							}}
-							className="text-xs font-semibold underline underline-offset-2"
-						>
-							다시 시도
-						</button>
+					<div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm p-3 space-y-3">
+						<p className="font-semibold">
+							생성 중 오류가 발생했습니다.
+						</p>
+						<p className="text-xs text-red-600 break-all">
+							{error || project?.generationError}
+						</p>
+						<div className="flex gap-3 pt-1">
+							<button
+								type="button"
+								onClick={() => {
+									startedRef.current = false;
+									setError("");
+									setRetryPending(true);
+								}}
+								className="flex-1 rounded-lg bg-red-600 text-white text-xs font-semibold py-2 hover:bg-red-700 transition-colors"
+							>
+								재시도
+							</button>
+							<button
+								type="button"
+								onClick={() => router.replace("/")}
+								className="flex-1 rounded-lg border border-red-300 text-red-600 text-xs font-semibold py-2 hover:bg-red-50 transition-colors"
+							>
+								취소
+							</button>
+						</div>
 					</div>
 				)}
 

@@ -1,30 +1,164 @@
 import Link from "next/link";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromCookies } from "@/lib/auth";
+import { getSweetbookClient, isSweetbookConfigured } from "@/lib/sweetbook-api";
+import { DEFAULT_PHOTOBOOK_SPEC_UID } from "@/lib/book-specs";
 import type { Project } from "@/types";
 import { ProjectCard } from "./components/ProjectCard";
 import { AuthMenu } from "./components/AuthMenu";
 
 export const dynamic = "force-dynamic";
 
+type SweetbookBookRecord = {
+	bookUid?: string;
+	title?: string;
+	status?: string;
+	bookStatus?: string;
+	state?: string;
+	bookSpecUid?: string;
+	coverImageUrl?: string;
+	coverUrl?: string;
+	thumbnailUrl?: string;
+	[key: string]: unknown;
+};
+
+function normalizeSweetbookBookList(
+	payload: Record<string, unknown>,
+): SweetbookBookRecord[] {
+	const candidates = [
+		payload.books,
+		payload.items,
+		payload.list,
+		payload.results,
+		payload.data,
+	];
+
+	for (const candidate of candidates) {
+		if (!Array.isArray(candidate)) {
+			continue;
+		}
+		return candidate.filter(
+			(item): item is SweetbookBookRecord =>
+				Boolean(item) && typeof item === "object",
+		);
+	}
+
+	return [];
+}
+
+function mapSweetbookBookStatus(
+	item: SweetbookBookRecord,
+): "DRAFT" | "PUBLISHED" {
+	const raw = String(item.status || item.bookStatus || item.state || "")
+		.toUpperCase()
+		.trim();
+	if (
+		raw.includes("DRAFT") ||
+		raw.includes("CREATED") ||
+		raw.includes("EDIT") ||
+		raw.includes("OPEN")
+	) {
+		return "DRAFT";
+	}
+	return "PUBLISHED";
+}
+
+async function syncProjectsFromSweetbookForUser(userId: string): Promise<void> {
+	if (!isSweetbookConfigured()) {
+		return;
+	}
+
+	try {
+		const client = getSweetbookClient();
+		const raw = (await client.books.list({
+			limit: 200,
+			offset: 0,
+		})) as Record<string, unknown>;
+		const remoteBooks = normalizeSweetbookBookList(raw);
+
+		for (const remote of remoteBooks) {
+			const bookUid =
+				typeof remote.bookUid === "string" ? remote.bookUid.trim() : "";
+			if (!bookUid) {
+				continue;
+			}
+
+			const existing = await prisma.project.findFirst({
+				where: { userId, bookUid },
+				select: { id: true },
+			});
+			if (existing) {
+				continue;
+			}
+
+			const titleCandidate =
+				typeof remote.title === "string" ? remote.title.trim() : "";
+			const title = titleCandidate || bookUid;
+			const bookSpecUid =
+				typeof remote.bookSpecUid === "string" &&
+				remote.bookSpecUid.trim()
+					? remote.bookSpecUid
+					: DEFAULT_PHOTOBOOK_SPEC_UID;
+			const coverImageUrl =
+				typeof remote.coverImageUrl === "string" &&
+				remote.coverImageUrl.trim()
+					? remote.coverImageUrl
+					: typeof remote.coverUrl === "string" &&
+						  remote.coverUrl.trim()
+						? remote.coverUrl
+						: typeof remote.thumbnailUrl === "string" &&
+							  remote.thumbnailUrl.trim()
+							? remote.thumbnailUrl
+							: null;
+
+			await prisma.project.create({
+				data: {
+					userId,
+					title,
+					projectType: "PHOTOBOOK",
+					bookSpecUid,
+					bookUid,
+					status: mapSweetbookBookStatus(remote),
+					coverImageUrl,
+				},
+			});
+		}
+	} catch (error) {
+		console.error("[HomePage] Sweetbook sync failed:", error);
+	}
+}
+
 async function getProjects(userId: string): Promise<Project[]> {
 	try {
-		const rows = await prisma.project.findMany({
-			where: { userId },
+		await syncProjectsFromSweetbookForUser(userId);
+
+		const rows = (await (
+			prisma.project.findMany as (args: unknown) => Promise<unknown[]>
+		)({
+			where: { OR: [{ userId }, { isDefault: true }] },
 			include: { pages: { orderBy: { pageOrder: "asc" } } },
-			orderBy: { updatedAt: "desc" },
-		});
-		return rows.map((p: any) => ({
-			...p,
-			createdAt: p.createdAt.toISOString(),
-			updatedAt: p.updatedAt.toISOString(),
-			pages: p.pages.map((pg: any) => ({
-				...pg,
-				createdAt: pg.createdAt.toISOString(),
-				updatedAt: pg.updatedAt.toISOString(),
-			})),
-			status: p.status as Project["status"],
-		}));
+			orderBy: [{ isDefault: "asc" }, { updatedAt: "desc" }],
+		})) as any[];
+		// 중복 제거: 동일 id가 두 번 나올 수 없지만 사용자 소유 우선
+		const seen = new Set<string>();
+		return rows
+			.filter((p: any) => {
+				if (seen.has(p.id)) return false;
+				seen.add(p.id);
+				return true;
+			})
+			.map((p: any) => ({
+				...p,
+				createdAt: p.createdAt.toISOString(),
+				updatedAt: p.updatedAt.toISOString(),
+				pages: p.pages.map((pg: any) => ({
+					...pg,
+					createdAt: pg.createdAt.toISOString(),
+					updatedAt: pg.updatedAt.toISOString(),
+				})),
+				status: p.status as Project["status"],
+			}));
 	} catch (error) {
 		console.error("[HomePage] Failed to load projects:", error);
 		return [];

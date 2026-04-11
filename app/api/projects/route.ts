@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUserFromRequest } from "@/lib/auth";
 import { MissingOpenAIKeyError, ComicStyle } from "@/lib/ai-generator";
 import { DEFAULT_STORY_MODEL, isStoryModel } from "@/lib/ai-pricing";
+import { getSweetbookClient, isSweetbookConfigured } from "@/lib/sweetbook-api";
 import {
 	DEFAULT_PHOTOBOOK_SPEC_UID,
 	getSupportedBookSpec,
@@ -23,6 +24,143 @@ interface CreateProjectBody {
 	contentTemplateUid?: unknown;
 	coverTemplateOverrides?: unknown;
 	contentTemplateOverrides?: unknown;
+}
+
+type SweetbookBookRecord = {
+	bookUid?: string;
+	title?: string;
+	status?: string;
+	bookStatus?: string;
+	state?: string;
+	bookSpecUid?: string;
+	coverImageUrl?: string;
+	coverUrl?: string;
+	thumbnailUrl?: string;
+	createdAt?: string;
+	updatedAt?: string;
+	[key: string]: unknown;
+};
+
+function pickSweetbookBookUid(item: SweetbookBookRecord): string | null {
+	const uid = typeof item.bookUid === "string" ? item.bookUid.trim() : null;
+	return uid || null;
+}
+
+function pickSweetbookBookTitle(item: SweetbookBookRecord): string {
+	const rawCandidates = [item.title, item.bookUid];
+	for (const value of rawCandidates) {
+		if (typeof value === "string" && value.trim()) {
+			return value.trim();
+		}
+	}
+	return "Sweetbook 가져온 프로젝트";
+}
+
+function mapSweetbookBookStatus(
+	item: SweetbookBookRecord,
+): "DRAFT" | "PUBLISHED" {
+	const raw = String(item.status || item.bookStatus || item.state || "")
+		.toUpperCase()
+		.trim();
+	if (!raw) {
+		return "PUBLISHED";
+	}
+	if (
+		raw.includes("DRAFT") ||
+		raw.includes("CREATED") ||
+		raw.includes("EDIT") ||
+		raw.includes("OPEN")
+	) {
+		return "DRAFT";
+	}
+	return "PUBLISHED";
+}
+
+function normalizeSweetbookBookList(
+	payload: Record<string, unknown>,
+): SweetbookBookRecord[] {
+	const candidates = [
+		payload.books,
+		payload.items,
+		payload.list,
+		payload.results,
+		payload.data,
+	];
+
+	for (const candidate of candidates) {
+		if (!Array.isArray(candidate)) {
+			continue;
+		}
+		return candidate.filter(
+			(item): item is SweetbookBookRecord =>
+				Boolean(item) && typeof item === "object",
+		);
+	}
+
+	return [];
+}
+
+async function syncProjectsFromSweetbookForUser(userId: string): Promise<void> {
+	if (!isSweetbookConfigured()) {
+		return;
+	}
+
+	try {
+		const client = getSweetbookClient();
+		const raw = (await client.books.list({
+			limit: 200,
+			offset: 0,
+		})) as Record<string, unknown>;
+		const remoteBooks = normalizeSweetbookBookList(raw);
+
+		for (const remote of remoteBooks) {
+			const bookUid = pickSweetbookBookUid(remote);
+			if (!bookUid) {
+				continue;
+			}
+
+			const existing = await prisma.project.findFirst({
+				where: { userId, bookUid },
+				select: { id: true },
+			});
+			if (existing) {
+				continue;
+			}
+
+			const title = pickSweetbookBookTitle(remote);
+			const status = mapSweetbookBookStatus(remote);
+			const bookSpecUid =
+				typeof remote.bookSpecUid === "string" &&
+				remote.bookSpecUid.trim()
+					? remote.bookSpecUid
+					: DEFAULT_PHOTOBOOK_SPEC_UID;
+			const coverImageUrl =
+				typeof remote.coverImageUrl === "string" &&
+				remote.coverImageUrl.trim()
+					? remote.coverImageUrl
+					: typeof remote.coverUrl === "string" &&
+						  remote.coverUrl.trim()
+						? remote.coverUrl
+						: typeof remote.thumbnailUrl === "string" &&
+							  remote.thumbnailUrl.trim()
+							? remote.thumbnailUrl
+							: null;
+
+			await prisma.project.create({
+				data: {
+					userId,
+					title,
+					projectType: "PHOTOBOOK",
+					bookSpecUid,
+					bookUid,
+					status,
+					coverImageUrl,
+				},
+			});
+		}
+	} catch (err) {
+		console.error("[GET /api/projects] sweetbook sync failed", err);
+	}
 }
 
 function serializeTemplateOverrides(value: unknown) {
@@ -191,12 +329,22 @@ export async function GET(req: NextRequest) {
 			{ status: 401 },
 		);
 	}
+
+	await syncProjectsFromSweetbookForUser(user.id);
+
 	const projects = await prisma.project.findMany({
-		where: { userId: user.id },
+		where: { OR: [{ userId: user.id }, { isDefault: true }] },
 		include: { pages: { orderBy: { pageOrder: "asc" } } },
-		orderBy: { updatedAt: "desc" },
+		orderBy: [{ isDefault: "asc" }, { updatedAt: "desc" }],
 	});
-	return NextResponse.json({ success: true, data: projects });
+	// 중복 제거 (동일 id)
+	const seen = new Set<string>();
+	const deduped = projects.filter((p) => {
+		if (seen.has(p.id)) return false;
+		seen.add(p.id);
+		return true;
+	});
+	return NextResponse.json({ success: true, data: deduped });
 }
 
 // POST /api/projects — 새 프로젝트 생성 (+ Sweetbook book 생성 시도)

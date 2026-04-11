@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { Project, Page } from "@/types";
+import { getMinPagesByBookSpec } from "@/lib/book-specs";
 import {
 	buildTemplateOverrides,
 	type PublishTemplateOverrides,
@@ -323,6 +324,27 @@ function formatFieldExampleHint(description?: string | null): string | null {
 	return raw;
 }
 
+function getFieldDisplayLabelResolved(
+	field: TemplateRequiredInput,
+	allFields: TemplateRequiredInput[],
+): string {
+	const baseLabel = getFieldDisplayLabel(field);
+	const duplicates = allFields.filter(
+		(candidate) => getFieldDisplayLabel(candidate) === baseLabel,
+	);
+
+	if (duplicates.length <= 1) {
+		return baseLabel;
+	}
+
+	const key = String(field.name || "").trim();
+	if (!key) {
+		return baseLabel;
+	}
+
+	return `${baseLabel} (${key})`;
+}
+
 const TEMPLATE_COLOR_PALETTE = [
 	"#EF4444",
 	"#F97316",
@@ -398,16 +420,24 @@ function parseMultiUrlInput(value: string | undefined): string[] {
 		.filter(Boolean);
 }
 
+function isFileLikeBindingValue(binding: string | null | undefined): boolean {
+	const normalized = String(binding || "").toLowerCase();
+	return normalized === "file" || normalized.includes("gallery");
+}
+
 function hasRequiredFieldValue(
 	field: TemplateRequiredInput,
 	rawValue: string | undefined,
 	pageImageUrl?: string,
 ): boolean {
-	if (isDecorativeLineField(field)) {
+	const binding = String(field.binding || "").toLowerCase();
+	if (isDecorativeLineField(field) && !isFileLikeBindingValue(binding)) {
 		return true;
 	}
 
-	if (String(field.defaultValue || "").trim()) {
+	// file 바인딩은 defaultValue가 있어도 실제 파일 첨부를 보장하지 않으므로
+	// raw 입력값(또는 자동 매핑) 기준으로만 채워짐 여부를 판단한다.
+	if (!isFileLikeBindingValue(binding) && String(field.defaultValue || "").trim()) {
 		return true;
 	}
 
@@ -424,8 +454,7 @@ function hasRequiredFieldValue(
 		return false;
 	}
 
-	const binding = String(field.binding || "").toLowerCase();
-	if (binding === "file") {
+	if (isFileLikeBindingValue(binding)) {
 		return parseMultiUrlInput(rawValue).length > 0;
 	}
 
@@ -454,7 +483,14 @@ function isDecorativeLineField(field: {
 	name?: string | null;
 	label?: string | null;
 	description?: string | null;
+	options?: Array<{ label: string; value: string }> | null;
 }): boolean {
+	// options이 있으면 사용자 선택 필드이므로 decorative가 아님
+	// (예: lineVertical line1~line4 선택)
+	if (Array.isArray(field.options) && field.options.length > 0) {
+		return false;
+	}
+
 	const search = normalizeTemplateFieldSearch(
 		field.name,
 		field.label,
@@ -498,7 +534,9 @@ function validatePublishRequirements(params: {
 		const requiredInputs = (template.requiredInputs || []).filter(
 			(field) =>
 				!isAutoManagedPagePhotoField(field) &&
-				!isAutoManagedBookTitleField(field),
+				!isAutoManagedBookTitleField(field) &&
+				!isAutoManagedCoordinateField(field) &&
+				!isAutoManagedTemporalField(field),
 		);
 		if (requiredInputs.length === 0) {
 			continue;
@@ -517,7 +555,7 @@ function validatePublishRequirements(params: {
 		);
 
 		if (missingField) {
-			return `${displayPageNumber}페이지의 ${getFieldDisplayLabel(missingField)} 항목이 비어있습니다!`;
+			return `${displayPageNumber}페이지의 ${getFieldDisplayLabelResolved(missingField, requiredInputs)} 항목이 비어있습니다!`;
 		}
 	}
 
@@ -535,6 +573,26 @@ function getAutoDefaultFieldValue(
 	const defaultValue = String(field.defaultValue || "").trim();
 	if (defaultValue) {
 		return defaultValue;
+	}
+
+	const search = normalizeTemplateFieldSearch(
+		field.name,
+		field.label,
+		field.description,
+	);
+	const isParentBalloonField =
+		search.includes("parent") && search.includes("balloon");
+	if (isParentBalloonField) {
+		const parentOption = (field.options || []).find((opt) =>
+			/^b[1-4]$/i.test(String(opt?.value || "").trim()),
+		);
+		if (parentOption) {
+			const optionImageUrl = getOptionImageUrl(parentOption);
+			if (optionImageUrl) {
+				return optionImageUrl;
+			}
+		}
+		return page.imageUrl || "https://picsum.photos/seed/momento-parent-balloon/1200/900";
 	}
 
 	if (Array.isArray(field.options) && field.options.length > 0) {
@@ -564,7 +622,7 @@ function getAutoDefaultFieldValue(
 	if (key.includes("napvalue")) return "충분히 잠";
 
 	const binding = String(field.binding || "").toLowerCase();
-	if (binding === "file") {
+	if (isFileLikeBindingValue(binding)) {
 		return (
 			page.imageUrl || "https://picsum.photos/seed/momento-dev/1200/900"
 		);
@@ -581,6 +639,238 @@ function getAutoDefaultFieldValue(
 function isPaletteColorField(field: TemplateRequiredInput): boolean {
 	const key = normalizeFieldKey(field.name || "");
 	return key.includes("pointcolor") || key.includes("monthcolor");
+}
+
+function getRandomFieldValue(
+	field: TemplateRequiredInput,
+	page: Pick<Page, "imageUrl">,
+): string {
+	const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+	const search = normalizeTemplateFieldSearch(
+		field.name,
+		field.label,
+		field.description,
+	);
+	const isParentBalloonField =
+		search.includes("parent") && search.includes("balloon");
+	const binding = String(field.binding || "").toLowerCase();
+
+	// 1. file-like 바인딩 필드 먼저 체크 (file/gallery)
+	if (isFileLikeBindingValue(binding)) {
+		if (isParentBalloonField) {
+			const parentOptions = (field.options || []).filter((opt) =>
+				/^b[1-4]$/i.test(String(opt?.value || "").trim()),
+			);
+			if (parentOptions.length > 0) {
+				const pickedOption = pick(parentOptions);
+				const optionImageUrl = getOptionImageUrl(pickedOption);
+				if (optionImageUrl) {
+					return optionImageUrl;
+				}
+			}
+			return page.imageUrl || "https://picsum.photos/seed/momento-parent-balloon/1200/900";
+		}
+
+		if (Array.isArray(field.options) && field.options.length > 0) {
+			const filelikeOptions = field.options.filter((opt) => {
+				const imageUrl = getOptionImageUrl(opt);
+				const val = String(opt?.value || "").toLowerCase();
+				return (
+					Boolean(imageUrl) ||
+					val.includes(".") ||
+					val.includes("/") ||
+					val.includes("http") ||
+					/^[a-z0-9][a-z0-9._-]{0,127}$/i.test(val)
+				);
+			});
+			if (filelikeOptions.length > 0) {
+				const option = pick(filelikeOptions);
+				return (
+					getOptionImageUrl(option) ||
+					String(option?.value || "").trim()
+				);
+			}
+		}
+
+		const key = normalizeFieldKey(field.name || "");
+		// collage 필드는 여러 이미지
+		if (isCollagePhotoField(field)) {
+			const seeds = Array.from({ length: 3 }, () =>
+				Math.random().toString(36).slice(2),
+			);
+			if (page.imageUrl) {
+				return [
+					page.imageUrl,
+					`https://picsum.photos/seed/${seeds[1]}/1200/900`,
+					`https://picsum.photos/seed/${seeds[2]}/1200/900`,
+				].join(",");
+			}
+			return seeds
+				.map((s) => `https://picsum.photos/seed/${s}/1200/900`)
+				.join(",");
+		}
+		// 일반 file 필드는 단일 이미지
+		const seed = Math.random().toString(36).slice(2);
+		return page.imageUrl || `https://picsum.photos/seed/${seed}/1200/900`;
+	}
+
+	// 2. file이 아닌 필드: options 우선
+	if (Array.isArray(field.options) && field.options.length > 0) {
+		const option = pick(field.options);
+		return String(option?.value || "").trim();
+	}
+
+	// 3. 색상 팔레트 필드
+	if (isPaletteColorField(field)) {
+		const idx = Math.floor(Math.random() * TEMPLATE_COLOR_PALETTE.length);
+		return normalizeArgbColor(TEMPLATE_COLOR_PALETTE[idx]) || "#FFFFFFFF";
+	}
+
+	// 4. 키 기반 특수 필드들
+	const key = normalizeFieldKey(field.name || "");
+
+	const weatherLabels = ["오늘의 날씨", "하늘 상태", "오늘 날씨", "날씨 기록"];
+	const weatherValues = ["맑음", "구름 조금", "흐림", "봄비가 내려요", "소나기", "쨍쨍", "포근해요"];
+	const mealLabels = ["오늘의 급식", "점심 메뉴", "오늘 점심", "급식 메뉴"];
+	const mealValues = [
+		"소고기미역국, 잡곡밥, 김치",
+		"된장찌개, 쌀밥, 불고기",
+		"볶음밥, 계란국, 나물",
+		"카레라이스, 오이무침, 과일",
+	];
+	const napLabels = ["낮잠", "낮잠 시간", "오늘의 낮잠", "휴식"];
+	const napValues = ["13:00~14:30", "12:30~14:00", "1시간 30분 잘 잠", "충분히 잠"];
+
+	if (key.includes("weatherlabel")) return pick(weatherLabels);
+	if (key.includes("weathervalue")) return pick(weatherValues);
+	if (key.includes("meallabel")) return pick(mealLabels);
+	if (key.includes("mealvalue")) return pick(mealValues);
+	if (key.includes("naplabel")) return pick(napLabels);
+	if (key.includes("napvalue")) return pick(napValues);
+
+	// 5. 권수, 개수, 번호 등 수치 필드 (타입 체크보다 우선)
+	if (
+		search.includes("권") ||
+		search.includes("count") ||
+		search.includes("number") ||
+		search.includes("번호") ||
+		search.includes("index")
+	) {
+		return String(Math.floor(Math.random() * 10) + 1);
+	}
+
+	// 시간 관련에 필요하므로 먼저 생성
+	const now = new Date();
+
+	// 6. 기록 날짜, 기간 등 날짜 범위 필드
+	if (
+		(search.includes("기록") && search.includes("날짜")) ||
+		search.includes("기간") ||
+		search.includes("daterange") ||
+		search.includes("date range")
+	) {
+		const startMonth = Math.floor(Math.random() * 8) + 1; // 1-8월
+		const endMonth = startMonth + Math.floor(Math.random() * 4) + 1; // startMonth+1 ~ startMonth+5
+		const year = now.getFullYear();
+		return `${year}년 ${startMonth}월 - ${year}년 ${Math.min(12, endMonth)}월`;
+	}
+
+	// 7. 시간 관련 필드
+	if (key === "year") {
+		return pick([String(now.getFullYear() - 1), String(now.getFullYear())]);
+	}
+	if (key === "month") {
+		return String(Math.floor(Math.random() * 12) + 1);
+	}
+	if (key === "monthnum") {
+		return String(Math.floor(Math.random() * 12) + 1).padStart(2, "0");
+	}
+	if (key === "date" || key === "day") {
+		return String(Math.floor(Math.random() * 28) + 1);
+	}
+
+	// 8. 타입 기반 필드
+	const type = String(field.type || "").toLowerCase();
+	if (type.includes("boolean")) return Math.random() > 0.5 ? "true" : "false";
+	if (type.includes("number") || type.includes("integer")) {
+		return String(Math.floor(Math.random() * 10) + 1);
+	}
+
+	// 9. 필드 의미 기반 텍스트 생성
+	// 이름, 사람 관련 필드
+	const childNames = [
+		"민준",
+		"지은",
+		"준호",
+		"소연",
+		"다은",
+		"서연",
+		"태훈",
+		"나현",
+	];
+	const facilityNames = [
+		"예쁜 어린이집",
+		"햇빛 유치원",
+		"초롱 어린이집",
+		"무지개 유치원",
+		"별 어린이집",
+	];
+	const teacherNames = ["김선생님", "이선생님", "박선생님", "최선생님"];
+
+	if (
+		search.includes("name") ||
+		search.includes("이름") ||
+		search.includes("child") ||
+		search.includes("아이")
+	) {
+		if (
+			search.includes("facility") ||
+			search.includes("어린이집") ||
+			search.includes("유치원") ||
+			search.includes("기관")
+		) {
+			return pick(facilityNames);
+		}
+		if (
+			search.includes("teacher") ||
+			search.includes("선생님") ||
+			search.includes("교사")
+		) {
+			return pick(teacherNames);
+		}
+		return pick(childNames);
+	}
+
+	if (
+		search.includes("facility") ||
+		search.includes("어린이집") ||
+		search.includes("유치원") ||
+		search.includes("기관") ||
+		search.includes("원")
+	) {
+		return pick(facilityNames);
+	}
+
+	if (
+		search.includes("teacher") ||
+		search.includes("선생님") ||
+		search.includes("교사")
+	) {
+		return pick(teacherNames);
+	}
+
+	// 10. 기본 텍스트 샘플
+	const textSamples = [
+		"오늘도 즐거운 하루",
+		"행복한 추억",
+		"소중한 순간",
+		"우리의 이야기",
+		"함께하는 시간",
+		"특별한 하루",
+		"기억에 남는 날",
+		"따뜻한 기억",
+	];
+	return pick(textSamples);
 }
 
 function getSuggestedExampleHint(field: TemplateRequiredInput): string | null {
@@ -611,6 +901,36 @@ function getSuggestedExampleHint(field: TemplateRequiredInput): string | null {
 	return null;
 }
 
+function hasMonthLikeField(fields: TemplateRequiredInput[]): boolean {
+	return fields.some((candidate) => {
+		const key = normalizeFieldKey(candidate.name || "");
+		return key === "month" || key === "monthnum";
+	});
+}
+
+function getContextualExampleHint(
+	field: TemplateRequiredInput,
+	allFields: TemplateRequiredInput[],
+): string | null {
+	const key = normalizeFieldKey(field.name || "");
+
+	if (key === "date" && hasMonthLikeField(allFields)) {
+		return "예: 11일 (월은 월 항목에 별도 입력)";
+	}
+
+	if (
+		(key === "month" || key === "monthnum") &&
+		hasMonthLikeField(allFields)
+	) {
+		return key === "monthnum" ? "예: 03" : "예: 3";
+	}
+
+	return (
+		getSuggestedExampleHint(field) ||
+		formatFieldExampleHint(field.description)
+	);
+}
+
 function isAutoManagedCoverTemplateField(
 	field: TemplateRequiredInput,
 ): boolean {
@@ -632,13 +952,78 @@ function isCollagePhotoField(field: TemplateRequiredInput): boolean {
 	return key.includes("collage");
 }
 
+function isPrimaryImageLikeField(field: TemplateRequiredInput): boolean {
+	const search = normalizeTemplateFieldSearch(
+		field.name,
+		field.label,
+		field.description,
+	);
+
+	const decorativeKeywords = [
+		"icon",
+		"logo",
+		"line",
+		"sticker",
+		"mask",
+		"overlay",
+		"frame",
+		"texture",
+		"pattern",
+		"pencil",
+		"shape",
+		"badge",
+		"stamp",
+		"balloon",
+		"배지",
+		"라인",
+		"아이콘",
+		"프레임",
+		"장식",
+		"구분선",
+		"말풍선",
+	];
+
+	if (decorativeKeywords.some((keyword) => search.includes(keyword))) {
+		return false;
+	}
+
+	const imageKeywords = [
+		"photo",
+		"image",
+		"picture",
+		"img",
+		"art",
+		"illustration",
+		"scene",
+		"background",
+		"foreground",
+		"cut",
+		"panel",
+		"사진",
+		"이미지",
+		"그림",
+	];
+
+	return imageKeywords.some((keyword) => search.includes(keyword));
+}
+
 function isAutoManagedPagePhotoField(field: TemplateRequiredInput): boolean {
+	const binding = String(field.binding || "").toLowerCase();
+	if (binding !== "file") {
+		return false;
+	}
+
 	const search = normalizeTemplateFieldSearch(
 		field.name,
 		field.label,
 		field.binding,
 	);
-	return search.includes("photo") && !isCollagePhotoField(field);
+
+	if (search.includes("coverphoto") || search.includes("frontphoto")) {
+		return false;
+	}
+
+	return !isCollagePhotoField(field) && isPrimaryImageLikeField(field);
 }
 
 function isAutoManagedBookTitleField(field: TemplateRequiredInput): boolean {
@@ -651,6 +1036,60 @@ function isAutoManagedBookTitleField(field: TemplateRequiredInput): boolean {
 	return (
 		search.includes("booktitle") ||
 		(search.includes("book") && search.includes("title"))
+	);
+}
+
+function isAutoManagedCoordinateField(field: TemplateRequiredInput): boolean {
+	const key = normalizeFieldKey(field.name || "");
+	const search = normalizeTemplateFieldSearch(
+		field.name,
+		field.label,
+		field.description,
+	);
+
+	return (
+		key.endsWith("x") ||
+		key.endsWith("y") ||
+		search.includes("x좌표") ||
+		search.includes("y좌표") ||
+		search.includes("x coordinate") ||
+		search.includes("y coordinate") ||
+		search.includes("x position") ||
+		search.includes("y position")
+	);
+}
+
+function isAutoManagedTemporalField(field: TemplateRequiredInput): boolean {
+	const key = normalizeFieldKey(field.name || "");
+	const temporalKeys = new Set([
+		"monthnum",
+		"monthnamecapitalized",
+		"monthyearlabel",
+		"datelabel",
+		"daylabel",
+		"dayofweek",
+		"dayofweekkorean",
+		"daynum",
+		"dayofmonth",
+	]);
+
+	if (temporalKeys.has(key)) {
+		return true;
+	}
+
+	const search = normalizeTemplateFieldSearch(
+		field.name,
+		field.label,
+		field.description,
+	);
+
+	return (
+		search.includes("요일") ||
+		search.includes("월 이름") ||
+		search.includes("연월") ||
+		search.includes("day of week") ||
+		search.includes("month name") ||
+		search.includes("month year")
 	);
 }
 
@@ -1079,7 +1518,15 @@ export default function EditorClient({ initialProject }: Props) {
 			);
 			return;
 		}
-		if (!project.coverImageUrl) {
+		const selectedCoverTemplate = coverTemplates.find(
+			(t) => t.templateUid === project.coverTemplateUid,
+		);
+		const coverNeedsPhoto =
+			!selectedCoverTemplate ||
+			(selectedCoverTemplate.requiredInputs || []).some((f) =>
+				isAutoManagedCoverTemplateField(f),
+			);
+		if (coverNeedsPhoto && !project.coverImageUrl) {
 			showMsg("표지 이미지를 설정해 주세요.", "error");
 			return;
 		}
@@ -1113,7 +1560,15 @@ export default function EditorClient({ initialProject }: Props) {
 			);
 			return;
 		}
-		if (!project.coverImageUrl) {
+		const selectedCoverTemplate = coverTemplates.find(
+			(t) => t.templateUid === project.coverTemplateUid,
+		);
+		const coverNeedsPhoto =
+			!selectedCoverTemplate ||
+			(selectedCoverTemplate.requiredInputs || []).some((f) =>
+				isAutoManagedCoverTemplateField(f),
+			);
+		if (coverNeedsPhoto && !project.coverImageUrl) {
 			showMsg("표지 이미지를 설정해 주세요.", "error");
 			return;
 		}
@@ -1160,7 +1615,9 @@ export default function EditorClient({ initialProject }: Props) {
 				const fields = (selectedTemplate.requiredInputs || []).filter(
 					(field) =>
 						!isAutoManagedPagePhotoField(field) &&
-						!isAutoManagedBookTitleField(field),
+						!isAutoManagedBookTitleField(field) &&
+						!isAutoManagedCoordinateField(field) &&
+						!isAutoManagedTemporalField(field),
 				);
 				const savedValues = toInputValueMap(
 					parseOverrides(page.contentTemplateOverrides),
@@ -1210,6 +1667,208 @@ export default function EditorClient({ initialProject }: Props) {
 						"자동 기본값 저장 중 오류가 발생했습니다.",
 						"error",
 					);
+					return;
+				}
+			}
+
+			setDevPublishStageMessage("출판을 시작하는 중...");
+			await runPublishRequest();
+		} finally {
+			setDevPublishing(false);
+			setDevPublishStageMessage("출판 준비 중...");
+		}
+	}
+
+	async function handleDevPublishWithRandom() {
+		if (!isDevMode) {
+			return;
+		}
+		if (templatesLoading) {
+			showMsg(
+				"템플릿 목록을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.",
+				"error",
+			);
+			return;
+		}
+		if (coverTemplates.length === 0) {
+			showMsg(
+				"표지 템플릿이 없어 랜덤 출판을 진행할 수 없습니다.",
+				"error",
+			);
+			return;
+		}
+		if (contentTemplates.length === 0) {
+			showMsg(
+				"내지 템플릿이 없어 랜덤 출판을 진행할 수 없습니다.",
+				"error",
+			);
+			return;
+		}
+
+		const pickRandom = <T,>(arr: T[]): T =>
+			arr[Math.floor(Math.random() * arr.length)];
+
+		setDevPublishing(true);
+		try {
+			// 0. 최소 페이지 수 충족 체크 & 부족하면 추가
+			const minPages = getMinPagesByBookSpec(project.bookSpecUid);
+			let workingPages = [...pages];
+			if (workingPages.length < minPages) {
+				setDevPublishStageMessage(
+					`최소 ${minPages}페이지를 충족하기 위해 페이지 추가 중...`,
+				);
+				while (workingPages.length < minPages) {
+					const seed = Math.random().toString(36).slice(2);
+					const res = await fetch(`/api/projects/${project.id}/pages`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							imageUrl: `https://picsum.photos/seed/${seed}/800/600`,
+							caption: "",
+							pageOrder: workingPages.length + 1,
+						}),
+					});
+					if (res.ok) {
+						const json = await res.json();
+						const newPage = json.data as Page;
+						workingPages.push(newPage);
+					} else {
+						showMsg("페이지 추가 중 오류가 발생했습니다.", "error");
+						return;
+					}
+				}
+				setPages(workingPages);
+			}
+
+			// 1. 표지 템플릿 랜덤 선택 & 값 채우기 (빈 필드만)
+			setDevPublishStageMessage("표지 템플릿 랜덤 설정 중...");
+			const randomCoverTemplate = pickRandom(coverTemplates);
+			const hasCoverPhotoField = (randomCoverTemplate.requiredInputs || []).some(
+				(f) => isAutoManagedCoverTemplateField(f),
+			);
+			const coverImageUrl = hasCoverPhotoField
+				? (project.coverImageUrl ||
+				  `https://picsum.photos/seed/${Math.random().toString(36).slice(2)}/1200/900`)
+				: (project.coverImageUrl || "");
+
+			const coverFields = (randomCoverTemplate.requiredInputs || []).filter(
+				(field) => {
+					// 기본 자동 관리 필드 제외
+					if (isAutoManagedCoverTemplateField(field)) return false;
+					if (isAutoManagedCoordinateField(field)) return false;
+					if (isAutoManagedTemporalField(field)) return false;
+
+					// file binding 필드 처리: options이 있으면 포함 (예: parentBalloon b1~b4)
+					const binding = String(field.binding || "").toLowerCase();
+					if (isFileLikeBindingValue(binding)) {
+						return true;
+					}
+
+					if (isDecorativeLineField(field)) return false;
+
+					return true;
+				},
+			);
+			const existingCoverValues = toInputValueMap(
+				parseOverrides(project.coverTemplateOverrides),
+			);
+			const coverValues: Record<string, string> = { ...existingCoverValues };
+			for (const field of coverFields) {
+				// 이미 값이 있으면 스킵
+				if (
+					hasRequiredFieldValue(
+						field,
+						coverValues[field.name],
+						coverImageUrl,
+					)
+				) {
+					continue;
+				}
+				coverValues[field.name] = getRandomFieldValue(field, {
+					imageUrl: coverImageUrl,
+				});
+			}
+			const coverOverrides = withTemplateFingerprint(
+				buildTemplateOverrides({ fields: coverFields, values: coverValues }),
+				randomCoverTemplate,
+			);
+			await saveCover(
+				coverImageUrl,
+				project.coverCaption || "",
+				randomCoverTemplate.templateUid,
+				coverOverrides,
+			);
+
+			// 2. 각 페이지 템플릿 랜덤 선택 & 값 채우기 (빈 필드만)
+			for (let index = 0; index < workingPages.length; index++) {
+				const page = workingPages[index];
+				setDevPublishStageMessage(
+					`${index + 1}/${workingPages.length} 페이지 랜덤값 설정 중...`,
+				);
+				const randomTemplate = pickRandom(contentTemplates);
+				const hasPagePhotoField = (randomTemplate.requiredInputs || []).some(
+					(f) => isAutoManagedPagePhotoField(f),
+				);
+				const pageImageUrl = hasPagePhotoField
+					? (page.imageUrl ||
+					  `https://picsum.photos/seed/${Math.random().toString(36).slice(2)}/1200/900`)
+					: (page.imageUrl || "");
+
+				const fields = (randomTemplate.requiredInputs || []).filter(
+					(field) => {
+						// 기본 자동 관리 필드 제외
+						if (isAutoManagedPagePhotoField(field)) return false;
+						if (isAutoManagedBookTitleField(field)) return false;
+						if (isAutoManagedCoordinateField(field)) return false;
+						if (isAutoManagedTemporalField(field)) return false;
+
+						// file binding 필드 처리: options이 있으면 포함 (예: parentBalloon b1~b4)
+						const binding = String(field.binding || "").toLowerCase();
+						if (isFileLikeBindingValue(binding)) {
+							return true;
+						}
+
+						if (isDecorativeLineField(field)) return false;
+
+						return true;
+					},
+				);
+				const existingPageValues = toInputValueMap(
+					parseOverrides(page.contentTemplateOverrides),
+				);
+				const nextValues: Record<string, string> = {
+					...existingPageValues,
+				};
+				for (const field of fields) {
+					// 이미 값이 있으면 스킵
+					if (
+						hasRequiredFieldValue(
+							field,
+							nextValues[field.name],
+							pageImageUrl,
+						)
+					) {
+						continue;
+					}
+					nextValues[field.name] = getRandomFieldValue(field, {
+						imageUrl: pageImageUrl,
+					});
+				}
+				const overrides = withTemplateFingerprint(
+					buildTemplateOverrides({ fields, values: nextValues }),
+					randomTemplate,
+				);
+
+				const saved = await savePage(
+					page.id,
+					pageImageUrl,
+					page.caption || "",
+					randomTemplate.templateUid,
+					overrides,
+					{ silent: true },
+				);
+				if (!saved) {
+					showMsg("랜덤값 저장 중 오류가 발생했습니다.", "error");
 					return;
 				}
 			}
@@ -1286,13 +1945,13 @@ export default function EditorClient({ initialProject }: Props) {
 					)}
 					{isDevMode && (
 						<button
-							onClick={handleDevPublishWithDefaults}
+							onClick={handleDevPublishWithRandom}
 							disabled={publishing || saving}
 							className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
 						>
 							{publishing
 								? "출판 중..."
-								: "DEV: 기본값으로 출판 & 주문하기"}
+								: "DEV: 랜덤값으로 출판 & 주문하기"}
 						</button>
 					)}
 					<button
@@ -1481,10 +2140,18 @@ function CoverPanel({
 		coverTemplates.find(
 			(template) => template.templateUid === coverTemplateUid,
 		) || null;
-	const requiredInputs = (selectedTemplate?.requiredInputs || []).filter(
+	const coverTemplateAllInputs = selectedTemplate?.requiredInputs || [];
+	const hasAutoPhotoCoverField =
+		!selectedTemplate ||
+		coverTemplateAllInputs.some((field) =>
+			isAutoManagedCoverTemplateField(field),
+		);
+	const requiredInputs = coverTemplateAllInputs.filter(
 		(field) =>
 			!isAutoManagedCoverTemplateField(field) &&
-			!isAutoManagedBookTitleField(field),
+			!isAutoManagedBookTitleField(field) &&
+			!isAutoManagedCoordinateField(field) &&
+			!isAutoManagedTemporalField(field),
 	);
 	const selectedTemplateValues =
 		templateInputValuesByUid[coverTemplateUid] || {};
@@ -1673,6 +2340,7 @@ function CoverPanel({
 			</div>
 
 			{/* 이미지 프리뷰 */}
+			{hasAutoPhotoCoverField && (
 			<div
 				className="relative w-full aspect-[4/3] bg-rose-50 rounded-2xl border-2 border-dashed border-rose-200 overflow-hidden mb-5 cursor-pointer upload-zone group"
 				onClick={() => fileRef.current?.click()}
@@ -1719,7 +2387,9 @@ function CoverPanel({
 					</div>
 				)}
 			</div>
+			)}
 
+			{hasAutoPhotoCoverField && (
 			<input
 				ref={fileRef}
 				type="file"
@@ -1730,8 +2400,10 @@ function CoverPanel({
 					if (file) await handleFile(file);
 				}}
 			/>
+			)}
 
 			{/* URL 직접 입력 */}
+			{hasAutoPhotoCoverField && (
 			<div className="grid grid-cols-[1fr,auto] gap-2 mb-4">
 				<input
 					type="url"
@@ -1749,6 +2421,7 @@ function CoverPanel({
 					미리보기
 				</button>
 			</div>
+			)}
 
 			{/* 표지 문구 */}
 			<div className="mb-3">
@@ -1778,10 +2451,14 @@ function CoverPanel({
 							const binding = String(
 								field.binding || "",
 							).toLowerCase();
-							const displayLabel = getFieldDisplayLabel(field);
-							const exampleHint =
-								getSuggestedExampleHint(field) ||
-								formatFieldExampleHint(field.description);
+							const displayLabel = getFieldDisplayLabelResolved(
+								field,
+								requiredInputs,
+							);
+							const exampleHint = getContextualExampleHint(
+								field,
+								requiredInputs,
+							);
 							const isPaletteField = isPaletteColorField(field);
 							const isDecorativeLine =
 								isDecorativeLineField(field);
@@ -1793,7 +2470,7 @@ function CoverPanel({
 								String(field.defaultValue || "").trim(),
 							);
 							const placeholder =
-								binding === "file"
+								isFileLikeBindingValue(binding)
 									? "파일 URL 입력 (여러 개는 콤마로 구분)"
 									: "값을 입력하세요";
 							const selectedColorRaw =
@@ -2140,7 +2817,9 @@ function PagePanel({
 	const requiredInputs = templateRequiredInputs.filter(
 		(field) =>
 			!isAutoManagedPagePhotoField(field) &&
-			!isAutoManagedBookTitleField(field),
+			!isAutoManagedBookTitleField(field) &&
+			!isAutoManagedCoordinateField(field) &&
+			!isAutoManagedTemporalField(field),
 	);
 	const collagePhotoFields = templateRequiredInputs.filter((field) =>
 		isCollagePhotoField(field),
@@ -2513,10 +3192,14 @@ function PagePanel({
 							const binding = String(
 								field.binding || "",
 							).toLowerCase();
-							const displayLabel = getFieldDisplayLabel(field);
-							const exampleHint =
-								getSuggestedExampleHint(field) ||
-								formatFieldExampleHint(field.description);
+							const displayLabel = getFieldDisplayLabelResolved(
+								field,
+								requiredInputs,
+							);
+							const exampleHint = getContextualExampleHint(
+								field,
+								requiredInputs,
+							);
 							const isPaletteField = isPaletteColorField(field);
 							const isDecorativeLine =
 								isDecorativeLineField(field);
@@ -2601,7 +3284,7 @@ function PagePanel({
 							}
 
 							const placeholder =
-								binding === "file"
+								isFileLikeBindingValue(binding)
 									? "파일 URL 입력 (여러 개는 콤마로 구분)"
 									: "값을 입력하세요";
 							const selectedColorRaw =

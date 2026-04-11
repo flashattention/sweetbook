@@ -144,7 +144,7 @@ const TEST_CASES = [
 			bookTitle: "스모크 테스트",
 			date: DATE_LABEL,
 			dayOfWeek: getDayOfWeekEn(NOW),
-			dayOfWeekX: getDayOfWeekKo(NOW),
+			dayOfWeekX: getDayOfWeekX(DATE_LABEL),
 			weather: "맑음",
 			meal: "좋음",
 			nap: "좋음",
@@ -191,6 +191,17 @@ function getDayOfWeekEn(date) {
 
 function getDayOfWeekKo(date) {
 	return ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+}
+
+function getDayOfWeekX(dateLabel) {
+	const text = String(dateLabel || "");
+	const width = [...text].reduce((acc, ch) => {
+		if (/[가-힣ㄱ-ㅎㅏ-ㅣ一-龥]/.test(ch)) return acc + 24;
+		if (/\d/.test(ch)) return acc + 12;
+		if (/\s/.test(ch)) return acc + 8;
+		return acc + 10;
+	}, 0);
+	return String(300 + width + 14);
 }
 
 async function apiFetch(path, options = {}) {

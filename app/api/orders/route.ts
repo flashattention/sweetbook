@@ -47,7 +47,10 @@ export async function POST(req: NextRequest) {
 		}
 
 		const project = await prisma.project.findFirst({
-			where: { id: projectId, userId: user.id },
+			where: {
+				id: projectId,
+				OR: [{ userId: user.id }, { isDefault: true }],
+			},
 			select: {
 				projectType: true,
 				status: true,

@@ -66,6 +66,31 @@ export function pickFirstString(...values: unknown[]): string | null {
 	return null;
 }
 
+function estimateDateLabelVisualWidth(label: string): number {
+	const text = String(label || "");
+	let width = 0;
+	for (const ch of text) {
+		// Hangul/CJK glyphs are typically wider than latin digits or punctuation.
+		if (/[가-힣ㄱ-ㅎㅏ-ㅣ一-龥]/.test(ch)) {
+			width += 24;
+		} else if (/\d/.test(ch)) {
+			width += 12;
+		} else if (/\s/.test(ch)) {
+			width += 8;
+		} else {
+			width += 10;
+		}
+	}
+	return width;
+}
+
+function computeDayOfWeekX(dateLabel: string): string {
+	const baseX = 300;
+	const gap = 14;
+	const width = estimateDateLabelVisualWidth(dateLabel);
+	return String(baseX + width + gap);
+}
+
 function buildTemplateUidTextOverrides(): Record<string, TemplateUidTextRule> {
 	const map: Record<string, TemplateUidTextRule> = {};
 	const assign = (uids: string[], rule: TemplateUidTextRule) => {
@@ -242,16 +267,16 @@ function buildTemplateUidTextOverrides(): Record<string, TemplateUidTextRule> {
 			bookTitle: (runtime) => runtime.project.title,
 			date: (runtime) => runtime.dateLabel,
 			dayOfWeek: (runtime) => runtime.dayOfWeek,
-			dayOfWeekX: (runtime) => runtime.dayOfWeekKorean,
+			dayOfWeekX: (runtime) => computeDayOfWeekX(runtime.dateLabel),
 			weather: "맑음",
 			meal: "좋음",
 			nap: "좋음",
-			weatherLabelX: "날씨",
-			weatherValueX: "맑음",
-			mealLabelX: "급식",
-			mealValueX: "잘 먹음",
-			napLabelX: "낮잠",
-			napValueX: "충분히 잠",
+			weatherLabelX: "52",
+			weatherValueX: "176",
+			mealLabelX: "52",
+			mealValueX: "176",
+			napLabelX: "52",
+			napValueX: "176",
 			hasParentComment: "true",
 			hasTeacherComment: "true",
 			parentComment: (runtime) =>

@@ -23,7 +23,7 @@ function parseTemplateOverrides(value: string | null) {
 
 async function getProject(id: string, userId: string): Promise<Project | null> {
 	const p = await prisma.project.findFirst({
-		where: { id, userId },
+		where: { id, OR: [{ userId }, { isDefault: true }] },
 		include: { pages: { orderBy: { pageOrder: "asc" } } },
 	});
 	if (!p) return null;
@@ -212,7 +212,12 @@ function formatTemplateValue(value: unknown): string {
 
 async function getContentTemplateMetaMap(
 	templateUids: string[],
-): Promise<Record<string, { name: string; previewUrl: string | null }>> {
+): Promise<
+	Record<
+		string,
+		{ name: string; previewUrl: string | null; hasPhotoField: boolean }
+	>
+> {
 	if (templateUids.length === 0 || !isSweetbookConfigured()) {
 		return {};
 	}
@@ -262,15 +267,60 @@ async function getContentTemplateMetaMap(
 		uniqueUids.map(async (uid) => {
 			const detail = await fetchSweetbookTemplateDetail(uid);
 			const templateName = String(detail.templateName || "").trim();
+			const defEntries = Object.entries(
+				(
+					(detail as Record<string, unknown>)?.parameters as {
+						definitions?: Record<
+							string,
+							{ binding?: string; label?: string }
+						>;
+					} | null
+				)?.definitions || {},
+			);
+			const hasPhotoField = defEntries.some(([fieldName, def]) => {
+				const binding = String(def?.binding || "").toLowerCase();
+				if (binding !== "file") return false;
+				const search = normalizeTemplateFieldSearch(
+					fieldName,
+					def?.label,
+					def?.binding,
+				);
+				if (
+					search.includes("coverphoto") ||
+					search.includes("frontphoto")
+				)
+					return false;
+				const imageKeywords = [
+					"photo",
+					"image",
+					"picture",
+					"img",
+					"art",
+					"illustration",
+					"scene",
+					"background",
+					"foreground",
+					"cut",
+					"panel",
+					"사진",
+					"이미지",
+					"그림",
+				];
+				return imageKeywords.some((kw) => search.includes(kw));
+			});
 			return {
 				uid,
 				name: templateName || uid,
 				previewUrl: pickTemplatePreviewUrl(detail),
+				hasPhotoField,
 			};
 		}),
 	);
 
-	const map: Record<string, { name: string; previewUrl: string | null }> = {};
+	const map: Record<
+		string,
+		{ name: string; previewUrl: string | null; hasPhotoField: boolean }
+	> = {};
 	for (const result of results) {
 		if (result.status !== "fulfilled") {
 			continue;
@@ -278,6 +328,7 @@ async function getContentTemplateMetaMap(
 		map[result.value.uid] = {
 			name: result.value.name,
 			previewUrl: result.value.previewUrl,
+			hasPhotoField: result.value.hasPhotoField,
 		};
 	}
 
@@ -469,7 +520,9 @@ export default async function ViewPage({
 													<p className="text-[11px] font-semibold text-slate-500 mb-1">
 														페이지 사진
 													</p>
-													{showPageImage ? (
+													{showPageImage &&
+													templateMeta?.hasPhotoField !==
+														false ? (
 														<div className="rounded-lg border border-slate-200 bg-slate-50 overflow-hidden">
 															<img
 																src={

@@ -30,6 +30,7 @@ export interface Project {
 	orderStatus: string | null;
 	trackingInfo: string | null;
 	status: "DRAFT" | "PUBLISHED" | "ORDERED";
+	isDefault?: boolean;
 	pages: Page[];
 	createdAt: string;
 	updatedAt: string;

@@ -44,6 +44,9 @@ model Project {
   // App state: DRAFT | PUBLISHED | ORDERED
   status String @default("DRAFT")
 
+  // Default/demo project visible to all users
+  isDefault Boolean @default(false)
+
   pages Page[]
 
   createdAt DateTime @default(now())

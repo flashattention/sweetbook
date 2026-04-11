@@ -17,7 +17,10 @@ export async function GET(
 	}
 
 	const project = await prisma.project.findFirst({
-		where: { id: params.id, userId: user.id },
+		where: {
+			id: params.id,
+			OR: [{ userId: user.id }, { isDefault: true }],
+		},
 		include: { pages: { orderBy: { pageOrder: "asc" } } },
 	});
 	if (!project) {

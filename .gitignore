@@ -10,3 +10,33 @@ prisma/*.db-journal
 # 사용자 업로드 사진 (더미 데이터 아님)
 public/uploads/*
 !public/uploads/.gitkeep
+# 기본 샘플 프로젝트용 에셋 (의도적으로 커밋)
+!public/uploads/comic-cover-47fb9d02-1b39-4819-b823-1f42ece42e4a.png
+!public/uploads/comic-page-1-e6613138-abb0-4d5e-a97b-18b7605b8206.png
+!public/uploads/comic-page-2-f6429590-3baa-470c-a897-3caf4546e2de.png
+!public/uploads/comic-page-3-5b9ea226-5d5b-44cf-b0e7-d1d76dfe36a1.png
+!public/uploads/comic-page-4-7f2bfaf1-8b89-4965-be21-18be9a91778e.png
+!public/uploads/comic-page-5-e877bc8c-0b71-405b-b8c9-4c521bebeb41.png
+!public/uploads/comic-page-6-8afbc5bf-7936-43e9-8c4c-da73bf8e490a.png
+!public/uploads/comic-page-7-46ac3bf7-0790-4c07-bc2a-f8a063fa9d8d.png
+!public/uploads/comic-page-8-8e7c8e09-ed16-4909-846f-18066113ab85.png
+!public/uploads/comic-page-9-60e8a37b-ec43-45b7-9475-de09757561d5.png
+!public/uploads/comic-page-10-8d72dda0-df68-4967-8bff-bbb578386d4e.png
+!public/uploads/comic-page-11-f9451a2e-504c-4445-af9d-4ce8cac891b0.png
+!public/uploads/comic-page-12-648277cc-bc57-4e16-99d9-ba97ecd29ef4.png
+!public/uploads/comic-page-13-2b553bfa-7c87-48e1-96ab-05724a1a05bf.png
+!public/uploads/comic-page-14-3781eae2-6212-4ff0-ba4c-e199fcbe29d9.png
+!public/uploads/comic-page-15-006ce4a1-16e8-4e90-b82a-de617fa29a8d.png
+!public/uploads/comic-page-16-258ddd33-9ac2-4b30-b42f-d1b9a5424366.png
+!public/uploads/comic-page-17-13238d1f-4033-4430-9592-b298860c6338.png
+!public/uploads/comic-page-18-de477b6a-f9ea-4427-a9d1-ae51d889801e.png
+!public/uploads/comic-page-19-f4b41721-3578-4d3f-877d-756acc7571fd.png
+!public/uploads/comic-page-20-f3c69186-9aa3-4d78-988a-98bfdd2a134c.png
+!public/uploads/comic-page-21-7e899e78-962e-473f-b3e7-bd00e409af95.png
+!public/uploads/comic-page-22-d8c33e2e-eb31-4c0c-8192-7d141b69f112.png
+!public/uploads/comic-page-23-5c11faf5-0ecf-45cd-924a-aadc9dec24f7.png
+!public/uploads/comic-page-24-a19d0894-aa0d-41fc-834e-3af4c6b7c6b1.png
+!public/uploads/story-cover-b8e32020-cead-4149-aded-941df61a1e2f.png
+
+# scripts/probe-results.json — API 탐색 결과 캐시 (생성 파일)
+scripts/probe-results.json

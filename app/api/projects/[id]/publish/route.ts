@@ -132,6 +132,41 @@ function extractImageUrlCandidate(value: unknown): string | null {
 	return null;
 }
 
+function isLikelyFileUrlCandidate(value: string): boolean {
+	const trimmed = String(value || "").trim();
+	if (!trimmed) {
+		return false;
+	}
+
+	// 실제 다운로드 가능한 URL/경로만 파일 업로드 대상으로 간주한다.
+	if (/^https?:\/\//i.test(trimmed)) {
+		return true;
+	}
+	if (trimmed.startsWith("/")) {
+		return true;
+	}
+
+	return false;
+}
+
+function isLikelyServerFileNameCandidate(value: string): boolean {
+	const trimmed = String(value || "").trim();
+	if (!trimmed) {
+		return false;
+	}
+
+	// 서버 파일명 토큰 허용 (예: b1, b2, line1, line1.png)
+	// 공백/슬래시/한글 등 자유 텍스트는 제외한다.
+	if (/[\s\/\\]/.test(trimmed)) {
+		return false;
+	}
+	if (/[가-힣]/.test(trimmed)) {
+		return false;
+	}
+
+	return /^[a-z0-9][a-z0-9._-]{0,127}$/i.test(trimmed);
+}
+
 async function parsePublishRequestBody(
 	req: NextRequest,
 ): Promise<PublishRequestBody> {
@@ -175,13 +210,17 @@ async function applyFileUrlOverrides(params: {
 	baseFiles: Record<string, Blob | Blob[]>;
 	fileUrls?: Record<string, string | string[]>;
 	origin: string;
-}): Promise<Record<string, Blob | Blob[]>> {
+}): Promise<{
+	files: Record<string, Blob | Blob[]>;
+	parameterFileValues: Record<string, string | string[]>;
+}> {
 	const { baseFiles, fileUrls, origin } = params;
 	if (!fileUrls) {
-		return baseFiles;
+		return { files: baseFiles, parameterFileValues: {} };
 	}
 
 	const merged: Record<string, Blob | Blob[]> = { ...baseFiles };
+	const parameterFileValues: Record<string, string | string[]> = {};
 	const parseFileUrlList = (value: string | string[]): string[] => {
 		if (Array.isArray(value)) {
 			return value
@@ -226,16 +265,33 @@ async function applyFileUrlOverrides(params: {
 			continue;
 		}
 
+		const fetchableUrls = cleanedUrls.filter((url) =>
+			isLikelyFileUrlCandidate(url),
+		);
+		const serverFileNames = cleanedUrls.filter((url) =>
+			isLikelyServerFileNameCandidate(url),
+		);
+
 		const blobs: Blob[] = [];
-		for (const imageUrl of cleanedUrls) {
+		for (const imageUrl of fetchableUrls) {
 			const blob = await fetchImageBlob(imageUrl, origin);
 			blobs.push(blob);
 		}
 
-		merged[fieldName] = blobs.length === 1 ? blobs[0] : blobs;
+		if (blobs.length > 0) {
+			merged[fieldName] = blobs.length === 1 ? blobs[0] : blobs;
+			continue;
+		}
+
+		if (serverFileNames.length > 0) {
+			parameterFileValues[fieldName] =
+				serverFileNames.length === 1
+					? serverFileNames[0]
+					: serverFileNames;
+		}
 	}
 
-	return merged;
+	return { files: merged, parameterFileValues };
 }
 
 function isFileLikeBinding(binding: string | null | undefined): boolean {
@@ -247,7 +303,8 @@ function parsePotentialFileUrls(value: unknown): string[] {
 	if (Array.isArray(value)) {
 		return value
 			.map((item) => extractImageUrlCandidate(item))
-			.filter((url): url is string => Boolean(url));
+			.filter((url): url is string => Boolean(url))
+			.filter((url) => isLikelyFileUrlCandidate(url));
 	}
 
 	if (typeof value !== "string") {
@@ -266,7 +323,7 @@ function parsePotentialFileUrls(value: unknown): string[] {
 				return parsed
 					.map((item) => extractImageUrlCandidate(item))
 					.filter((url): url is string => Boolean(url))
-					.filter(Boolean);
+					.filter((url) => isLikelyFileUrlCandidate(url));
 			}
 		} catch {
 			// Fall through to comma-separated parsing.
@@ -276,7 +333,7 @@ function parsePotentialFileUrls(value: unknown): string[] {
 	return trimmed
 		.split(",")
 		.map((item) => item.trim())
-		.filter(Boolean);
+		.filter((item) => isLikelyFileUrlCandidate(item));
 }
 
 function collectTemplateRequiredFields(detail: SweetbookTemplateDetail) {
@@ -439,6 +496,118 @@ function getDayOfWeekInfo(date: Date): {
 	return { en: english[day], ko: korean[day] };
 }
 
+function computeDayOfWeekXFromDateText(dateText: string): string {
+	const text = String(dateText || "");
+	let width = 0;
+	for (const ch of text) {
+		if (/[가-힣ㄱ-ㅎㅏ-ㅣ一-龥]/.test(ch)) {
+			width += 24;
+		} else if (/\d/.test(ch)) {
+			width += 12;
+		} else if (/\s/.test(ch)) {
+			width += 8;
+		} else {
+			width += 10;
+		}
+	}
+	return String(300 + width + 14);
+}
+
+function parseMonthDayFromDateText(dateText: string): {
+	month?: number;
+	day?: number;
+} {
+	const value = String(dateText || "").trim();
+	if (!value) {
+		return {};
+	}
+
+	const ko = value.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+	if (ko) {
+		return { month: Number(ko[1]), day: Number(ko[2]) };
+	}
+
+	const dotted = value.match(/(\d{1,2})\s*[./-]\s*(\d{1,2})/);
+	if (dotted) {
+		return { month: Number(dotted[1]), day: Number(dotted[2]) };
+	}
+
+	const onlyDay = value.match(/(\d{1,2})\s*일/);
+	if (onlyDay) {
+		return { day: Number(onlyDay[1]) };
+	}
+
+	return {};
+}
+
+function applyTemporalConsistency(parameters: Record<string, unknown>): void {
+	const entries = Object.entries(parameters);
+
+	const findKey = (normalized: string): string | null => {
+		for (const [key] of entries) {
+			if (normalizeParameterKey(key) === normalized) {
+				return key;
+			}
+		}
+		return null;
+	};
+
+	const readString = (normalized: string): string | null => {
+		const key = findKey(normalized);
+		if (!key) return null;
+		const raw = parameters[key];
+		if (raw === null || raw === undefined) return null;
+		const text = String(raw).trim();
+		return text || null;
+	};
+
+	const yearText = readString("year");
+	const monthText = readString("month") || readString("monthnum");
+	const dateText = readString("date") || readString("datelabel") || "";
+	const dayText = readString("daynum") || readString("dayofmonth");
+
+	const parsed = parseMonthDayFromDateText(dateText);
+	const year = Number(yearText) || new Date().getFullYear();
+	const month = Number(monthText) || parsed.month || 1;
+	const day = Number(dayText) || parsed.day || 1;
+
+	if (!Number.isFinite(month) || month < 1 || month > 12) {
+		return;
+	}
+	if (!Number.isFinite(day) || day < 1 || day > 31) {
+		return;
+	}
+
+	const normalizedDate = new Date(year, month - 1, day);
+	if (Number.isNaN(normalizedDate.getTime())) {
+		return;
+	}
+
+	const monthNum = String(month).padStart(2, "0");
+	const monthName = getMonthNameCapitalized(month);
+	const monthYearLabel = `${year}.${monthNum}`;
+	const dateLabel = dateText || `${monthNum}.${String(day).padStart(2, "0")}`;
+	const dayInfo = getDayOfWeekInfo(normalizedDate);
+	const dayOfWeekX = computeDayOfWeekXFromDateText(dateLabel);
+
+	for (const [key] of Object.entries(parameters)) {
+		const normalized = normalizeParameterKey(key);
+		if (normalized === "monthnum") {
+			parameters[key] = monthNum;
+		} else if (normalized === "monthnamecapitalized") {
+			parameters[key] = monthName;
+		} else if (normalized === "monthyearlabel") {
+			parameters[key] = monthYearLabel;
+		} else if (normalized === "dayofweek") {
+			parameters[key] = dayInfo.en;
+		} else if (normalized === "dayofweekkorean") {
+			parameters[key] = dayInfo.ko;
+		} else if (normalized === "dayofweekx") {
+			parameters[key] = dayOfWeekX;
+		}
+	}
+}
+
 function pickMonthlyColor(month: number): string {
 	const palette = [
 		"#F97316",
@@ -550,7 +719,7 @@ function resolveTemplateSpecificTextValue(
 	}
 
 	if (hasTemplateKeyword(search, ["dayofweekx"])) {
-		return runtime.dayOfWeekKorean;
+		return computeDayOfWeekXFromDateText(runtime.dateLabel);
 	}
 
 	if (hasTemplateKeyword(search, ["dayofweek"])) {
@@ -1058,6 +1227,305 @@ function shouldUseMultipleFiles(
 	);
 }
 
+function collectDefinitionFileValueCandidates(
+	definition: SweetbookTemplateParameterDefinition,
+): string[] {
+	const candidates: string[] = [];
+	const pushCandidate = (value: unknown) => {
+		const extracted = extractImageUrlCandidate(value);
+		if (extracted) {
+			candidates.push(extracted);
+		}
+	};
+	const pushPrimitiveCandidate = (value: unknown) => {
+		if (typeof value !== "string") {
+			return;
+		}
+		const trimmed = value.trim();
+		if (trimmed) {
+			candidates.push(trimmed);
+		}
+	};
+	const pushOptionLikeCandidate = (value: unknown) => {
+		if (!value || typeof value !== "object") {
+			pushPrimitiveCandidate(value);
+			return;
+		}
+		const record = value as Record<string, unknown>;
+		for (const key of [
+			"value",
+			"id",
+			"name",
+			"key",
+			"fileName",
+			"filename",
+			"url",
+			"src",
+		]) {
+			pushPrimitiveCandidate(record[key]);
+		}
+		pushCandidate(value);
+	};
+
+	pushCandidate(definition.default);
+
+	const raw = definition as Record<string, unknown>;
+	for (const key of ["options", "enum", "values", "candidates"]) {
+		const value = raw[key];
+		if (!Array.isArray(value)) {
+			continue;
+		}
+		for (const item of value) {
+			pushOptionLikeCandidate(item);
+		}
+	}
+
+	return Array.from(new Set(candidates));
+}
+
+function resolveOptionImageUrlByToken(params: {
+	definition: SweetbookTemplateParameterDefinition;
+	token: string;
+}): string | null {
+	const { definition, token } = params;
+	const normalizedToken = String(token || "")
+		.trim()
+		.toLowerCase();
+	if (!normalizedToken) {
+		return null;
+	}
+
+	const raw = definition as Record<string, unknown>;
+	const optionSources = [raw.options, raw.enum, raw.values, raw.candidates];
+
+	for (const source of optionSources) {
+		if (!Array.isArray(source)) {
+			continue;
+		}
+		for (const item of source) {
+			if (!item || typeof item !== "object") {
+				continue;
+			}
+			const record = item as Record<string, unknown>;
+			const tokenCandidates = [
+				record.value,
+				record.key,
+				record.code,
+				record.id,
+				record.name,
+			]
+				.map((value) =>
+					typeof value === "string" ? value.trim().toLowerCase() : "",
+				)
+				.filter(Boolean);
+
+			if (!tokenCandidates.includes(normalizedToken)) {
+				continue;
+			}
+
+			for (const key of [
+				"iconUrl",
+				"icon",
+				"imageUrl",
+				"image",
+				"thumbnailUrl",
+				"thumbnail",
+				"previewUrl",
+				"preview",
+				"url",
+				"src",
+				"fileUrl",
+			]) {
+				const candidate = record[key];
+				if (typeof candidate !== "string") {
+					continue;
+				}
+				const trimmed = candidate.trim();
+				if (isLikelyFileUrlCandidate(trimmed)) {
+					return trimmed;
+				}
+			}
+		}
+	}
+
+	return null;
+}
+
+function resolveAuxiliaryRequiredFileFallback(
+	name: string,
+	definition: SweetbookTemplateParameterDefinition,
+): string | null {
+	for (const candidate of collectDefinitionFileValueCandidates(definition)) {
+		if (
+			isLikelyFileUrlCandidate(candidate) ||
+			isLikelyServerFileNameCandidate(candidate)
+		) {
+			return candidate;
+		}
+	}
+
+	const search = normalizeTemplateSearchText(
+		name,
+		definition.label,
+		definition.description,
+	);
+
+	if (search.includes("parent") && search.includes("balloon")) {
+		return "b1";
+	}
+	if (search.includes("teacher") && search.includes("balloon")) {
+		return "t1";
+	}
+	if (search.includes("child") && search.includes("balloon")) {
+		return "c1";
+	}
+	if (search.includes("balloon") || search.includes("말풍선")) {
+		return "b1";
+	}
+	if (
+		search.includes("linevertical") ||
+		search.includes("line vertical") ||
+		search.includes("linehorizontal") ||
+		search.includes("line horizontal") ||
+		search.includes("line") ||
+		search.includes("구분선") ||
+		search.includes("라인")
+	) {
+		return "line1";
+	}
+
+	return null;
+}
+
+function hasUsableFileLikeParameterValue(value: unknown): boolean {
+	if (Array.isArray(value)) {
+		return value.some((item) => hasUsableFileLikeParameterValue(item));
+	}
+
+	const candidate = extractImageUrlCandidate(value);
+	if (!candidate) {
+		return false;
+	}
+
+	return (
+		isLikelyFileUrlCandidate(candidate) ||
+		isLikelyServerFileNameCandidate(candidate)
+	);
+}
+
+function hasAttachedFileValue(value: Blob | Blob[] | undefined): boolean {
+	if (!value) {
+		return false;
+	}
+	if (Array.isArray(value)) {
+		return value.length > 0;
+	}
+	return true;
+}
+
+function ensureRequiredImageLikeInputs(params: {
+	detail: SweetbookTemplateDetail;
+	kind: TemplateKind;
+	parameters: Record<string, unknown>;
+	files: Record<string, Blob | Blob[]>;
+	fallbackImageBlob: Blob;
+}) {
+	const { detail, kind, parameters, files, fallbackImageBlob } = params;
+	const definitions = detail.parameters?.definitions || {};
+
+	for (const [name, definition] of Object.entries(definitions)) {
+		if (!definition.required) {
+			continue;
+		}
+
+		const search = normalizeTemplateSearchText(
+			name,
+			definition.label,
+			definition.description,
+			definition.binding,
+		);
+		const binding = String(definition.binding || "").toLowerCase();
+		const isRequiredImageLike =
+			isFileLikeBinding(binding) ||
+			hasTemplateKeyword(search, [
+				"linevertical",
+				"linehorizontal",
+				"balloon",
+				"말풍선",
+				"구분선",
+				"라인",
+				"image",
+				"photo",
+				"picture",
+				"img",
+				"이미지",
+				"사진",
+			]);
+
+		if (!isRequiredImageLike) {
+			continue;
+		}
+
+		if (hasAttachedFileValue(files[name])) {
+			continue;
+		}
+
+		// token(b1 등)만 있는 경우, 템플릿 옵션의 실제 이미지 URL로 승격한다.
+		if (typeof parameters[name] === "string") {
+			const optionImageUrl = resolveOptionImageUrlByToken({
+				definition,
+				token: parameters[name] as string,
+			});
+			if (optionImageUrl) {
+				parameters[name] = optionImageUrl;
+			}
+		}
+
+		if (hasUsableFileLikeParameterValue(parameters[name])) {
+			continue;
+		}
+
+		// 강제 안전망: required file-like 필드는 값이 비어 있으면 반드시 form-data 파일을 첨부한다.
+		if (isFileLikeBinding(binding)) {
+			files[name] = shouldUseMultipleFiles(name, definition)
+				? [fallbackImageBlob]
+				: fallbackImageBlob;
+
+			const fallbackToken = resolveAuxiliaryRequiredFileFallback(
+				name,
+				definition,
+			);
+			if (fallbackToken) {
+				parameters[name] = fallbackToken;
+			}
+			continue;
+		}
+
+		const isPrimaryImage = isPrimaryTemplateImageField(
+			name,
+			definition,
+			kind,
+		);
+		if (isPrimaryImage || shouldUseMultipleFiles(name, definition)) {
+			files[name] = shouldUseMultipleFiles(name, definition)
+				? [fallbackImageBlob]
+				: fallbackImageBlob;
+			continue;
+		}
+
+		const fallback = resolveAuxiliaryRequiredFileFallback(name, definition);
+		if (fallback) {
+			parameters[name] = fallback;
+			continue;
+		}
+
+		// 최종 폴백: known line field 기본 토큰
+		if (search.includes("line")) {
+			parameters[name] = "line1";
+		}
+	}
+}
+
 function buildTemplatePayload(params: {
 	detail: SweetbookTemplateDetail;
 	kind: TemplateKind;
@@ -1084,22 +1552,157 @@ function buildTemplatePayload(params: {
 	for (const [name, definition] of Object.entries(definitions)) {
 		const binding = String(definition.binding || "").toLowerCase();
 
-		if (binding === "text") {
-			const value = resolveTemplateTextValue({
+		// 텍스트 필드: binding이 text이거나, type이 string/textarea 등
+		const type = String(definition.type || "").toLowerCase();
+		const isTextField =
+			binding === "text" || type === "string" || type === "textarea";
+		if (isTextField) {
+			// 필드명/라벨/설명 기반으로 적절한 값 생성
+			const search = normalizeTemplateSearchText(
 				name,
-				definition,
-				runtime,
-			});
-			parameters[name] = value ?? runtime.fallbackText;
+				definition.label,
+				definition.description,
+				definition.binding,
+				type,
+			);
+			let value: string | null = null;
+			if (hasTemplateKeyword(search, ["month", "월"])) {
+				value = runtime.month;
+			} else if (hasTemplateKeyword(search, ["year", "년도", "연도"])) {
+				value = runtime.year;
+			} else if (hasTemplateKeyword(search, ["day", "일"])) {
+				value = runtime.dayOfMonth;
+			} else if (hasTemplateKeyword(search, ["date", "날짜"])) {
+				value = runtime.dateLabel;
+			} else if (
+				hasTemplateKeyword(search, ["period", "range", "기간"])
+			) {
+				value = runtime.periodText;
+			} else if (hasTemplateKeyword(search, ["title", "제목"])) {
+				value = runtime.project.title;
+			} else if (
+				hasTemplateKeyword(search, [
+					"caption",
+					"diary",
+					"memo",
+					"message",
+					"quote",
+					"text",
+					"content",
+					"body",
+					"story",
+					"subtitle",
+					"tagline",
+					"문구",
+					"텍스트",
+					"내용",
+				])
+			) {
+				// 페이지 캡션 우선, 없으면 프로젝트 커버캡션/시놉시스/장르/제목 등
+				value =
+					(runtime.page && runtime.page.caption) ||
+					runtime.project.coverCaption ||
+					runtime.project.synopsis ||
+					runtime.project.genre ||
+					runtime.project.title;
+			} else if (hasTemplateKeyword(search, ["genre", "장르"])) {
+				value = runtime.project.genre || runtime.fallbackText;
+			} else if (
+				hasTemplateKeyword(search, [
+					"character",
+					"cast",
+					"hero",
+					"protagonist",
+					"인물",
+					"캐릭터",
+				])
+			) {
+				value = runtime.project.storyCharacters || runtime.fallbackText;
+			} else if (
+				hasTemplateKeyword(search, [
+					"synopsis",
+					"summary",
+					"outline",
+					"description",
+					"줄거리",
+					"설명",
+				])
+			) {
+				value = runtime.project.synopsis || runtime.fallbackText;
+			} else if (hasTemplateKeyword(search, ["spinetitle"])) {
+				value = runtime.spineTitle;
+			} else if (hasTemplateKeyword(search, ["monthyearlabel"])) {
+				value = runtime.monthYearLabel;
+			} else if (hasTemplateKeyword(search, ["monthnamecapitalized"])) {
+				value = runtime.monthNameCapitalized;
+			} else if (hasTemplateKeyword(search, ["dayofweek"])) {
+				value = runtime.dayOfWeek;
+			} else if (hasTemplateKeyword(search, ["dayofweekkorean"])) {
+				value = runtime.dayOfWeekKorean;
+			} else if (
+				hasTemplateKeyword(search, ["pointcolor", "monthcolor"])
+			) {
+				value = runtime.monthColor;
+			} else if (
+				hasTemplateKeyword(search, [
+					"projecttype",
+					"project type",
+					"type",
+					"형식",
+				])
+			) {
+				value = runtime.project.projectType;
+			} else if (
+				hasTemplateKeyword(search, [
+					"bookspec",
+					"book spec",
+					"format",
+					"size",
+					"판형",
+				])
+			) {
+				value =
+					runtime.project.bookSpecUid || DEFAULT_PHOTOBOOK_SPEC_UID;
+			} else {
+				value = runtime.fallbackText;
+			}
+			parameters[name] = value;
 			continue;
 		}
 
 		if (binding === "file") {
-			if (shouldUseMultipleFiles(name, definition)) {
-				files[name] = [imageBlob];
-			} else {
-				files[name] = imageBlob;
+			const shouldAutofillImage = isPrimaryTemplateImageField(
+				name,
+				definition,
+				kind,
+			);
+			const isRequired = Boolean(definition.required);
+			// 반드시 required가 true인 경우에만 자동 첨부
+			if (isRequired) {
+				if (!shouldAutofillImage) {
+					// required + multi-file(gallery)는 최소 1장 이상 첨부되도록 안전망 적용.
+					if (shouldUseMultipleFiles(name, definition)) {
+						files[name] = [imageBlob];
+						continue;
+					}
+					// Decorative/auxiliary required file fields need a safe fallback token.
+					const fallback = resolveAuxiliaryRequiredFileFallback(
+						name,
+						definition,
+					);
+					if (fallback) {
+						parameters[name] = fallback;
+					}
+					continue;
+				}
+				// 메인 이미지 필드(required=true)만 첨부
+				if (shouldUseMultipleFiles(name, definition)) {
+					files[name] = [imageBlob];
+				} else {
+					files[name] = imageBlob;
+				}
 			}
+			// required가 false면 어떤 경우에도 자동 첨부하지 않음
 			continue;
 		}
 
@@ -1150,92 +1753,87 @@ export async function POST(
 	req: NextRequest,
 	{ params }: { params: { id: string } },
 ) {
-	const user = await getAuthUserFromRequest(req);
-	if (!user) {
-		return NextResponse.json(
-			{ success: false, error: "로그인이 필요합니다." },
-			{ status: 401 },
-		);
-	}
-
-	const project = await prisma.project.findFirst({
-		where: { id: params.id, userId: user.id },
-		include: { pages: { orderBy: { pageOrder: "asc" } } },
-	});
-
-	if (!project) {
-		return NextResponse.json(
-			{ success: false, error: "프로젝트를 찾을 수 없습니다." },
-			{ status: 404 },
-		);
-	}
-
-	// 멱등 처리: 이미 발행(또는 주문)된 프로젝트는 재발행하지 않고 성공으로 응답한다.
-	if (
-		(project.status === "PUBLISHED" || project.status === "ORDERED") &&
-		project.bookUid
-	) {
-		return NextResponse.json({
-			success: true,
-			bookUid: project.bookUid,
-			message: "이미 발행이 완료된 프로젝트입니다.",
-		});
-	}
-
-	if (project.pages.length === 0) {
-		return NextResponse.json(
-			{ success: false, error: "최소 1페이지 이상 필요합니다." },
-			{ status: 400 },
-		);
-	}
-
-	const bookSpecUid = project.bookSpecUid || DEFAULT_PHOTOBOOK_SPEC_UID;
-	if (project.projectType === "COMIC" && bookSpecUid !== "SQUAREBOOK_HC") {
-		return NextResponse.json(
-			{
-				success: false,
-				error: "만화책은 고화질 스퀘어북(SQUAREBOOK_HC) 판형만 지원합니다.",
-			},
-			{ status: 400 },
-		);
-	}
-	const minPages = getMinPagesByBookSpec(bookSpecUid);
-	if (project.pages.length < minPages) {
-		return NextResponse.json(
-			{
-				success: false,
-				error: `${bookSpecUid} 판형은 최소 ${minPages}페이지가 필요합니다. (현재 ${project.pages.length}페이지)`,
-			},
-			{ status: 400 },
-		);
-	}
-
-	if (!project.coverImageUrl) {
-		return NextResponse.json(
-			{ success: false, error: "표지 이미지를 설정해 주세요." },
-			{ status: 400 },
-		);
-	}
-
-	if (!isSweetbookConfigured()) {
-		await prisma.project.update({
-			where: { id: project.id },
-			data: { status: "PUBLISHED" },
-		});
-
-		return NextResponse.json({
-			success: true,
-			demo: true,
-			message:
-				"Demo 모드: SWEETBOOK_API_KEY 미설정. 주문 페이지로 이동하지만 실제 API 호출은 생략됩니다.",
-		});
-	}
-
 	let coverTemplateDetail: SweetbookTemplateDetail | null = null;
 	let contentTemplateDetail: SweetbookTemplateDetail | null = null;
 	let failedStep = "initial";
-
 	try {
+		const user = await getAuthUserFromRequest(req);
+		if (!user) {
+			return NextResponse.json(
+				{ success: false, error: "로그인이 필요합니다." },
+				{ status: 401 },
+			);
+		}
+
+		const project = await prisma.project.findFirst({
+			where: { id: params.id, userId: user.id },
+			include: { pages: { orderBy: { pageOrder: "asc" } } },
+		});
+
+		if (!project) {
+			return NextResponse.json(
+				{ success: false, error: "프로젝트를 찾을 수 없습니다." },
+				{ status: 404 },
+			);
+		}
+
+		// 멱등 처리: 이미 발행(또는 주문)된 프로젝트는 재발행하지 않고 성공으로 응답한다.
+		if (
+			(project.status === "PUBLISHED" || project.status === "ORDERED") &&
+			project.bookUid
+		) {
+			return NextResponse.json({
+				success: true,
+				bookUid: project.bookUid,
+				message: "이미 발행이 완료된 프로젝트입니다.",
+			});
+		}
+
+		if (project.pages.length === 0) {
+			return NextResponse.json(
+				{ success: false, error: "최소 1페이지 이상 필요합니다." },
+				{ status: 400 },
+			);
+		}
+
+		const bookSpecUid = project.bookSpecUid || DEFAULT_PHOTOBOOK_SPEC_UID;
+		if (
+			project.projectType === "COMIC" &&
+			bookSpecUid !== "SQUAREBOOK_HC"
+		) {
+			return NextResponse.json(
+				{
+					success: false,
+					error: "만화책은 고화질 스퀘어북(SQUAREBOOK_HC) 판형만 지원합니다.",
+				},
+				{ status: 400 },
+			);
+		}
+		const minPages = getMinPagesByBookSpec(bookSpecUid);
+		if (project.pages.length < minPages) {
+			return NextResponse.json(
+				{
+					success: false,
+					error: `${bookSpecUid} 판형은 최소 ${minPages}페이지가 필요합니다. (현재 ${project.pages.length}페이지)`,
+				},
+				{ status: 400 },
+			);
+		}
+
+		if (!isSweetbookConfigured()) {
+			await prisma.project.update({
+				where: { id: project.id },
+				data: { status: "PUBLISHED" },
+			});
+
+			return NextResponse.json({
+				success: true,
+				demo: true,
+				message:
+					"Demo 모드: SWEETBOOK_API_KEY 미설정. 주문 페이지로 이동하지만 실제 API 호출은 생략됩니다.",
+			});
+		}
+
 		const requestBody = await parsePublishRequestBody(req);
 		const publishBody: PublishRequestBody = {
 			coverOverrides: mergeTemplateOverrideValues(
@@ -1285,10 +1883,9 @@ export async function POST(
 			);
 		}
 
-		const coverBlob = await fetchImageBlob(
-			project.coverImageUrl,
-			req.nextUrl.origin,
-		);
+		const coverBlob = project.coverImageUrl
+			? await fetchImageBlob(project.coverImageUrl, req.nextUrl.origin)
+			: new Blob();
 		failedStep = "fetch-template-detail";
 		const createdDate = project.createdAt
 			? new Date(project.createdAt)
@@ -1331,140 +1928,111 @@ export async function POST(
 			...coverPayload.parameters,
 			...(publishBody.coverOverrides?.parameters || {}),
 		};
-		if (
-			project.projectType === "COMIC" ||
-			project.projectType === "NOVEL"
-		) {
-			for (const key of Object.keys(mergedCoverParameters)) {
-				if (isStoryCoverTitleParameterKey(key)) {
-					mergedCoverParameters[key] = project.title;
-					continue;
-				}
-				if (
-					isStoryCoverSubtitleParameterKey(key) ||
-					isStoryCoverSpineTitleParameterKey(key)
-				) {
-					mergedCoverParameters[key] = "";
-				}
-			}
+
+		// 표지 URL 오버라이드 적용 및 cover API 호출
+		const coverFileUrlOverrides: Record<string, string | string[]> = {
+			...(publishBody.coverOverrides?.fileUrls || {}),
+		};
+		for (const [paramName, definition] of Object.entries(
+			coverTemplateDetail.parameters?.definitions || {},
+		)) {
+			if (!isFileLikeBinding(definition.binding)) continue;
+			if (coverFileUrlOverrides[paramName] !== undefined) continue;
+			const urls = parsePotentialFileUrls(
+				mergedCoverParameters[paramName],
+			);
+			if (urls.length === 0) continue;
+			coverFileUrlOverrides[paramName] =
+				urls.length === 1 ? urls[0] : urls;
+			delete mergedCoverParameters[paramName];
 		}
-		const mergedCoverFiles = await applyFileUrlOverrides({
+		const coverFileOverrideResult = await applyFileUrlOverrides({
 			baseFiles: coverPayload.files,
-			fileUrls: publishBody.coverOverrides?.fileUrls,
+			fileUrls: coverFileUrlOverrides,
 			origin: req.nextUrl.origin,
 		});
+		Object.assign(
+			mergedCoverParameters,
+			coverFileOverrideResult.parameterFileValues,
+		);
+		ensureRequiredImageLikeInputs({
+			detail: coverTemplateDetail,
+			kind: "cover",
+			parameters: mergedCoverParameters,
+			files: coverFileOverrideResult.files,
+			fallbackImageBlob: coverBlob,
+		});
+		applyTemporalConsistency(mergedCoverParameters);
 
 		failedStep = "create-cover";
-		try {
-			await postSweetbookTemplateForm(
-				`/Books/${bookUid}/cover`,
-				coverTemplateUid,
-				mergedCoverParameters,
-				mergedCoverFiles,
-			);
-		} catch (coverError) {
-			const coverErrorMessage =
-				coverError instanceof Error
-					? coverError.message
-					: String(coverError || "");
-			const shouldRetryWithNewBook =
-				coverErrorMessage.includes("이미 표지가 존재") ||
-				coverErrorMessage
-					.toLowerCase()
-					.includes("cover already exists");
+		await postSweetbookTemplateForm(
+			`/Books/${bookUid}/cover`,
+			coverTemplateUid,
+			mergedCoverParameters,
+			coverFileOverrideResult.files,
+		);
 
-			if (!shouldRetryWithNewBook) {
-				throw coverError;
-			}
-
-			bookUid = await createBookAndGetUid();
-			await postSweetbookTemplateForm(
-				`/Books/${bookUid}/cover`,
-				coverTemplateUid,
-				mergedCoverParameters,
-				mergedCoverFiles,
-			);
-		}
-
-		const contentTemplateDetailMap = new Map<
-			string,
-			SweetbookTemplateDetail
-		>();
-
+		// 각 페이지별로 contentTemplateDetail을 사용하여 처리
 		for (const page of project.pages) {
-			const pageContentTemplateUid =
-				page.contentTemplateUid || fallbackContentTemplateUid;
-			if (
-				!pageContentTemplateUid ||
-				pageContentTemplateUid === "YOUR_CONTENT_TEMPLATE_UID"
-			) {
-				throw new Error(
-					`${page.pageOrder}페이지 내지 템플릿이 설정되지 않았습니다. 페이지별 내지 템플릿을 선택해 주세요.`,
-				);
+			// contentTemplateDetail이 없으면 fetch
+			if (!contentTemplateDetail) {
+				const contentTemplateUid =
+					project.contentTemplateUid || fallbackContentTemplateUid;
+				if (!contentTemplateUid) {
+					throw new Error(
+						"contentTemplateUid가 지정되지 않았습니다.",
+					);
+				}
+				contentTemplateDetail =
+					await fetchSweetbookTemplateDetail(contentTemplateUid);
 			}
-
-			let pageContentTemplateDetail = contentTemplateDetailMap.get(
-				pageContentTemplateUid,
-			);
-			if (!pageContentTemplateDetail) {
-				pageContentTemplateDetail = await fetchSweetbookTemplateDetail(
-					pageContentTemplateUid,
+			const pageParameterDefinitions = (contentTemplateDetail.parameters
+				?.definitions || {}) as Record<
+				string,
+				SweetbookTemplateParameterDefinition
+			>;
+			const pageTemplateHasPrimaryImageBinding = Object.entries(
+				pageParameterDefinitions,
+			).some(([name, def]) => {
+				const binding = String(
+					(def as SweetbookTemplateParameterDefinition).binding || "",
+				).toLowerCase();
+				return (
+					binding === "file" &&
+					isPrimaryTemplateImageField(
+						name,
+						def as SweetbookTemplateParameterDefinition,
+						"content",
+					)
 				);
-				contentTemplateDetailMap.set(
-					pageContentTemplateUid,
-					pageContentTemplateDetail,
-				);
-			}
-
-			contentTemplateDetail = pageContentTemplateDetail;
-			if (
-				project.projectType === "COMIC" &&
-				!isComicAllowedContentTemplate(pageContentTemplateDetail)
-			) {
-				throw new Error(
-					`만화책은 내지_gallery 테마의 일기장 B 템플릿만 사용할 수 있습니다. (${page.pageOrder}페이지)`,
-				);
-			}
-			if (
-				project.projectType === "NOVEL" &&
-				!isNovelAllowedContentTemplate(pageContentTemplateDetail)
-			) {
-				throw new Error(
-					`소설은 내지 B의 일기장 B 템플릿만 사용할 수 있습니다. (${page.pageOrder}페이지)`,
-				);
-			}
-			assertTemplateCompatibility({
-				detail: pageContentTemplateDetail,
-				templateUid: pageContentTemplateUid,
-				expectedKind: "content",
-				bookSpecUid,
 			});
-
-			const pageTemplateHasFileBinding = Object.values(
-				pageContentTemplateDetail.parameters?.definitions || {},
-			).some((def) => String(def.binding || "").toLowerCase() === "file");
 			const shouldAttachPageImage =
 				project.projectType !== "NOVEL" &&
-				pageTemplateHasFileBinding &&
-				Boolean(String(page.imageUrl || "").trim());
+				pageTemplateHasPrimaryImageBinding &&
+				Boolean(String((page as any).imageUrl || "").trim());
 			const pageBlob = shouldAttachPageImage
-				? await fetchImageBlob(page.imageUrl, req.nextUrl.origin)
+				? await fetchImageBlob(
+						(page as any).imageUrl,
+						req.nextUrl.origin,
+					)
 				: new Blob();
 			const contentPayload = buildTemplatePayload({
-				detail: pageContentTemplateDetail,
+				detail: contentTemplateDetail,
 				kind: "content",
 				project: templateProject,
 				createdDate,
 				imageBlob: pageBlob,
 				page: {
-					pageOrder: page.pageOrder,
-					caption: page.caption || "",
+					pageOrder: (page as any).pageOrder,
+					caption: (page as any).caption || "",
 				},
 			});
 			const requestPageOverrides =
-				publishBody.contentPageOverrides?.[String(page.pageOrder)];
+				publishBody.contentPageOverrides?.[
+					String((page as any).pageOrder)
+				];
 			const persistedPageOverrides = parseTemplateOverridesFromUnknown(
-				page.contentTemplateOverrides,
+				(page as any).contentTemplateOverrides,
 			);
 			const pageOverrides = mergeTemplateOverrideValues(
 				persistedPageOverrides,
@@ -1475,7 +2043,11 @@ export async function POST(
 				...(publishBody.contentOverrides?.parameters || {}),
 				...(pageOverrides?.parameters || {}),
 			};
-			if (project.projectType !== "PHOTOBOOK") {
+			applyTemporalConsistency(mergedContentParameters);
+			if (
+				project.projectType === "COMIC" ||
+				project.projectType === "NOVEL"
+			) {
 				for (const key of Object.keys(mergedContentParameters)) {
 					if (isStoryDateParameterKey(key)) {
 						mergedContentParameters[key] = "";
@@ -1489,7 +2061,8 @@ export async function POST(
 						continue;
 					}
 					if (isNovelDiaryTextParameterKey(key)) {
-						mergedContentParameters[key] = page.caption || "";
+						mergedContentParameters[key] =
+							(page as any).caption || "";
 					}
 				}
 			}
@@ -1500,15 +2073,15 @@ export async function POST(
 							...(publishBody.contentOverrides?.fileUrls || {}),
 							...(pageOverrides?.fileUrls || {}),
 						};
-			const pageParameterDefinitions =
-				pageContentTemplateDetail.parameters?.definitions || {};
 			for (const [paramName, definition] of Object.entries(
 				pageParameterDefinitions,
 			)) {
+				const defTyped =
+					definition as SweetbookTemplateParameterDefinition;
 				if (project.projectType === "NOVEL") {
 					break;
 				}
-				if (!isFileLikeBinding(definition.binding)) {
+				if (!isFileLikeBinding(defTyped.binding)) {
 					continue;
 				}
 
@@ -1528,19 +2101,30 @@ export async function POST(
 				delete mergedContentParameters[paramName];
 			}
 
-			const mergedContentFiles = await applyFileUrlOverrides({
+			const mergedContentOverrideResult = await applyFileUrlOverrides({
 				baseFiles:
 					project.projectType === "NOVEL" ? {} : contentPayload.files,
 				fileUrls: mergedContentFileUrls,
 				origin: req.nextUrl.origin,
 			});
+			Object.assign(
+				mergedContentParameters,
+				mergedContentOverrideResult.parameterFileValues,
+			);
+			ensureRequiredImageLikeInputs({
+				detail: contentTemplateDetail,
+				kind: "content",
+				parameters: mergedContentParameters,
+				files: mergedContentOverrideResult.files,
+				fallbackImageBlob: pageBlob,
+			});
 
-			failedStep = `create-content-page-${page.pageOrder}`;
+			failedStep = `create-content-page-${(page as any).pageOrder}`;
 			await postSweetbookTemplateForm(
 				`/Books/${bookUid}/contents`,
-				pageContentTemplateUid,
+				String(contentTemplateDetail.templateUid),
 				mergedContentParameters,
-				mergedContentFiles,
+				mergedContentOverrideResult.files,
 				{ breakBefore: "page" },
 			);
 		}
@@ -1557,52 +2141,44 @@ export async function POST(
 			raw: Record<string, unknown> | null;
 		} | null = null;
 
-		try {
-			const result = (await client.orders.estimate({
-				items: [{ bookUid, quantity: 1 }],
-			})) as Record<string, unknown>;
+		const result = (await client.orders.estimate({
+			items: [{ bookUid, quantity: 1 }],
+		})) as Record<string, unknown>;
 
-			const firstItem = Array.isArray(result.items)
-				? ((result.items[0] as Record<string, unknown>) ?? null)
-				: null;
+		const firstItem = Array.isArray(result.items)
+			? ((result.items[0] as Record<string, unknown>) ?? null)
+			: null;
 
-			const unitPrice = pickFirstNumber(
-				firstItem?.unitPrice,
-				result.unitPrice,
-			);
-			const itemAmount = pickFirstNumber(
-				firstItem?.itemAmount,
-				result.itemAmount,
-				unitPrice !== null ? unitPrice : null,
-			);
-			const shippingFee =
-				pickFirstNumber(result.shippingFee, firstItem?.shippingFee) ??
-				0;
-			const totalPrice = pickFirstNumber(
-				result.totalPrice,
-				result.totalAmount,
-				result.price,
-				result.amount,
-				result.finalPrice,
-				itemAmount !== null ? itemAmount + shippingFee : null,
-			);
-			const currency =
-				pickFirstString(result.currency, result.currencyCode) || "KRW";
+		const unitPrice = pickFirstNumber(
+			firstItem?.unitPrice,
+			result.unitPrice,
+		);
+		const itemAmount = pickFirstNumber(
+			firstItem?.itemAmount,
+			result.itemAmount,
+			unitPrice !== null ? unitPrice : null,
+		);
+		const shippingFee =
+			pickFirstNumber(result.shippingFee, firstItem?.shippingFee) ?? 0;
+		const totalPrice = pickFirstNumber(
+			result.totalPrice,
+			result.totalAmount,
+			result.price,
+			result.amount,
+			result.finalPrice,
+			itemAmount !== null ? itemAmount + shippingFee : null,
+		);
+		const currency =
+			pickFirstString(result.currency, result.currencyCode) || "KRW";
 
-			estimate = {
-				totalPrice,
-				unitPrice,
-				itemAmount,
-				shippingFee,
-				currency,
-				raw: result,
-			};
-		} catch (estimateError) {
-			console.error(
-				"[POST /api/projects/[id]/publish] estimate after finalize failed",
-				estimateError,
-			);
-		}
+		estimate = {
+			totalPrice,
+			unitPrice,
+			itemAmount,
+			shippingFee,
+			currency,
+			raw: result,
+		};
 
 		await prisma.project.update({
 			where: { id: project.id },
@@ -1619,12 +2195,18 @@ export async function POST(
 				error: message,
 				failedStep,
 				requiredInputs: {
-					cover: coverTemplateDetail
-						? collectTemplateRequiredFields(coverTemplateDetail)
-						: [],
-					content: contentTemplateDetail
-						? collectTemplateRequiredFields(contentTemplateDetail)
-						: [],
+					cover:
+						typeof coverTemplateDetail !== "undefined" &&
+						coverTemplateDetail
+							? collectTemplateRequiredFields(coverTemplateDetail)
+							: [],
+					content:
+						typeof contentTemplateDetail !== "undefined" &&
+						contentTemplateDetail
+							? collectTemplateRequiredFields(
+									contentTemplateDetail,
+								)
+							: [],
 				},
 				hint: "요청 바디에 coverOverrides/contentOverrides/contentPageOverrides를 전달하면 템플릿별 필수값을 직접 보정할 수 있습니다.",
 			},
