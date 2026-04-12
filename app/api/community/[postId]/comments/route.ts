@@ -2,20 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromRequest } from "@/lib/auth";
 
-// GET /api/community/[postId]/comments
+// GET /api/community/[postId]/comments (비로그인도 가능)
 export async function GET(
 	req: NextRequest,
 	{ params }: { params: { postId: string } },
 ) {
-	const user = await getAuthUserFromRequest(req);
-	if (!user) {
-		return NextResponse.json(
-			{ success: false, error: "로그인이 필요합니다." },
-			{ status: 401 },
-		);
-	}
+	const user = await getAuthUserFromRequest(req).catch(() => null);
 
 	// 최상위 댓글만 가져오고 replies는 중첩으로
+	const replyLikesSelect = user
+		? { likes: { where: { userId: user.id }, select: { id: true } } }
+		: {};
 	const comments = await prisma.comment.findMany({
 		where: { postId: params.postId, parentId: null },
 		orderBy: { createdAt: "asc" },
@@ -25,7 +22,7 @@ export async function GET(
 			createdAt: true,
 			user: { select: { id: true, name: true } },
 			_count: { select: { likes: true } },
-			likes: { where: { userId: user.id }, select: { id: true } },
+			...replyLikesSelect,
 			replies: {
 				orderBy: { createdAt: "asc" },
 				select: {
@@ -34,7 +31,7 @@ export async function GET(
 					createdAt: true,
 					user: { select: { id: true, name: true } },
 					_count: { select: { likes: true } },
-					likes: { where: { userId: user.id }, select: { id: true } },
+					...replyLikesSelect,
 				},
 			},
 		},
@@ -42,13 +39,13 @@ export async function GET(
 
 	return NextResponse.json({
 		success: true,
-		data: comments.map((c) => ({
+		data: comments.map((c: any) => ({
 			...c,
-			likedByMe: c.likes.length > 0,
+			likedByMe: c.likes ? c.likes.length > 0 : false,
 			likes: undefined,
-			replies: c.replies.map((r) => ({
+			replies: c.replies.map((r: any) => ({
 				...r,
-				likedByMe: r.likes.length > 0,
+				likedByMe: r.likes ? r.likes.length > 0 : false,
 				likes: undefined,
 			})),
 		})),

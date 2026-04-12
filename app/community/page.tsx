@@ -142,12 +142,12 @@ export default function CommunityPage() {
 
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	// 사용자 인증 확인
+	// 사용자 인증 확인 (실패해도 배제 안 함 — 뱄로그인 유저도 피드 볼 수 있음)
 	useEffect(() => {
 		fetch("/api/auth/me")
 			.then((r) => r.json())
 			.then((d) => {
-				if (d.success && d.user) setCurrentUser(d.user);
+				if (d.success && d.data) setCurrentUser(d.data);
 			})
 			.finally(() => setAuthLoading(false));
 	}, []);
@@ -164,29 +164,19 @@ export default function CommunityPage() {
 	}, [query]);
 
 	// 포스트 목록 가져오기
-	const fetchPosts = useCallback(
-		async (q: string, cursor?: string) => {
-			const params = new URLSearchParams();
-			if (q) params.set("q", q);
-			if (cursor) params.set("cursor", cursor);
-			const res = await fetch(`/api/community?${params.toString()}`);
-			if (res.status === 401) {
-				router.push("/login");
-				return null;
-			}
-			if (!res.ok) return null;
-			const data = await res.json();
-			return data;
-		},
-		[router],
-	);
+	const fetchPosts = useCallback(async (q: string, cursor?: string) => {
+		const params = new URLSearchParams();
+		if (q) params.set("q", q);
+		if (cursor) params.set("cursor", cursor);
+		const res = await fetch(`/api/community?${params.toString()}`);
+		if (!res.ok) return null;
+		const data = await res.json();
+		return data;
+	}, []);
 
 	useEffect(() => {
 		if (authLoading) return;
-		if (!currentUser) {
-			router.push("/login");
-			return;
-		}
+		// 비로그인 유저도 피드 조회 가능
 		setLoading(true);
 		fetchPosts(debouncedQuery).then((data) => {
 			if (data?.success) {
@@ -195,7 +185,7 @@ export default function CommunityPage() {
 			}
 			setLoading(false);
 		});
-	}, [debouncedQuery, authLoading, currentUser, router, fetchPosts]);
+	}, [debouncedQuery, authLoading, fetchPosts]);
 
 	async function loadMore() {
 		if (!nextCursor || loadingMore) return;
@@ -209,7 +199,10 @@ export default function CommunityPage() {
 	}
 
 	async function handleLike(postId: string) {
-		if (!currentUser) return;
+		if (!currentUser) {
+			router.push("/login?next=/community");
+			return;
+		}
 		const res = await fetch(`/api/community/${postId}/like`, {
 			method: "POST",
 		});
@@ -229,6 +222,10 @@ export default function CommunityPage() {
 	}
 
 	async function openShareModal() {
+		if (!currentUser) {
+			router.push("/login?next=/community");
+			return;
+		}
 		setShareError("");
 		setShareSuccess(false);
 		setSelectedProjectId("");

@@ -198,10 +198,10 @@ export default function PostDetailPage() {
 		fetch("/api/auth/me")
 			.then((r) => r.json())
 			.then((d) => {
-				if (d.success && d.user) setCurrentUserId(d.user.id);
-				else router.push("/login");
+				if (d.success && d.data) setCurrentUserId(d.data.id);
+				// 비로그인이라도 상세페이지 보여줌
 			});
-	}, [router]);
+	}, []);
 
 	useEffect(() => {
 		if (!postId) return;
@@ -221,6 +221,10 @@ export default function PostDetailPage() {
 
 	async function handleLike() {
 		if (!post) return;
+		if (!currentUserId) {
+			router.push(`/login?next=/community/${postId}`);
+			return;
+		}
 		const res = await fetch(`/api/community/${postId}/like`, {
 			method: "POST",
 		});
@@ -252,6 +256,10 @@ export default function PostDetailPage() {
 
 	async function handleCommentSubmit() {
 		if (!newComment.trim()) return;
+		if (!currentUserId) {
+			router.push(`/login?next=/community/${postId}`);
+			return;
+		}
 		setSubmittingComment(true);
 		const res = await fetch(`/api/community/${postId}/comments`, {
 			method: "POST",
@@ -339,6 +347,10 @@ export default function PostDetailPage() {
 	}
 
 	async function handleCommentLike(commentId: string) {
+		if (!currentUserId) {
+			router.push(`/login?next=/community/${postId}`);
+			return;
+		}
 		const res = await fetch(
 			`/api/community/${postId}/comments/${commentId}/like`,
 			{ method: "POST" },

@@ -2,18 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromRequest } from "@/lib/auth";
 
-// GET /api/community/[postId]
+// GET /api/community/[postId] (비로그인도 가능)
 export async function GET(
 	req: NextRequest,
 	{ params }: { params: { postId: string } },
 ) {
-	const user = await getAuthUserFromRequest(req);
-	if (!user) {
-		return NextResponse.json(
-			{ success: false, error: "로그인이 필요합니다." },
-			{ status: 401 },
-		);
-	}
+	const user = await getAuthUserFromRequest(req).catch(() => null);
 
 	const post = await prisma.post.findUnique({
 		where: { id: params.postId },
@@ -42,7 +36,14 @@ export async function GET(
 				},
 			},
 			_count: { select: { likes: true, comments: true } },
-			likes: { where: { userId: user.id }, select: { id: true } },
+			...(user
+				? {
+						likes: {
+							where: { userId: user.id },
+							select: { id: true },
+						},
+					}
+				: {}),
 		},
 	});
 
@@ -55,7 +56,13 @@ export async function GET(
 
 	return NextResponse.json({
 		success: true,
-		data: { ...post, likedByMe: post.likes.length > 0, likes: undefined },
+		data: {
+			...post,
+			likedByMe: (post as any).likes
+				? (post as any).likes.length > 0
+				: false,
+			likes: undefined,
+		},
 	});
 }
 

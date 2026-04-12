@@ -4,15 +4,9 @@ import { getAuthUserFromRequest } from "@/lib/auth";
 
 const PAGE_SIZE = 20;
 
-// GET /api/community?q=검색어&cursor=xxx
+// GET /api/community?q=검색어&cursor=xxx (비로그인도 가능)
 export async function GET(req: NextRequest) {
-	const user = await getAuthUserFromRequest(req);
-	if (!user) {
-		return NextResponse.json(
-			{ success: false, error: "로그인이 필요합니다." },
-			{ status: 401 },
-		);
-	}
+	const user = await getAuthUserFromRequest(req).catch(() => null);
 
 	const { searchParams } = req.nextUrl;
 	const q = searchParams.get("q")?.trim() || "";
@@ -64,7 +58,14 @@ export async function GET(req: NextRequest) {
 				},
 			},
 			_count: { select: { likes: true, comments: true } },
-			likes: { where: { userId: user.id }, select: { id: true } },
+			...(user
+				? {
+						likes: {
+							where: { userId: user.id },
+							select: { id: true },
+						},
+					}
+				: {}),
 		},
 	});
 
@@ -74,9 +75,9 @@ export async function GET(req: NextRequest) {
 
 	return NextResponse.json({
 		success: true,
-		data: items.map((p) => ({
+		data: items.map((p: any) => ({
 			...p,
-			likedByMe: p.likes.length > 0,
+			likedByMe: p.likes ? p.likes.length > 0 : false,
 			likes: undefined,
 		})),
 		nextCursor,

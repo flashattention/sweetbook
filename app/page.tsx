@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromCookies } from "@/lib/auth";
@@ -186,6 +187,39 @@ async function getProjects(userId: string): Promise<Project[]> {
 	}
 }
 
+async function getRecentPosts(limit = 6) {
+	try {
+		const posts = await (prisma as any).post.findMany({
+			orderBy: { createdAt: "desc" },
+			take: limit,
+			select: {
+				id: true,
+				projectType: true,
+				description: true,
+				user: { select: { name: true } },
+				project: {
+					select: { title: true, coverImageUrl: true, genre: true },
+				},
+				_count: { select: { likes: true, comments: true } },
+			},
+		});
+		return posts as Array<{
+			id: string;
+			projectType: string;
+			description: string | null;
+			user: { name: string | null };
+			project: {
+				title: string;
+				coverImageUrl: string | null;
+				genre: string | null;
+			};
+			_count: { likes: number; comments: number };
+		}>;
+	} catch {
+		return [];
+	}
+}
+
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
 	DRAFT: { label: "편집 중", color: "bg-amber-100 text-amber-700" },
 	GENERATING: { label: "생성 중", color: "bg-violet-100 text-violet-700" },
@@ -214,82 +248,104 @@ const TYPE_MAP: Record<string, string> = {
 
 export default async function HomePage() {
 	const user = await getAuthUserFromCookies();
-	const projects = user ? await getProjects(user.id) : [];
+	const [projects, recentPosts] = await Promise.all([
+		user ? getProjects(user.id) : Promise.resolve([]),
+		getRecentPosts(6),
+	]);
 
 	return (
-		<div className="min-h-screen">
-			{/* ─── Hero ─── */}
-			<section className="relative overflow-hidden bg-gradient-to-br from-rose-400 via-pink-300 to-purple-400 text-slate-900">
-				<div className="relative max-w-6xl mx-auto px-6 pt-5 flex items-center justify-between">
+		<div className="min-h-screen bg-white">
+			{/* ─── 상단 네비 ─── */}
+			<header className="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+				<div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-4">
+					{/* 로고 */}
 					<Link
-						href="/community"
-						className="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/20 px-4 py-1.5 text-sm font-medium text-slate-800 backdrop-blur-sm transition-colors hover:bg-white/30"
+						href="/"
+						className="text-lg font-black text-gray-900 tracking-tight"
 					>
-						🌐 커뮤니티
+						Dreamcatcher
 					</Link>
-					<AuthMenu user={user} />
-				</div>
-				{/* 배경 장식 */}
-				<div className="absolute inset-0 opacity-10 pointer-events-none select-none">
-					<div className="absolute top-10 left-10 text-9xl">♡</div>
-					<div className="absolute top-32 right-20 text-7xl">✦</div>
-					<div className="absolute bottom-20 left-1/3 text-8xl">
-						◇
-					</div>
-					<div className="absolute bottom-10 right-10 text-6xl">
-						♡
-					</div>
-				</div>
 
-				<div className="relative max-w-4xl mx-auto px-6 py-24 text-center">
-					<p className="text-slate-600 text-sm font-medium tracking-widest uppercase mb-4">
-						Dreamcatcher · 포토북 / 만화 / 소설 제작 스튜디오
-					</p>
-					<h1 className="text-5xl md:text-6xl font-bold leading-tight mb-6">
-						Dreamcatcher,
-						<br />
-						꿈꾸던 이야기를 현실의 책으로
-					</h1>
-					<p className="text-slate-700 text-lg md:text-xl mb-10 max-w-2xl mx-auto">
-						포토북, 만화, 소설을 원하는 설정으로 제작하고
-						<br />
-						출판과 주문을 거쳐 실제 책으로 받아보세요.
-					</p>
-					{user ? (
+					{/* 커뮤니티 버튼 + Auth */}
+					<div className="flex items-center gap-3">
 						<Link
-							href="/create"
-							className="inline-block bg-slate-900 text-white font-semibold text-lg px-10 py-4 rounded-full shadow-lg hover:bg-slate-800 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+							href="/community"
+							className="inline-flex items-center gap-2 rounded-xl border-2 border-violet-400 bg-violet-50 px-5 py-2 text-sm font-bold text-violet-700 shadow-sm transition-all hover:bg-violet-100 hover:border-violet-500 hover:shadow-md"
 						>
-							새 프로젝트 만들기 →
+							<span className="text-base">🌐</span>
+							커뮤니티
 						</Link>
-					) : (
-						<div className="flex items-center justify-center gap-3">
-							<Link
-								href="/login"
-								className="inline-block bg-slate-900 text-white font-semibold text-lg px-8 py-4 rounded-full shadow-lg hover:bg-slate-800"
-							>
-								로그인
-							</Link>
-							<Link
-								href="/signup"
-								className="inline-block bg-white/90 text-slate-900 font-semibold text-lg px-8 py-4 rounded-full shadow-lg hover:bg-white"
-							>
-								회원가입
-							</Link>
-						</div>
-					)}
+						<AuthMenu user={user} />
+					</div>
+				</div>
+			</header>
 
-					{/* 통계 */}
-					<div className="flex justify-center gap-12 mt-16 text-center">
+			{/* ─── Hero ─── */}
+			<section className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-fuchsia-500 to-rose-500 text-white">
+				{/* 배경 장식 */}
+				<div className="absolute inset-0 opacity-[0.07] pointer-events-none select-none overflow-hidden">
+					<div className="absolute -top-10 -left-10 w-96 h-96 rounded-full bg-white" />
+					<div className="absolute top-20 right-0 w-72 h-72 rounded-full bg-white" />
+					<div className="absolute bottom-0 left-1/3 w-80 h-80 rounded-full bg-white" />
+				</div>
+
+				<div className="relative max-w-5xl mx-auto px-6 py-24 md:py-32 text-center">
+					<div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium mb-6 border border-white/30">
+						<span>✨</span>
+						<span>AI 기반 만화·소설 자동 생성 플랫폼</span>
+					</div>
+					<h1 className="text-4xl md:text-6xl font-black leading-tight mb-6">
+						상상을 AI로 만들고,
+						<br />
+						<span className="text-yellow-300">
+							커뮤니티에서 공유하세요
+						</span>
+					</h1>
+					<p className="text-white/80 text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
+						캐릭터와 설정만 입력하면 AI가 만화책과 소설을 자동으로
+						생성합니다.
+						<br className="hidden md:block" />
+						완성된 작품은 실물 책으로 주문하거나 커뮤니티에
+						공유하세요.
+					</p>
+
+					<div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+						{user ? (
+							<Link
+								href="/create"
+								className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold text-lg px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+							>
+								<span>✨</span> AI로 작품 만들기
+							</Link>
+						) : (
+							<>
+								<Link
+									href="/signup"
+									className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold text-lg px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+								>
+									<span>✨</span> 무료로 시작하기
+								</Link>
+								<Link
+									href="/community"
+									className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white font-semibold text-lg px-8 py-4 rounded-2xl border border-white/40 hover:bg-white/30 transition-all duration-200"
+								>
+									<span>🌐</span> 커뮤니티 둘러보기
+								</Link>
+							</>
+						)}
+					</div>
+
+					{/* 미니 스탯 */}
+					<div className="flex justify-center gap-10 mt-16 text-center">
 						{[
-							{ num: "기획", desc: "Dreamcatcher AI 생성" },
-							{ num: "제작", desc: "포토북·만화·소설 실물화" },
-							{ num: "수령", desc: "주문 후 배송까지 완료" },
-						].map(({ num, desc }) => (
-							<div key={num}>
-								<p className="text-2xl font-bold">{num}</p>
-								<p className="text-slate-600 text-sm mt-1">
-									{desc}
+							{ icon: "🤖", label: "AI 자동 생성" },
+							{ icon: "📖", label: "실물 책 주문" },
+							{ icon: "🌐", label: "커뮤니티 공유" },
+						].map(({ icon, label }) => (
+							<div key={label}>
+								<p className="text-3xl mb-1">{icon}</p>
+								<p className="text-white/70 text-sm font-medium">
+									{label}
 								</p>
 							</div>
 						))}
@@ -297,65 +353,164 @@ export default async function HomePage() {
 				</div>
 			</section>
 
-			{/* ─── 서비스 흐름 ─── */}
-			<section className="max-w-4xl mx-auto px-6 py-20">
-				<h2 className="text-center text-3xl font-bold text-gray-800 mb-12">
-					Dreamcatcher로 완성하는 3가지 제작 방식
+			{/* ─── 핵심 기능 카드 ─── */}
+			<section className="max-w-5xl mx-auto px-5 py-20">
+				<p className="text-center text-violet-500 text-xs font-bold tracking-widest uppercase mb-2">
+					핵심 기능
+				</p>
+				<h2 className="text-center text-3xl font-black text-gray-900 mb-12">
+					AI가 처음부터 끝까지 만들어 드립니다
 				</h2>
-				<div className="grid md:grid-cols-3 gap-8">
-					{[
-						{
-							step: "PHOTO",
-							icon: "📸",
-							title: "포토북 제작",
-							desc: "사진과 문구를 구성해 바로 출판하고 주문해 실물 포토북으로 받아볼 수 있습니다.",
-						},
-						{
-							step: "COMIC",
-							icon: "✍️",
-							title: "만화책 자동 생성",
-							desc: "AI가 줄거리와 컷 구성을 생성하고 이미지까지 제작해 실물 만화책 주문으로 이어집니다.",
-						},
-						{
-							step: "NOVEL",
-							icon: "📚",
-							title: "소설 자동 생성",
-							desc: "AI가 챕터와 본문을 설계해 소설 프로젝트를 만들고 출판/주문까지 연결합니다.",
-						},
-					].map(({ step, icon, title, desc }) => (
-						<div key={step} className="text-center">
-							<div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
-								{icon}
-							</div>
-							<p className="text-rose-400 text-xs font-bold tracking-widest mb-2">
-								STEP {step}
-							</p>
-							<h3 className="text-lg font-bold text-gray-800 mb-2">
-								{title}
-							</h3>
-							<p className="text-gray-500 text-sm leading-relaxed">
-								{desc}
-							</p>
+				<div className="grid md:grid-cols-3 gap-6">
+					{/* 만화책 */}
+					<div className="group relative bg-gradient-to-br from-violet-50 to-purple-100 rounded-3xl p-8 border-2 border-violet-200 hover:border-violet-400 transition-all hover:shadow-lg">
+						<div className="w-14 h-14 bg-violet-500 rounded-2xl flex items-center justify-center text-2xl mb-5 group-hover:scale-110 transition-transform">
+							✍️
 						</div>
-					))}
+						<div className="inline-block bg-violet-500 text-white text-xs font-bold px-2.5 py-1 rounded-full mb-3">
+							AI 만화책
+						</div>
+						<h3 className="text-xl font-black text-gray-900 mb-3">
+							AI 만화책 자동 생성
+						</h3>
+						<p className="text-gray-600 text-sm leading-relaxed mb-6">
+							캐릭터, 장르, 스타일을 설정하면 AI가 줄거리부터 각
+							컷의 이미지까지 자동으로 생성합니다.
+						</p>
+						<Link
+							href={user ? "/create" : "/signup"}
+							className="inline-flex items-center gap-1 text-sm font-bold text-violet-600 hover:text-violet-800 transition-colors"
+						>
+							만화책 만들기 →
+						</Link>
+					</div>
+
+					{/* 소설 */}
+					<div className="group relative bg-gradient-to-br from-blue-50 to-indigo-100 rounded-3xl p-8 border-2 border-blue-200 hover:border-blue-400 transition-all hover:shadow-lg">
+						<div className="w-14 h-14 bg-blue-500 rounded-2xl flex items-center justify-center text-2xl mb-5 group-hover:scale-110 transition-transform">
+							📚
+						</div>
+						<div className="inline-block bg-blue-500 text-white text-xs font-bold px-2.5 py-1 rounded-full mb-3">
+							AI 소설
+						</div>
+						<h3 className="text-xl font-black text-gray-900 mb-3">
+							AI 소설 자동 생성
+						</h3>
+						<p className="text-gray-600 text-sm leading-relaxed mb-6">
+							세계관과 캐릭터를 입력하면 AI가 챕터 구성, 본문,
+							줄거리를 완성도 높게 작성합니다.
+						</p>
+						<Link
+							href={user ? "/create" : "/signup"}
+							className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
+						>
+							소설 만들기 →
+						</Link>
+					</div>
+
+					{/* 커뮤니티 */}
+					<div className="group relative bg-gradient-to-br from-rose-50 to-pink-100 rounded-3xl p-8 border-2 border-rose-200 hover:border-rose-400 transition-all hover:shadow-lg">
+						<div className="w-14 h-14 bg-rose-500 rounded-2xl flex items-center justify-center text-2xl mb-5 group-hover:scale-110 transition-transform">
+							🌐
+						</div>
+						<div className="inline-block bg-rose-500 text-white text-xs font-bold px-2.5 py-1 rounded-full mb-3">
+							커뮤니티
+						</div>
+						<h3 className="text-xl font-black text-gray-900 mb-3">
+							작품 공유 & 소통
+						</h3>
+						<p className="text-gray-600 text-sm leading-relaxed mb-6">
+							완성된 만화·소설을 커뮤니티에 공개하고 좋아요,
+							댓글로 독자들과 소통하세요.
+						</p>
+						<Link
+							href="/community"
+							className="inline-flex items-center gap-1 text-sm font-bold text-rose-600 hover:text-rose-800 transition-colors"
+						>
+							커뮤니티 보러가기 →
+						</Link>
+					</div>
 				</div>
 			</section>
 
-			{/* ─── 프로젝트 목록 ─── */}
+			{/* ─── 최근 커뮤니티 작품 ─── */}
+			{recentPosts.length > 0 && (
+				<section className="bg-gray-50 py-20">
+					<div className="max-w-5xl mx-auto px-5">
+						<div className="flex items-center justify-between mb-8">
+							<div>
+								<p className="text-violet-500 text-xs font-bold tracking-widest uppercase mb-1">
+									커뮤니티
+								</p>
+								<h2 className="text-2xl font-black text-gray-900">
+									최근 공유된 작품
+								</h2>
+							</div>
+							<Link
+								href="/community"
+								className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-violet-700 transition-colors shadow-sm"
+							>
+								🌐 더 보기
+							</Link>
+						</div>
+
+						<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+							{recentPosts.map((post) => (
+								<Link
+									key={post.id}
+									href={`/community/${post.id}`}
+									className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-all"
+								>
+									<div className="relative aspect-[3/4] bg-gradient-to-br from-violet-50 to-rose-50">
+										{post.project.coverImageUrl ? (
+											<Image
+												src={post.project.coverImageUrl}
+												alt={post.project.title}
+												fill
+												className="object-cover group-hover:scale-105 transition-transform duration-300"
+												sizes="200px"
+											/>
+										) : (
+											<div className="flex items-center justify-center h-full text-3xl">
+												{post.projectType === "COMIC"
+													? "✍️"
+													: "📚"}
+											</div>
+										)}
+									</div>
+									<div className="p-2">
+										<p className="text-xs font-bold text-gray-800 line-clamp-1">
+											{post.project.title}
+										</p>
+										<p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+											<span>♥ {post._count.likes}</span>
+											<span>
+												· 💬 {post._count.comments}
+											</span>
+										</p>
+									</div>
+								</Link>
+							))}
+						</div>
+					</div>
+				</section>
+			)}
+
+			{/* ─── 내 프로젝트 목록 ─── */}
 			{user && projects.length > 0 && (
-				<section className="max-w-5xl mx-auto px-6 pb-20">
-					<div className="flex items-center justify-between mb-8">
-						<h2 className="text-2xl font-serif font-bold text-gray-800">
-							나의 프로젝트
+				<section className="max-w-5xl mx-auto px-5 py-16">
+					<div className="flex items-center justify-between mb-7">
+						<h2 className="text-2xl font-black text-gray-900">
+							나의 작품
 						</h2>
 						<Link
 							href="/create"
-							className="text-rose-500 text-sm font-medium hover:underline"
+							className="text-sm font-bold text-violet-600 hover:underline"
 						>
 							+ 새로 만들기
 						</Link>
 					</div>
-					<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+					<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
 						{projects.map((project) => (
 							<ProjectCard key={project.id} project={project} />
 						))}
@@ -363,28 +518,29 @@ export default async function HomePage() {
 				</section>
 			)}
 
+			{/* ─── 비로그인 CTA ─── */}
 			{!user && (
-				<section className="max-w-4xl mx-auto px-6 pb-20">
-					<div className="bg-white border border-rose-100 rounded-2xl p-8 text-center">
-						<h3 className="text-xl font-bold text-gray-800 mb-2">
-							내 프로젝트는 로그인 후 저장됩니다
+				<section className="max-w-4xl mx-auto px-5 py-16">
+					<div className="bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-3xl p-10 text-center text-white">
+						<h3 className="text-2xl font-black mb-3">
+							지금 바로 시작해보세요
 						</h3>
-						<p className="text-gray-500 mb-5">
-							회원가입 후 포토북/만화/소설 프로젝트를 계정에
-							안전하게 보관하세요.
+						<p className="text-white/80 mb-7">
+							회원가입 후 AI로 나만의 만화책과 소설을 무료로
+							만들어보세요.
 						</p>
 						<div className="flex items-center justify-center gap-3">
 							<Link
-								href="/login"
-								className="px-5 py-2.5 rounded-lg bg-rose-500 text-white font-semibold hover:bg-rose-600"
+								href="/signup"
+								className="px-7 py-3 rounded-xl bg-white text-violet-700 font-bold text-sm hover:bg-gray-50 shadow-lg"
 							>
-								로그인
+								무료 회원가입
 							</Link>
 							<Link
-								href="/signup"
-								className="px-5 py-2.5 rounded-lg bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200"
+								href="/login"
+								className="px-7 py-3 rounded-xl bg-white/20 text-white font-semibold text-sm border border-white/40 hover:bg-white/30"
 							>
-								회원가입
+								로그인
 							</Link>
 						</div>
 					</div>
@@ -392,13 +548,16 @@ export default async function HomePage() {
 			)}
 
 			{/* ─── Footer ─── */}
-			<footer className="border-t border-rose-100 py-10 text-center text-gray-400 text-sm">
-				<p className="font-medium text-gray-600 mb-1">Dreamcatcher</p>
+			<footer className="border-t border-gray-100 py-10 text-center text-gray-400 text-sm">
+				<p className="font-bold text-gray-700 mb-1 text-base">
+					Dreamcatcher
+				</p>
+				<p className="mb-1">AI 만화·소설 창작 & 커뮤니티 공유 플랫폼</p>
 				<p>
 					Powered by{" "}
 					<a
 						href="https://api.sweetbook.com"
-						className="text-rose-400 hover:underline"
+						className="text-violet-500 hover:underline"
 						target="_blank"
 						rel="noopener noreferrer"
 					>
