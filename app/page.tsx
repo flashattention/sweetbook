@@ -254,14 +254,14 @@ export default async function HomePage() {
 	]);
 
 	return (
-		<div className="min-h-screen bg-white">
+		<div className="min-h-screen bg-zinc-950">
 			{/* ─── 상단 네비 ─── */}
-			<header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-md border-b border-white/[0.06]">
-				<div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
+			<header className="sticky top-0 z-40 bg-zinc-950 border-b border-white/[0.08]">
+				<div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-4">
 					{/* 로고 */}
 					<Link
 						href="/"
-						className="text-base font-black text-white tracking-tight"
+						className="text-xl font-black text-white tracking-tight"
 					>
 						Dreamcatcher
 					</Link>
@@ -348,79 +348,82 @@ export default async function HomePage() {
 				</div>
 			</section>
 
+			{/* ─── 섹션 구분선 ─── */}
+			<div className="border-t border-white/[0.06]" />
+
 			{/* ─── 핵심 기능 카드 ─── */}
 			<section className="max-w-5xl mx-auto px-5 py-24">
-				<p className="text-center text-violet-500 text-[11px] font-bold tracking-[0.2em] uppercase mb-3">
+				<p className="text-center text-violet-400 text-[11px] font-bold tracking-[0.2em] uppercase mb-3">
 					핵심 기능
 				</p>
-				<h2 className="text-center text-3xl font-black text-gray-900 tracking-tight mb-14">
+				<h2 className="text-center text-3xl font-black text-white tracking-tight mb-14">
 					AI가 처음부터 끝까지 만들어 드립니다
 				</h2>
 				<div className="grid md:grid-cols-3 gap-5">
 					{/* 만화책 */}
-					<div className="group bg-white rounded-2xl p-7 border border-gray-200 hover:border-violet-300 hover:shadow-lg hover:shadow-violet-100/60 transition-all">
-						<div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center text-xl mb-5 group-hover:bg-violet-100 transition-colors">
+					<div className="group bg-zinc-900 rounded-2xl p-7 border border-white/[0.07] hover:border-violet-500/40 hover:bg-zinc-800/80 transition-all">
+						<div className="w-11 h-11 bg-zinc-800 rounded-xl flex items-center justify-center text-xl mb-5 group-hover:bg-violet-900/50 transition-colors">
 							✍️
 						</div>
-						<p className="text-[11px] font-semibold text-violet-500 uppercase tracking-widest mb-2">
+						<p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-2">
 							AI 만화책
 						</p>
-						<h3 className="text-lg font-bold text-gray-900 mb-2.5">
+						<h3 className="text-lg font-bold text-white mb-2.5">
 							AI 만화책 자동 생성
 						</h3>
-						<p className="text-gray-500 text-sm leading-relaxed mb-6">
+						<p className="text-white/40 text-sm leading-relaxed mb-6">
 							캐릭터, 장르, 스타일을 설정하면 AI가 줄거리부터 각
 							컷의 이미지까지 자동으로 생성합니다.
 						</p>
 						<Link
 							href={user ? "/create" : "/signup"}
-							className="text-sm font-semibold text-violet-600 hover:text-violet-800 transition-colors"
+							className="text-sm font-semibold text-violet-400 hover:text-violet-300 transition-colors"
 						>
 							만화책 만들기 →
 						</Link>
 					</div>
 
 					{/* 소설 */}
-					<div className="group bg-white rounded-2xl p-7 border border-gray-200 hover:border-violet-300 hover:shadow-lg hover:shadow-violet-100/60 transition-all">
-						<div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center text-xl mb-5 group-hover:bg-violet-100 transition-colors">
+					<div className="group bg-zinc-900 rounded-2xl p-7 border border-white/[0.07] hover:border-violet-500/40 hover:bg-zinc-800/80 transition-all">
+						<div className="w-11 h-11 bg-zinc-800 rounded-xl flex items-center justify-center text-xl mb-5 group-hover:bg-violet-900/50 transition-colors">
 							📚
 						</div>
-						<p className="text-[11px] font-semibold text-violet-500 uppercase tracking-widest mb-2">
+						<p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-2">
 							AI 소설
 						</p>
-						<h3 className="text-lg font-bold text-gray-900 mb-2.5">
+						<h3 className="text-lg font-bold text-white mb-2.5">
 							AI 소설 자동 생성
 						</h3>
-						<p className="text-gray-500 text-sm leading-relaxed mb-6">
+						<p className="text-white/40 text-sm leading-relaxed mb-6">
 							세계관과 캐릭터를 입력하면 AI가 챕터 구성, 본문,
 							줄거리를 완성도 높게 작성합니다.
 						</p>
 						<Link
 							href={user ? "/create" : "/signup"}
-							className="text-sm font-semibold text-violet-600 hover:text-violet-800 transition-colors"
+							className="text-sm font-semibold text-violet-400 hover:text-violet-300 transition-colors"
 						>
 							소설 만들기 →
 						</Link>
 					</div>
 
 					{/* 커뮤니티 */}
-					<div className="group bg-white rounded-2xl p-7 border border-gray-200 hover:border-violet-300 hover:shadow-lg hover:shadow-violet-100/60 transition-all">
-						<div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center text-xl mb-5 group-hover:bg-violet-100 transition-colors">
+					<div className="group bg-zinc-900 rounded-2xl p-7 border border-white/[0.07] hover:border-violet-500/40 hover:bg-zinc-800/80 transition-all">
+						<div className="w-11 h-11 bg-zinc-800 rounded-xl flex items-center justify-center text-xl mb-5 group-hover:bg-violet-900/50 transition-colors">
 							🌐
 						</div>
-						<p className="text-[11px] font-semibold text-violet-500 uppercase tracking-widest mb-2">
+						<p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-2">
 							커뮤니티
 						</p>
-						<h3 className="text-lg font-bold text-gray-900 mb-2.5">
+						<h3 className="text-lg font-bold text-white mb-2.5">
 							작품 공유 & 소통
 						</h3>
-						<p className="text-gray-500 text-sm leading-relaxed mb-6">
+						<p className="text-white/40 text-sm leading-relaxed mb-6">
 							완성된 만화·소설을 커뮤니티에 공개하고 좋아요,
 							댓글로 독자들과 소통하세요.
 						</p>
 						<Link
 							href="/community"
-							className="text-sm font-semibold text-violet-600 hover:text-violet-800 transition-colors"
+							className="text-sm font-semibold text-violet-400 hover:text-violet-300 transition-colors"
 						>
 							커뮤니티 보러가기 →
 						</Link>
@@ -430,7 +433,7 @@ export default async function HomePage() {
 
 			{/* ─── 최근 커뮤니티 작품 ─── */}
 			{recentPosts.length > 0 && (
-				<section className="bg-zinc-950 py-20">
+				<section className="border-t border-white/[0.06] py-20">
 					<div className="max-w-5xl mx-auto px-5">
 						<div className="flex items-center justify-between mb-10">
 							<div>
@@ -491,14 +494,14 @@ export default async function HomePage() {
 
 			{/* ─── 내 프로젝트 목록 ─── */}
 			{user && projects.length > 0 && (
-				<section className="max-w-5xl mx-auto px-5 py-16">
+				<section className="border-t border-white/[0.06] max-w-5xl mx-auto px-5 py-16">
 					<div className="flex items-center justify-between mb-7">
-						<h2 className="text-xl font-bold text-gray-900 tracking-tight">
+						<h2 className="text-xl font-bold text-white tracking-tight">
 							나의 작품
 						</h2>
 						<Link
 							href="/create"
-							className="text-sm font-semibold text-violet-600 hover:text-violet-800 transition-colors"
+							className="text-sm font-semibold text-violet-400 hover:text-violet-300 transition-colors"
 						>
 							+ 새로 만들기
 						</Link>
