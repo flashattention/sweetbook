@@ -49,6 +49,7 @@ model Project {
   isDefault Boolean @default(false)
 
   pages Page[]
+  post  Post?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -63,9 +64,76 @@ model User {
   name         String?
 
   projects     Project[]
+  posts        Post[]
+  postLikes    PostLike[]
+  comments     Comment[]
+  commentLikes CommentLike[]
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+model Post {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId     String   @unique
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  description   String?
+  projectType   String   // COMIC | NOVEL
+
+  likes         PostLike[]
+  comments      Comment[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model PostLike {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+}
+
+model Comment {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId   String
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId String?
+  parent   Comment?  @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("Replies")
+  content  String
+
+  likes    CommentLike[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId])
+  @@index([parentId])
+}
+
+model CommentLike {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
 }
 
 model Page {

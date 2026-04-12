@@ -220,7 +220,13 @@ export default async function HomePage() {
 		<div className="min-h-screen">
 			{/* ─── Hero ─── */}
 			<section className="relative overflow-hidden bg-gradient-to-br from-rose-400 via-pink-300 to-purple-400 text-slate-900">
-				<div className="relative max-w-6xl mx-auto px-6 pt-5 flex justify-end">
+				<div className="relative max-w-6xl mx-auto px-6 pt-5 flex items-center justify-between">
+					<Link
+						href="/community"
+						className="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/20 px-4 py-1.5 text-sm font-medium text-slate-800 backdrop-blur-sm transition-colors hover:bg-white/30"
+					>
+						🌐 커뮤니티
+					</Link>
 					<AuthMenu user={user} />
 				</div>
 				{/* 배경 장식 */}

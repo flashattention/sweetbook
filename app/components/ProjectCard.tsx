@@ -161,6 +161,8 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isPublishing, setIsPublishing] = useState(false);
+	const [isSharing, setIsSharing] = useState(false);
+	const [sharedPostId, setSharedPostId] = useState<string | null>(null);
 
 	const status = STATUS_MAP[getProjectStatus(project)] ?? STATUS_MAP.DRAFT;
 	const coverImage =
@@ -194,6 +196,31 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 			alert("삭제에 실패했습니다");
 		} finally {
 			setIsDeleting(false);
+		}
+	};
+
+	const handleShare = async () => {
+		if (isSharing) return;
+		setIsSharing(true);
+		try {
+			const res = await fetch("/api/community", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ projectId: project.id }),
+			});
+			const json = await res.json().catch(() => ({}));
+			if (res.status === 409) {
+				// 이미 공유됨 — 커뮤니티로 이동
+				router.push("/community");
+				return;
+			}
+			if (!res.ok || !json.success) {
+				alert(json.error ?? "공유에 실패했습니다.");
+				return;
+			}
+			setSharedPostId(json.data.id);
+		} finally {
+			setIsSharing(false);
 		}
 	};
 
@@ -276,17 +303,43 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 						</span>
 					</div>
 
+					{/* 공유 완료 배너 */}
+					{sharedPostId && (
+						<Link
+							href={`/community/${sharedPostId}`}
+							className="block text-center text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 mt-2 hover:bg-green-100 transition-colors"
+						>
+							🎉 커뮤니티에 공유됨 — 보러가기
+						</Link>
+					)}
+
 					{/* 버튼 영역 - 항상 아래에 위치 */}
 					<div className="mt-auto pt-4 flex items-center justify-between gap-2">
-						<ProjectActionWithHandlers
-							project={project}
-							isPublishing={isPublishing}
-							onRetryPublish={handleRetryPublish}
-						/>
+						<div className="flex items-center gap-2 flex-wrap">
+							<ProjectActionWithHandlers
+								project={project}
+								isPublishing={isPublishing}
+								onRetryPublish={handleRetryPublish}
+							/>
+							{project.status === "PUBLISHED" &&
+								(project.projectType === "COMIC" ||
+									project.projectType === "NOVEL") &&
+								!sharedPostId && (
+									<button
+										onClick={handleShare}
+										disabled={isSharing}
+										className="text-xs bg-violet-50 text-violet-700 px-3 py-1.5 rounded-lg font-medium hover:bg-violet-100 transition-colors disabled:opacity-50"
+									>
+										{isSharing ? "공유 중..." : "🌐 공유"}
+									</button>
+								)}
+						</div>
 						{!project.isDefault && (
 							<button
 								onClick={() => setShowDeleteConfirm(true)}
-								disabled={isDeleting || isPublishing}
+								disabled={
+									isDeleting || isPublishing || isSharing
+								}
 								className="text-xs bg-red-50 text-red-500 px-3 py-1.5 rounded-lg font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
 							>
 								삭제
