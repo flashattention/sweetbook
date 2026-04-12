@@ -266,14 +266,8 @@ export default async function HomePage() {
 						Dreamcatcher
 					</Link>
 
-					{/* 커뮤니티 버튼 + Auth */}
+					{/* Auth */}
 					<div className="flex items-center gap-3">
-						<Link
-							href="/community"
-							className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-semibold text-white transition-all hover:bg-violet-500"
-						>
-							커뮤니티
-						</Link>
 						<AuthMenu user={user} />
 					</div>
 				</div>
@@ -306,12 +300,20 @@ export default async function HomePage() {
 
 					<div className="flex flex-col sm:flex-row items-center justify-center gap-3">
 						{user ? (
-							<Link
-								href="/create"
-								className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold text-base px-7 py-3.5 rounded-xl hover:bg-violet-500 transition-colors shadow-lg shadow-violet-900/40"
-							>
-								AI로 작품 만들기
-							</Link>
+							<>
+								<Link
+									href="/create"
+									className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold text-base px-7 py-3.5 rounded-xl hover:bg-violet-500 transition-colors shadow-lg shadow-violet-900/40"
+								>
+									AI로 작품 만들기
+								</Link>
+								<Link
+									href="/community"
+									className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold text-base px-7 py-3.5 rounded-xl hover:bg-violet-500 transition-colors shadow-lg shadow-violet-900/40"
+								>
+									커뮤니티
+								</Link>
+							</>
 						) : (
 							<>
 								<Link
