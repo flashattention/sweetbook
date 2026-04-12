@@ -303,7 +303,7 @@ export default async function HomePage() {
 							<>
 								<Link
 									href="/create"
-									className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold text-base px-7 py-3.5 rounded-xl hover:bg-violet-500 transition-colors shadow-lg shadow-violet-900/40"
+									className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold text-base px-7 py-3.5 rounded-xl hover:bg-violet-50 transition-colors shadow-lg shadow-violet-900/40"
 								>
 									AI로 작품 만들기
 								</Link>
