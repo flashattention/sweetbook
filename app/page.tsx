@@ -261,7 +261,7 @@ export default async function HomePage() {
 					{/* 로고 */}
 					<Link
 						href="/"
-						className="text-xl font-black text-white tracking-tight"
+						className="text-4xl font-black text-white tracking-tight"
 					>
 						Dreamcatcher
 					</Link>

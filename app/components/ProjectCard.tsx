@@ -12,11 +12,11 @@ interface ProjectCardProps {
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-	DRAFT: { label: "편집 중", color: "bg-amber-100 text-amber-700" },
-	GENERATING: { label: "생성 중", color: "bg-blue-100 text-blue-700" },
-	PUBLISHED: { label: "출판됨", color: "bg-green-100 text-green-700" },
-	ORDERED: { label: "주문됨", color: "bg-purple-100 text-purple-700" },
-	FAILED: { label: "오류", color: "bg-red-100 text-red-700" },
+	DRAFT: { label: "편집 중", color: "bg-amber-900/60 text-amber-300" },
+	GENERATING: { label: "생성 중", color: "bg-blue-900/60 text-blue-300" },
+	PUBLISHED: { label: "출판됨", color: "bg-green-900/60 text-green-300" },
+	ORDERED: { label: "주문됨", color: "bg-purple-900/60 text-purple-300" },
+	FAILED: { label: "오류", color: "bg-red-900/60 text-red-300" },
 };
 
 const TYPE_MAP: Record<string, string> = {
@@ -58,7 +58,7 @@ function ProjectActionWithHandlers({
 		return (
 			<Link
 				href={`/create/progress/${project.id}`}
-				className="text-xs bg-violet-50 text-violet-700 px-3 py-1.5 rounded-lg font-medium hover:bg-violet-100 transition-colors"
+				className="text-xs bg-violet-900/50 text-violet-300 px-3 py-1.5 rounded-lg font-medium hover:bg-violet-800/60 transition-colors"
 			>
 				생성 현황 보기 →
 			</Link>
@@ -69,7 +69,7 @@ function ProjectActionWithHandlers({
 		return (
 			<Link
 				href={`/create/progress/${project.id}`}
-				className="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg font-medium hover:bg-red-100 transition-colors"
+				className="text-xs bg-red-900/50 text-red-300 px-3 py-1.5 rounded-lg font-medium hover:bg-red-800/60 transition-colors"
 			>
 				재시도 →
 			</Link>
@@ -81,7 +81,7 @@ function ProjectActionWithHandlers({
 			<div className="flex gap-2">
 				<Link
 					href={`/view/${project.id}`}
-					className="text-xs bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-100 transition-colors"
+					className="text-xs bg-rose-900/50 text-rose-300 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-800/60 transition-colors"
 				>
 					📖 보기
 				</Link>
@@ -89,7 +89,7 @@ function ProjectActionWithHandlers({
 					type="button"
 					onClick={() => void onRetryPublish()}
 					disabled={isPublishing}
-					className="text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
+					className="text-xs bg-blue-900/50 text-blue-300 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-800/60 transition-colors disabled:opacity-50"
 				>
 					{isPublishing ? "출판 재시도 중..." : "출판 재시도 →"}
 				</button>
@@ -102,13 +102,13 @@ function ProjectActionWithHandlers({
 			<div className="flex gap-2">
 				<Link
 					href={`/view/${project.id}`}
-					className="text-xs bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-100 transition-colors"
+					className="text-xs bg-rose-900/50 text-rose-300 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-800/60 transition-colors"
 				>
 					📖 보기
 				</Link>
 				<Link
 					href={`/status/${project.orderUid}`}
-					className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100 transition-colors"
+					className="text-xs bg-green-900/50 text-green-300 px-3 py-1.5 rounded-lg font-medium hover:bg-green-800/60 transition-colors"
 				>
 					배송 현황 →
 				</Link>
@@ -121,13 +121,13 @@ function ProjectActionWithHandlers({
 			<div className="flex gap-2">
 				<Link
 					href={`/view/${project.id}`}
-					className="text-xs bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-100 transition-colors"
+					className="text-xs bg-rose-900/50 text-rose-300 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-800/60 transition-colors"
 				>
 					📖 보기
 				</Link>
 				<Link
 					href={`/order/${project.id}`}
-					className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100 transition-colors"
+					className="text-xs bg-blue-900/50 text-blue-300 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-800/60 transition-colors"
 				>
 					주문하기 →
 				</Link>
@@ -139,7 +139,7 @@ function ProjectActionWithHandlers({
 		return (
 			<Link
 				href={`/editor/${project.id}`}
-				className="text-xs bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-100 transition-colors"
+				className="text-xs bg-rose-900/50 text-rose-300 px-3 py-1.5 rounded-lg font-medium hover:bg-rose-800/60 transition-colors"
 			>
 				편집하기 →
 			</Link>
@@ -149,7 +149,7 @@ function ProjectActionWithHandlers({
 	return (
 		<Link
 			href={`/create/progress/${project.id}`}
-			className="text-xs bg-violet-50 text-violet-700 px-3 py-1.5 rounded-lg font-medium hover:bg-violet-100 transition-colors"
+			className="text-xs bg-violet-900/50 text-violet-300 px-3 py-1.5 rounded-lg font-medium hover:bg-violet-800/60 transition-colors"
 		>
 			생성 시작 →
 		</Link>
@@ -163,6 +163,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 	const [isPublishing, setIsPublishing] = useState(false);
 	const [isSharing, setIsSharing] = useState(false);
 	const [sharedPostId, setSharedPostId] = useState<string | null>(null);
+	const [holo, setHolo] = useState({ x: 0.5, y: 0.5, active: false });
 
 	const status = STATUS_MAP[getProjectStatus(project)] ?? STATUS_MAP.DRAFT;
 	const coverImage =
@@ -256,11 +257,45 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 		}
 	};
 
+	const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+		const rect = e.currentTarget.getBoundingClientRect();
+		setHolo({
+			x: (e.clientX - rect.left) / rect.width,
+			y: (e.clientY - rect.top) / rect.height,
+			active: true,
+		});
+	};
+
+	const handleMouseLeave = () => {
+		setHolo((h) => ({ ...h, active: false }));
+	};
+
+	const hue = Math.round(holo.x * 360);
+	const angle = Math.round((holo.x * 0.6 + holo.y * 0.4) * 360);
+
 	return (
 		<>
-			<div className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-rose-50 overflow-hidden hover:shadow-md transition-shadow">
+			<div
+				className="relative flex flex-col h-full bg-zinc-900 rounded-2xl border border-white/[0.08] overflow-hidden transition-all duration-300"
+				onMouseMove={handleMouseMove}
+				onMouseLeave={handleMouseLeave}
+				style={{
+					boxShadow: holo.active
+						? `0 8px 40px hsla(${hue},80%,60%,0.3), 0 2px 8px rgba(0,0,0,0.6)`
+						: "0 2px 8px rgba(0,0,0,0.5)",
+				}}
+			>
+				{/* 홀로그램 오버레이 */}
+				<div
+					className="absolute inset-0 pointer-events-none z-10 transition-opacity duration-300"
+					style={{
+						opacity: holo.active ? 1 : 0,
+						background: `linear-gradient(${angle}deg, hsla(${hue},100%,65%,0.18), hsla(${(hue + 60) % 360},100%,65%,0.18), hsla(${(hue + 120) % 360},100%,65%,0.18), hsla(${(hue + 180) % 360},100%,65%,0.18), hsla(${(hue + 240) % 360},100%,65%,0.18), hsla(${(hue + 300) % 360},100%,65%,0.18))`,
+						mixBlendMode: "overlay",
+					}}
+				/>
 				{/* 표지 이미지 */}
-				<div className="relative h-44 bg-rose-50">
+				<div className="relative h-44 bg-zinc-800">
 					<Image
 						src={coverImage}
 						alt={project.title}
@@ -274,7 +309,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 					>
 						{status.label}
 					</span>
-					<span className="absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full bg-white/90 text-gray-700">
+					<span className="absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full bg-black/60 text-white">
 						{TYPE_MAP[project.projectType] || "프로젝트"}
 					</span>
 					{project.isDefault && (
@@ -286,19 +321,19 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 
 				{/* 정보 */}
 				<div className="flex flex-col flex-1 p-4">
-					<h3 className="font-bold text-gray-800 text-base mb-1 truncate">
+					<h3 className="font-bold text-white text-base mb-1 truncate">
 						{project.title}
 					</h3>
 					{project.storyCharacters && (
-						<p className="text-gray-500 text-sm mb-1 truncate">
+						<p className="text-zinc-400 text-sm mb-1 truncate">
 							{project.storyCharacters}
 						</p>
 					)}
-					<p className="text-rose-400 text-xs mb-4">
+					<p className="text-violet-400 text-xs mb-4">
 						{project.genre ? project.genre : `${createdLabel} 생성`}
 					</p>
 					<div className="flex items-center justify-between">
-						<span className="text-gray-400 text-xs">
+						<span className="text-zinc-500 text-xs">
 							{project.pages.length}쪽
 						</span>
 					</div>
@@ -307,7 +342,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 					{sharedPostId && (
 						<Link
 							href={`/community/${sharedPostId}`}
-							className="block text-center text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 mt-2 hover:bg-green-100 transition-colors"
+							className="block text-center text-xs text-green-300 bg-green-900/30 border border-green-800/50 rounded-lg px-3 py-1.5 mt-2 hover:bg-green-900/50 transition-colors"
 						>
 							🎉 커뮤니티에 공유됨 — 보러가기
 						</Link>
@@ -340,7 +375,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 								disabled={
 									isDeleting || isPublishing || isSharing
 								}
-								className="text-xs bg-red-50 text-red-500 px-3 py-1.5 rounded-lg font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
+								className="text-xs bg-red-900/40 text-red-400 px-3 py-1.5 rounded-lg font-medium hover:bg-red-900/60 transition-colors disabled:opacity-50"
 							>
 								삭제
 							</button>
@@ -352,11 +387,11 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 			{/* 삭제 확인 모달 */}
 			{showDeleteConfirm && (
 				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-					<div className="bg-white rounded-2xl shadow-lg p-6 max-w-sm w-full mx-4">
-						<h2 className="font-bold text-gray-800 mb-2">
+					<div className="bg-zinc-900 rounded-2xl border border-white/[0.08] shadow-lg p-6 max-w-sm w-full mx-4">
+						<h2 className="font-bold text-white mb-2">
 							프로젝트 삭제
 						</h2>
-						<p className="text-gray-600 text-sm mb-6">
+						<p className="text-zinc-400 text-sm mb-6">
 							정말 "{project.title}"을(를) 삭제하시겠습니까?
 							<br />이 작업은 되돌릴 수 없습니다.
 						</p>
@@ -364,7 +399,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 							<button
 								onClick={() => setShowDeleteConfirm(false)}
 								disabled={isDeleting}
-								className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+								className="px-4 py-2 text-sm font-medium text-zinc-300 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
 							>
 								취소
 							</button>
