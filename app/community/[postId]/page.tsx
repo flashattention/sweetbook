@@ -550,6 +550,23 @@ export default function PostDetailPage() {
 					</section>
 				)}
 
+				{/* ── 콘텐츠 끝 좋아요 ── */}
+				<section className="py-16 flex flex-col items-center gap-4">
+					<p className="text-white/30 text-sm">작품이 마음에 드셨나요?</p>
+					<button
+						onClick={handleLike}
+						className={`inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-200 ${
+							post.likedByMe
+								? "bg-violet-600 text-white shadow-lg shadow-violet-900/50 scale-105"
+								: "bg-white/[0.07] text-white/60 border border-white/[0.12] hover:bg-violet-600/20 hover:text-white hover:border-violet-500/40 hover:scale-105"
+						}`}
+					>
+						<span className="text-2xl">{post.likedByMe ? "♥" : "♡"}</span>
+						<span>{post.likedByMe ? "좋아요 취소" : "좋아요"}</span>
+						<span className="bg-white/10 rounded-lg px-2.5 py-0.5 text-base font-bold">{post._count.likes}</span>
+					</button>
+				</section>
+
 				{/* ── 댓글 ── */}
 				<section className="border-t border-white/[0.06] max-w-3xl mx-auto px-4 py-12">
 					<h2 className="text-base font-bold text-white mb-6">
