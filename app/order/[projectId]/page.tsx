@@ -66,15 +66,15 @@ export default async function OrderPage({
 		if (!project.bookUid) {
 			// bookUid 없으면 주문 불가 — 안내 메시지
 			return (
-				<div className="min-h-screen bg-rose-50 flex items-center justify-center p-6">
-					<div className="bg-white rounded-2xl p-8 text-center max-w-sm shadow-sm">
+				<div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
+					<div className="bg-zinc-900 rounded-2xl p-8 text-center max-w-sm border border-white/[0.08]">
 						<p className="text-4xl mb-4">📖</p>
-						<h2 className="text-xl font-bold text-gray-800 mb-2">
+						<h2 className="text-xl font-bold text-white mb-2">
 							이 예시 프로젝트는 아직 주문할 수 없어요
 						</h2>
 						<a
 							href="/"
-							className="inline-block mt-4 text-rose-500 text-sm hover:underline"
+							className="inline-block mt-4 text-violet-400 text-sm hover:underline"
 						>
 							홈으로
 						</a>
@@ -143,13 +143,13 @@ export default async function OrderPage({
 	}
 	if (project.status === "DRAFT") {
 		return (
-			<div className="min-h-screen bg-rose-50 flex items-center justify-center p-6">
-				<div className="bg-white rounded-2xl p-8 text-center max-w-sm shadow-sm">
+			<div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
+				<div className="bg-zinc-900 rounded-2xl p-8 text-center max-w-sm border border-white/[0.08]">
 					<p className="text-4xl mb-4">📖</p>
-					<h2 className="text-xl font-bold text-gray-800 mb-2">
+					<h2 className="text-xl font-bold text-white mb-2">
 						프로젝트가 아직 출판되지 않았어요
 					</h2>
-					<p className="text-gray-500 text-sm mb-6">
+					<p className="text-zinc-400 text-sm mb-6">
 						먼저 출판을 완료한 뒤 주문해 주세요.
 					</p>
 					<a
@@ -158,7 +158,7 @@ export default async function OrderPage({
 								? `/editor/${project.id}`
 								: `/view/${project.id}`
 						}
-						className="inline-block bg-rose-500 hover:bg-rose-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
+						className="inline-block bg-violet-600 hover:bg-violet-500 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
 					>
 						{project.projectType === "PHOTOBOOK"
 							? "에디터로 돌아가기"

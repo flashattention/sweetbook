@@ -145,31 +145,31 @@ export default function OrderClient({ project }: Props) {
 			: "";
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-rose-50 to-purple-50 p-6">
+		<div className="min-h-screen bg-zinc-950 p-6">
 			<div className="max-w-4xl mx-auto">
 				<div className="mb-6">
 					<div className="flex items-center justify-between gap-3">
 						<a
 							href={`/view/${project.id}`}
-							className="text-rose-400 text-sm hover:underline"
+							className="text-violet-400 text-sm hover:underline"
 						>
 							← 보기로 돌아가기
 						</a>
 						<a
 							href={`/editor/${project.id}`}
-							className="text-sm font-semibold text-rose-500 hover:text-rose-600"
+							className="text-sm font-semibold text-violet-400 hover:text-violet-300"
 						>
 							✏️ 수정하기
 						</a>
 					</div>
-					<h1 className="text-3xl font-serif font-bold text-gray-800 mt-3">
+					<h1 className="text-3xl font-bold text-white mt-3">
 						주문하기
 					</h1>
 				</div>
 
 				<div className="grid md:grid-cols-2 gap-6">
 					{/* ─── 왼쪽: 포토북 요약 ─── */}
-					<div className="bg-white rounded-2xl shadow-sm border border-rose-100 overflow-hidden">
+					<div className="bg-zinc-900 rounded-2xl shadow-sm border border-white/[0.08] overflow-hidden">
 						<div className="relative h-56">
 							<Image
 								src={coverImage}
@@ -211,8 +211,8 @@ export default function OrderClient({ project }: Props) {
 							)}
 
 							{/* 수량 */}
-							<div className="flex items-center justify-between pt-2 border-t border-gray-100">
-								<span className="text-sm font-semibold text-gray-700">
+							<div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+								<span className="text-sm font-semibold text-zinc-300">
 									수량
 								</span>
 								<div className="flex items-center gap-2">
@@ -222,38 +222,38 @@ export default function OrderClient({ project }: Props) {
 												Math.max(1, q - 1),
 											)
 										}
-										className="w-7 h-7 rounded-full border border-gray-200 text-gray-600 hover:border-rose-300 text-sm"
+										className="w-7 h-7 rounded-full border border-white/[0.1] text-zinc-400 hover:border-violet-500 text-sm"
 									>
 										-
 									</button>
-									<span className="text-sm font-bold w-6 text-center">
+									<span className="text-sm font-bold w-6 text-center text-white">
 										{quantity}
 									</span>
 									<button
 										onClick={() =>
 											setQuantity((q) => q + 1)
 										}
-										className="w-7 h-7 rounded-full border border-gray-200 text-gray-600 hover:border-rose-300 text-sm"
+										className="w-7 h-7 rounded-full border border-white/[0.1] text-zinc-400 hover:border-violet-500 text-sm"
 									>
 										+
 									</button>
 								</div>
 							</div>
 
-							<div className="flex items-center justify-between pt-2 border-t border-gray-100">
-								<span className="text-sm text-gray-600">
+							<div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+								<span className="text-sm text-zinc-400">
 									수량{unitPriceText}
 								</span>
-								<span className="text-sm font-semibold text-gray-800">
+								<span className="text-sm font-semibold text-zinc-200">
 									{quantity}개
 								</span>
 							</div>
 
-							<div className="flex items-center justify-between pt-2 border-t border-gray-100">
-								<span className="text-sm text-gray-600">
+							<div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+								<span className="text-sm text-zinc-400">
 									배송비
 								</span>
-								<span className="text-sm font-semibold text-gray-800">
+								<span className="text-sm font-semibold text-zinc-200">
 									{estimate
 										? `${estimate.shippingFee.toLocaleString()}원`
 										: "—"}
@@ -261,11 +261,11 @@ export default function OrderClient({ project }: Props) {
 							</div>
 
 							{/* 가격 */}
-							<div className="flex items-center justify-between pt-2 border-t border-gray-100">
-								<span className="text-sm font-semibold text-gray-700">
+							<div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+								<span className="text-sm font-semibold text-zinc-300">
 									실제 샌드박스 견적
 								</span>
-								<span className="text-lg font-bold text-rose-500">
+								<span className="text-lg font-bold text-violet-400">
 									{estimating
 										? "조회 중…"
 										: estimate
@@ -276,7 +276,7 @@ export default function OrderClient({ project }: Props) {
 								</span>
 							</div>
 							{estimateHint ? (
-								<p className="text-xs text-amber-600 pt-1 border-t border-gray-100">
+								<p className="text-xs text-amber-400 pt-1 border-t border-white/[0.06]">
 									{estimateHint}
 								</p>
 							) : null}
@@ -284,8 +284,8 @@ export default function OrderClient({ project }: Props) {
 					</div>
 
 					{/* ─── 오른쪽: 배송 정보 ─── */}
-					<div className="bg-white rounded-2xl shadow-sm border border-rose-100 p-6">
-						<h2 className="text-lg font-bold text-gray-800 mb-5">
+					<div className="bg-zinc-900 rounded-2xl shadow-sm border border-white/[0.08] p-6">
+						<h2 className="text-lg font-bold text-white mb-5">
 							배송 정보
 						</h2>
 						<form onSubmit={handleOrder} className="space-y-4">
@@ -361,7 +361,7 @@ export default function OrderClient({ project }: Props) {
 							/>
 
 							{error && (
-								<div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-lg">
+								<div className="bg-red-900/20 border border-red-800/30 text-red-400 text-sm px-4 py-3 rounded-lg">
 									{error}
 								</div>
 							)}
@@ -369,7 +369,7 @@ export default function OrderClient({ project }: Props) {
 							<button
 								type="submit"
 								disabled={ordering}
-								className="w-full bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white font-semibold py-3.5 rounded-xl transition-colors mt-2"
+								className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold py-3.5 rounded-xl transition-colors mt-2"
 							>
 								{ordering
 									? "주문 처리 중..."
@@ -394,9 +394,9 @@ function InfoRow({
 }) {
 	return (
 		<div className="flex items-center justify-between">
-			<span className="text-sm text-gray-500">{label}</span>
+			<span className="text-sm text-zinc-400">{label}</span>
 			<span
-				className={`text-sm font-medium text-gray-800 ${mono ? "font-mono text-xs" : ""}`}
+				className={`text-sm font-medium text-zinc-200 ${mono ? "font-mono text-xs" : ""}`}
 			>
 				{value}
 			</span>
@@ -423,8 +423,8 @@ function Field({
 }) {
 	return (
 		<div>
-			<label className="block text-sm font-semibold text-gray-700 mb-1">
-				{label} {required && <span className="text-rose-400">*</span>}
+			<label className="block text-sm font-semibold text-zinc-300 mb-1">
+				{label} {required && <span className="text-violet-400">*</span>}
 			</label>
 			<input
 				name={name}
@@ -433,7 +433,7 @@ function Field({
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				required={required}
-				className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
+				className="w-full bg-zinc-800 border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
 			/>
 		</div>
 	);

@@ -57,16 +57,16 @@ export default async function StatusPage({
 
 	if (!project) {
 		return (
-			<div className="min-h-screen bg-rose-50 flex items-center justify-center p-6">
-				<div className="bg-white rounded-2xl p-8 text-center max-w-sm shadow-sm">
+			<div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
+				<div className="bg-zinc-900 rounded-2xl p-8 text-center max-w-sm border border-white/[0.08]">
 					<p className="text-4xl mb-4">🔍</p>
-					<h2 className="text-xl font-bold text-gray-800 mb-2">
+					<h2 className="text-xl font-bold text-white mb-2">
 						주문을 찾을 수 없어요
 					</h2>
-					<p className="text-gray-500 text-sm mb-6">
+					<p className="text-zinc-400 text-sm mb-6">
 						주문 번호: {orderId}
 					</p>
-					<HomeLink className="inline-block bg-rose-500 hover:bg-rose-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors">
+					<HomeLink className="inline-block bg-violet-600 hover:bg-violet-500 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors">
 						홈으로
 					</HomeLink>
 				</div>
@@ -89,29 +89,29 @@ export default async function StatusPage({
 	);
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-rose-50 to-purple-50 p-6">
+		<div className="min-h-screen bg-zinc-950 p-6">
 			<div className="max-w-2xl mx-auto">
 				{/* 헤더 */}
 				<div className="text-center mb-10">
-					<HomeLink className="text-rose-400 text-sm hover:underline">
+					<HomeLink className="text-violet-400 text-sm hover:underline">
 						← 홈으로
 					</HomeLink>
 					<div className="mt-6 text-5xl mb-4">
 						{currentStatus === "DELIVERED" ? "🎁" : "📦"}
 					</div>
-					<h1 className="text-2xl font-serif font-bold text-gray-800">
+					<h1 className="text-2xl font-bold text-white">
 						{currentStatus === "DELIVERED"
 							? `${typeLabel}이(가) 도착했어요!`
 							: `${typeLabel} 제작 현황`}
 					</h1>
-					<p className="text-gray-500 text-sm mt-2">
+					<p className="text-zinc-400 text-sm mt-2">
 						주문번호:{" "}
 						<span className="font-mono text-xs">{orderId}</span>
 					</p>
 				</div>
 
 				{/* 진행 상태 */}
-				<div className="bg-white rounded-2xl shadow-sm border border-rose-100 p-6 mb-6">
+				<div className="bg-zinc-900 rounded-2xl shadow-sm border border-white/[0.08] p-6 mb-6">
 					<div className="flex items-center justify-between">
 						{STEPS.map((step, idx) => {
 							const isCompleted = idx < currentStepIdx;
@@ -127,8 +127,8 @@ export default async function StatusPage({
 										<div
 											className={`absolute top-5 left-1/2 w-full h-0.5 ${
 												isCompleted || isCurrent
-													? "bg-rose-300"
-													: "bg-gray-200"
+													? "bg-violet-500"
+													: "bg-zinc-700"
 											}`}
 											style={{ left: "50%" }}
 										/>
@@ -137,10 +137,10 @@ export default async function StatusPage({
 									<div
 										className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center text-xl mb-2 ${
 											isCurrent
-												? "bg-rose-500 text-white ring-4 ring-rose-100"
+												? "bg-violet-600 text-white ring-4 ring-violet-500/30"
 												: isCompleted
-													? "bg-rose-200 text-rose-600"
-													: "bg-gray-100 text-gray-400"
+													? "bg-violet-900/60 text-violet-300"
+													: "bg-zinc-800 text-zinc-500"
 										}`}
 									>
 										{step.icon}
@@ -148,10 +148,10 @@ export default async function StatusPage({
 									<p
 										className={`text-xs font-medium text-center ${
 											isFuture
-												? "text-gray-300"
+												? "text-zinc-600"
 												: isCurrent
-													? "text-rose-600"
-													: "text-gray-600"
+													? "text-violet-400"
+													: "text-zinc-400"
 										}`}
 									>
 										{step.label}
@@ -163,8 +163,8 @@ export default async function StatusPage({
 				</div>
 
 				{/* 주문 상세 */}
-				<div className="bg-white rounded-2xl shadow-sm border border-rose-100 p-6 mb-6 space-y-3">
-					<h2 className="text-base font-bold text-gray-800 border-b border-gray-100 pb-3 mb-3">
+				<div className="bg-zinc-900 rounded-2xl shadow-sm border border-white/[0.08] p-6 mb-6 space-y-3">
+					<h2 className="text-base font-bold text-white border-b border-white/[0.08] pb-3 mb-3">
 						주문 정보
 					</h2>
 					<DetailRow
@@ -192,16 +192,16 @@ export default async function StatusPage({
 				<div className="flex gap-3">
 					<Link
 						href={`/editor/${project.id}`}
-						className="flex-1 text-center bg-white hover:bg-rose-50 border border-rose-200 text-rose-500 font-medium py-3 rounded-xl text-sm transition-colors"
+						className="flex-1 text-center bg-zinc-800 hover:bg-zinc-700 border border-white/[0.08] text-zinc-300 font-medium py-3 rounded-xl text-sm transition-colors"
 					>
 						✏️ 수정하기
 					</Link>
-					<HomeLink className="flex-1 text-center bg-white hover:bg-rose-50 border border-rose-200 text-rose-500 font-medium py-3 rounded-xl text-sm transition-colors">
+					<HomeLink className="flex-1 text-center bg-zinc-800 hover:bg-zinc-700 border border-white/[0.08] text-zinc-300 font-medium py-3 rounded-xl text-sm transition-colors">
 						홈으로
 					</HomeLink>
 					<Link
 						href={`/view/${project.id}`}
-						className="flex-1 text-center bg-rose-500 hover:bg-rose-600 text-white font-medium py-3 rounded-xl text-sm transition-colors"
+						className="flex-1 text-center bg-violet-600 hover:bg-violet-500 text-white font-medium py-3 rounded-xl text-sm transition-colors"
 					>
 						📖 {typeLabel} 보기
 					</Link>
@@ -222,9 +222,9 @@ function DetailRow({
 }) {
 	return (
 		<div className="flex items-start justify-between gap-4">
-			<span className="text-sm text-gray-500 flex-shrink-0">{label}</span>
+			<span className="text-sm text-zinc-400 flex-shrink-0">{label}</span>
 			<span
-				className={`text-sm font-medium text-gray-800 text-right ${mono ? "font-mono text-xs break-all" : ""}`}
+				className={`text-sm font-medium text-zinc-200 text-right ${mono ? "font-mono text-xs break-all" : ""}`}
 			>
 				{value}
 			</span>

@@ -40,18 +40,16 @@ export default function LoginClient() {
 	}
 
 	return (
-		<div className="min-h-screen bg-rose-50 flex items-center justify-center p-6">
-			<div className="w-full max-w-md bg-white rounded-2xl border border-rose-100 shadow-sm p-8">
-				<h1 className="text-2xl font-bold text-gray-800 mb-2">
-					로그인
-				</h1>
-				<p className="text-sm text-gray-500 mb-6">
+		<div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
+			<div className="w-full max-w-md bg-zinc-900 rounded-2xl border border-white/[0.08] shadow-xl p-8">
+				<h1 className="text-2xl font-bold text-white mb-2">로그인</h1>
+				<p className="text-sm text-zinc-400 mb-6">
 					계정으로 로그인하고 내 프로젝트를 관리하세요.
 				</p>
 
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-1">
+						<label className="block text-sm font-medium text-zinc-300 mb-1">
 							이메일
 						</label>
 						<input
@@ -59,11 +57,11 @@ export default function LoginClient() {
 							required
 							value={email}
 							onChange={(e) => setEmail(e.target.value)}
-							className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
+							className="w-full bg-zinc-800 border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
 						/>
 					</div>
 					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-1">
+						<label className="block text-sm font-medium text-zinc-300 mb-1">
 							비밀번호
 						</label>
 						<input
@@ -72,12 +70,12 @@ export default function LoginClient() {
 							minLength={8}
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}
-							className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
+							className="w-full bg-zinc-800 border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
 						/>
 					</div>
 
 					{error && (
-						<p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+						<p className="text-sm text-red-400 bg-red-900/20 border border-red-800/30 rounded-lg px-3 py-2">
 							{error}
 						</p>
 					)}
@@ -85,17 +83,17 @@ export default function LoginClient() {
 					<button
 						type="submit"
 						disabled={loading}
-						className="w-full bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
+						className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
 					>
 						{loading ? "로그인 중..." : "로그인"}
 					</button>
 				</form>
 
-				<p className="text-sm text-gray-500 mt-5 text-center">
+				<p className="text-sm text-zinc-400 mt-5 text-center">
 					아직 계정이 없나요?{" "}
 					<Link
 						href="/signup"
-						className="text-rose-500 hover:underline"
+						className="text-violet-400 hover:underline"
 					>
 						회원가입
 					</Link>

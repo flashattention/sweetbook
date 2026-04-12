@@ -372,12 +372,12 @@ export default async function ViewPage({
 	const status = STATUS_MAP[project.status] ?? STATUS_MAP.DRAFT;
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-rose-50 to-purple-50">
+		<div className="min-h-screen bg-zinc-950">
 			{/* ─── 헤더 ─── */}
 			<div className="max-w-4xl mx-auto px-6 pt-8 pb-4 flex items-center justify-between">
 				<Link
 					href="/"
-					className="text-rose-400 text-sm hover:underline"
+					className="text-violet-400 text-sm hover:underline"
 				>
 					← 홈으로
 				</Link>
@@ -390,7 +390,7 @@ export default async function ViewPage({
 
 			{/* ─── 표지 히어로 ─── */}
 			<div className="max-w-4xl mx-auto px-6 mb-10">
-				<div className="relative w-full rounded-2xl overflow-hidden shadow-lg bg-rose-50">
+				<div className="relative w-full rounded-2xl overflow-hidden shadow-lg bg-zinc-900">
 					<Image
 						src={coverImage}
 						alt={project.title}
@@ -402,7 +402,7 @@ export default async function ViewPage({
 					/>
 					<div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 					<div className="absolute bottom-0 left-0 right-0 p-8 text-white">
-						<p className="text-rose-200 text-sm font-medium mb-2">
+						<p className="text-violet-300 text-sm font-medium mb-2">
 							{project.projectType === "PHOTOBOOK"
 								? "자유 주제 포토북"
 								: project.storyCharacters ||
@@ -416,7 +416,7 @@ export default async function ViewPage({
 								&ldquo;{project.coverCaption}&rdquo;
 							</p>
 						)}
-						<p className="text-rose-200 text-xs mt-3">
+						<p className="text-violet-300 text-xs mt-3">
 							{project.projectType === "PHOTOBOOK"
 								? `${createdLabel} 생성`
 								: project.genre || "AI 생성 콘텐츠"}
@@ -429,7 +429,7 @@ export default async function ViewPage({
 			{/* ─── 페이지 갤러리 ─── */}
 			{project.pages.length > 0 ? (
 				<div className="max-w-4xl mx-auto px-6 pb-16">
-					<h2 className="text-xl font-serif font-bold text-gray-700 mb-6">
+					<h2 className="text-xl font-bold text-zinc-200 mb-6">
 						{project.projectType === "PHOTOBOOK"
 							? "우리의 이야기"
 							: "작품 미리보기"}
@@ -469,10 +469,10 @@ export default async function ViewPage({
 								return (
 									<div
 										key={page.id}
-										className="bg-white rounded-2xl overflow-hidden shadow-sm border border-rose-50"
+										className="bg-zinc-900 rounded-2xl overflow-hidden shadow-sm border border-white/[0.08]"
 									>
 										{primaryImageUrl ? (
-											<div className="relative bg-rose-50">
+											<div className="relative bg-zinc-800">
 												<img
 													src={primaryImageUrl}
 													alt={`페이지 ${idx + 1} 미리보기`}
@@ -483,33 +483,33 @@ export default async function ViewPage({
 												</span>
 												{project.projectType ===
 													"PHOTOBOOK" && (
-													<span className="absolute top-3 right-3 bg-white/80 text-slate-700 text-[11px] font-semibold px-2 py-1 rounded-full">
+													<span className="absolute top-3 right-3 bg-zinc-900/80 text-zinc-300 text-[11px] font-semibold px-2 py-1 rounded-full">
 														템플릿 미리보기
 													</span>
 												)}
 											</div>
 										) : (
 											<div className="px-5 pt-4">
-												<span className="inline-block bg-rose-100 text-rose-700 text-xs font-bold px-2 py-1 rounded-full">
+												<span className="inline-block bg-violet-900/40 text-violet-300 text-xs font-bold px-2 py-1 rounded-full">
 													{idx + 1}
 												</span>
 											</div>
 										)}
 										{page.caption && (
 											<div className="px-5 py-4">
-												<p className="text-gray-700 text-sm leading-relaxed">
+												<p className="text-zinc-300 text-sm leading-relaxed">
 													{page.caption}
 												</p>
 											</div>
 										)}
 										{project.projectType ===
 											"PHOTOBOOK" && (
-											<div className="px-5 pb-5 pt-1 border-t border-rose-50 space-y-3">
+											<div className="px-5 pb-5 pt-1 border-t border-white/[0.06] space-y-3">
 												<div>
-													<p className="text-[11px] font-semibold text-slate-500 mb-1">
+													<p className="text-[11px] font-semibold text-zinc-500 mb-1">
 														적용 템플릿
 													</p>
-													<p className="text-xs text-slate-700 break-all">
+													<p className="text-xs text-zinc-400 break-all">
 														{templateUid
 															? templateName
 															: "(미선택)"}
@@ -517,13 +517,13 @@ export default async function ViewPage({
 												</div>
 
 												<div>
-													<p className="text-[11px] font-semibold text-slate-500 mb-1">
+													<p className="text-[11px] font-semibold text-zinc-500 mb-1">
 														페이지 사진
 													</p>
 													{showPageImage &&
 													templateMeta?.hasPhotoField !==
 														false ? (
-														<div className="rounded-lg border border-slate-200 bg-slate-50 overflow-hidden">
+														<div className="rounded-lg border border-white/[0.06] bg-zinc-800 overflow-hidden">
 															<img
 																src={
 																	page.imageUrl
@@ -536,13 +536,13 @@ export default async function ViewPage({
 												</div>
 
 												<div>
-													<p className="text-[11px] font-semibold text-slate-500 mb-1">
+													<p className="text-[11px] font-semibold text-zinc-500 mb-1">
 														템플릿 추가 입력값
 													</p>
 													{paramEntries.length ===
 														0 &&
 													fileEntries.length === 0 ? (
-														<p className="text-xs text-slate-400">
+														<p className="text-xs text-zinc-500">
 															없음
 														</p>
 													) : (
@@ -554,9 +554,9 @@ export default async function ViewPage({
 																]) => (
 																	<div
 																		key={`param-${page.id}-${key}`}
-																		className="text-xs text-slate-700"
+																		className="text-xs text-zinc-400"
 																	>
-																		<span className="font-semibold text-slate-500">
+																		<span className="font-semibold text-zinc-500">
 																			{getTemplateFieldDisplayLabel(
 																				key,
 																			)}
@@ -575,9 +575,9 @@ export default async function ViewPage({
 																]) => (
 																	<div
 																		key={`file-${page.id}-${key}`}
-																		className="text-xs text-slate-700"
+																		className="text-xs text-zinc-400"
 																	>
-																		<span className="font-semibold text-slate-500">
+																		<span className="font-semibold text-zinc-500">
 																			{getTemplateFieldDisplayLabel(
 																				key,
 																			)}
@@ -601,7 +601,7 @@ export default async function ViewPage({
 					</div>
 				</div>
 			) : (
-				<div className="max-w-4xl mx-auto px-6 pb-16 text-center py-20 text-gray-400">
+				<div className="max-w-4xl mx-auto px-6 pb-16 text-center py-20 text-zinc-500">
 					<p className="text-5xl mb-4">📷</p>
 					<p>아직 페이지가 없습니다.</p>
 				</div>
@@ -611,14 +611,14 @@ export default async function ViewPage({
 			<div className="max-w-4xl mx-auto px-6 pb-16 flex gap-3 justify-center">
 				<Link
 					href={`/editor/${project.id}`}
-					className="bg-white hover:bg-rose-50 border border-rose-200 text-rose-500 font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
+					className="bg-zinc-800 hover:bg-zinc-700 border border-white/[0.08] text-zinc-300 font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
 				>
 					✏️ 수정하기
 				</Link>
 				{project.status === "ORDERED" && project.orderUid && (
 					<Link
 						href={`/status/${project.orderUid}`}
-						className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
+						className="bg-green-600 hover:bg-green-500 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
 					>
 						📦 배송 현황 확인
 					</Link>
@@ -626,7 +626,7 @@ export default async function ViewPage({
 				{project.status === "PUBLISHED" && (
 					<Link
 						href={`/order/${project.id}`}
-						className="bg-rose-500 hover:bg-rose-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
+						className="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
 					>
 						💳 주문하기
 					</Link>
@@ -634,14 +634,14 @@ export default async function ViewPage({
 				{project.status === "DRAFT" && (
 					<Link
 						href={`/editor/${project.id}`}
-						className="bg-rose-500 hover:bg-rose-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
+						className="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
 					>
 						✏️ 편집하기
 					</Link>
 				)}
 				<Link
 					href="/"
-					className="bg-white hover:bg-rose-50 border border-rose-200 text-rose-500 font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
+					className="bg-zinc-800 hover:bg-zinc-700 border border-white/[0.08] text-zinc-300 font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
 				>
 					홈으로
 				</Link>

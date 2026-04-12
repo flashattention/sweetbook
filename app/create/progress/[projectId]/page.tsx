@@ -241,22 +241,22 @@ export default function CreateProgressPage() {
 	const isFailed = project?.generationStage === "FAILED";
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-rose-50 to-purple-50 flex items-center justify-center p-6">
-			<div className="w-full max-w-xl bg-white rounded-2xl border border-rose-100 shadow-sm p-8 space-y-5">
+		<div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
+			<div className="w-full max-w-xl bg-zinc-900 rounded-2xl border border-white/[0.08] shadow-xl p-8 space-y-5">
 				<div className="text-center">
-					<p className="text-xs text-rose-500 font-semibold tracking-wide mb-2">
+					<p className="text-xs text-violet-400 font-semibold tracking-wide mb-2">
 						AI BOOK BUILD
 					</p>
-					<h1 className="text-2xl font-serif font-bold text-gray-800">
+					<h1 className="text-2xl font-bold text-white">
 						생성 진행 상황
 					</h1>
-					<p className="text-sm text-gray-500 mt-2">
+					<p className="text-sm text-zinc-400 mt-2">
 						작업 완료 후 자동으로 뷰 페이지로 이동합니다.
 					</p>
 				</div>
 
 				{project ? (
-					<div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700 space-y-1.5">
+					<div className="rounded-xl border border-white/[0.08] bg-zinc-800 p-4 text-sm text-zinc-300 space-y-1.5">
 						<p>
 							<span className="font-semibold">제목:</span>{" "}
 							{project.title}
@@ -299,42 +299,42 @@ export default function CreateProgressPage() {
 						) : null}
 					</div>
 				) : (
-					<div className="text-sm text-gray-500">
+					<div className="text-sm text-zinc-500">
 						프로젝트 정보를 불러오는 중...
 					</div>
 				)}
 
 				<div>
 					<div className="flex justify-between text-sm mb-2">
-						<span className="text-gray-600">현재 단계</span>
-						<span className="font-semibold text-rose-500">
+						<span className="text-zinc-400">현재 단계</span>
+						<span className="font-semibold text-violet-400">
 							{stageLabel}
 						</span>
 					</div>
-					<div className="h-3 bg-rose-100 rounded-full overflow-hidden">
+					<div className="h-3 bg-zinc-700 rounded-full overflow-hidden">
 						<div
 							className={`h-full transition-all duration-500 ${
-								isFailed ? "bg-red-400" : "bg-rose-500"
+								isFailed ? "bg-red-400" : "bg-violet-500"
 							}`}
 							style={{ width: `${progress}%` }}
 						/>
 					</div>
-					<p className="text-right text-xs text-gray-500 mt-1">
+					<p className="text-right text-xs text-zinc-500 mt-1">
 						{progress}%
 					</p>
 				</div>
 
 				{typeof project?.generationCostUsd === "number" && (
-					<div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm">
+					<div className="rounded-xl border border-emerald-800/30 bg-emerald-900/20 px-4 py-3 text-sm">
 						<div className="flex items-center justify-between">
-							<span className="text-emerald-700 font-semibold">
+							<span className="text-emerald-300 font-semibold">
 								누적 AI 비용
 							</span>
-							<span className="font-mono text-emerald-800 font-bold">
+							<span className="font-mono text-emerald-200 font-bold">
 								{formatCostKrw(project.generationCostUsd)}
 							</span>
 						</div>
-						<p className="text-emerald-600 text-xs mt-1">
+						<p className="text-emerald-400 text-xs mt-1">
 							{isFailed
 								? "생성 실패 시점까지의 실제 사용 비용입니다."
 								: project.status === "PUBLISHED"
@@ -345,17 +345,17 @@ export default function CreateProgressPage() {
 				)}
 
 				{starting ? (
-					<p className="text-xs text-gray-500">
+					<p className="text-xs text-zinc-500">
 						생성 작업을 시작하는 중입니다...
 					</p>
 				) : null}
 
 				{(error || project?.generationError) && (
-					<div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm p-3 space-y-3">
+					<div className="rounded-lg border border-red-800/30 bg-red-900/20 text-red-400 text-sm p-3 space-y-3">
 						<p className="font-semibold">
 							생성 중 오류가 발생했습니다.
 						</p>
-						<p className="text-xs text-red-600 break-all">
+						<p className="text-xs text-red-400 break-all">
 							{error || project?.generationError}
 						</p>
 						<div className="flex gap-3 pt-1">
@@ -373,7 +373,7 @@ export default function CreateProgressPage() {
 							<button
 								type="button"
 								onClick={() => router.replace("/")}
-								className="flex-1 rounded-lg border border-red-300 text-red-600 text-xs font-semibold py-2 hover:bg-red-50 transition-colors"
+								className="flex-1 rounded-lg border border-red-800/40 text-red-400 text-xs font-semibold py-2 hover:bg-red-900/30 transition-colors"
 							>
 								취소
 							</button>
@@ -384,7 +384,7 @@ export default function CreateProgressPage() {
 				<div className="text-center pt-2">
 					<Link
 						href="/"
-						className="text-sm text-rose-500 hover:underline"
+						className="text-sm text-violet-400 hover:underline"
 					>
 						홈으로
 					</Link>
