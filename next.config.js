@@ -6,6 +6,7 @@ const nextConfig = {
 			{ protocol: "https", hostname: "fastly.picsum.photos" },
 			{ protocol: "https", hostname: "images.unsplash.com" },
 			{ protocol: "https", hostname: "*.sweetbook.com" },
+			{ protocol: "https", hostname: "*.supabase.co" },
 		],
 	},
 };
