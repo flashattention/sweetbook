@@ -27,14 +27,25 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
+		// SMTP 미설정 시 이메일 인증 건너뜀
+		if (
+			!process.env.SMTP_HOST ||
+			!process.env.SMTP_USER ||
+			!process.env.SMTP_PASS
+		) {
+			return NextResponse.json({ success: true, smtpDisabled: true });
+		}
+
 		// 기존 인증 레코드 삭제
-		await prisma.emailVerification.deleteMany({ where: { email } });
+		await (prisma as any).emailVerification.deleteMany({
+			where: { email },
+		});
 
 		// 6자리 코드 생성
 		const code = String(Math.floor(100000 + Math.random() * 900000));
 		const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-		await prisma.emailVerification.create({
+		await (prisma as any).emailVerification.create({
 			data: { email, code, expiresAt },
 		});
 

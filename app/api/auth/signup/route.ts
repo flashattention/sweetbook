@@ -61,20 +61,31 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
-		// 이메일 인증 확인
-		const verification = await (prisma as any).emailVerification.findFirst({
-			where: { email, verified: true },
-			orderBy: { createdAt: "desc" },
-		});
-		if (
-			!verification ||
-			new Date() >
-				new Date(verification.expiresAt.getTime() + 10 * 60 * 1000)
-		) {
-			return NextResponse.json(
-				{ success: false, error: "이메일 인증을 먼저 완료해 주세요." },
-				{ status: 400 },
-			);
+		// SMTP 설정 시에만 이메일 인증 확인
+		const smtpConfigured =
+			!!process.env.SMTP_HOST &&
+			!!process.env.SMTP_USER &&
+			!!process.env.SMTP_PASS;
+		if (smtpConfigured) {
+			const verification = await (
+				prisma as any
+			).emailVerification.findFirst({
+				where: { email, verified: true },
+				orderBy: { createdAt: "desc" },
+			});
+			if (
+				!verification ||
+				new Date() >
+					new Date(verification.expiresAt.getTime() + 10 * 60 * 1000)
+			) {
+				return NextResponse.json(
+					{
+						success: false,
+						error: "이메일 인증을 먼저 완료해 주세요.",
+					},
+					{ status: 400 },
+				);
+			}
 		}
 
 		const passwordHash = await hashPassword(password);

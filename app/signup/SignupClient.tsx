@@ -54,7 +54,12 @@ export default function SignupClient() {
 			const json = await res.json();
 			if (!res.ok || !json.success)
 				throw new Error(json.error || "발송 실패");
-			setStep("verify");
+			// SMTP 미설정 시 인증 단계 생략하고 바로 정보 입력으로
+			if (json.smtpDisabled) {
+				setStep("info");
+			} else {
+				setStep("verify");
+			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "발송 실패");
 		} finally {
