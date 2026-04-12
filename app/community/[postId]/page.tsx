@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 
 type Page = {
@@ -85,18 +84,18 @@ function CommentItem({
 
 	return (
 		<div
-			className={`${depth > 0 ? "ml-8 border-l-2 border-rose-100 pl-4" : ""}`}
+			className={`${depth > 0 ? "ml-8 border-l-2 border-white/[0.07] pl-4" : ""}`}
 		>
 			<div className="py-3">
 				<div className="flex items-start justify-between gap-2">
 					<div className="flex items-center gap-2">
-						<div className="w-7 h-7 bg-gradient-to-br from-rose-300 to-purple-300 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+						<div className="w-7 h-7 bg-violet-700 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
 							{(comment.user.name ?? "?")[0].toUpperCase()}
 						</div>
-						<span className="text-sm font-semibold text-gray-700">
+						<span className="text-sm font-semibold text-white/80">
 							{comment.user.name ?? "익명"}
 						</span>
-						<span className="text-xs text-gray-400">
+						<span className="text-xs text-white/30">
 							{formatDate(comment.createdAt)}
 						</span>
 					</div>
@@ -105,8 +104,8 @@ function CommentItem({
 							onClick={() => onLike(comment.id)}
 							className={`flex items-center gap-1 text-xs transition-colors ${
 								comment.likedByMe
-									? "text-rose-500"
-									: "text-gray-400 hover:text-rose-500"
+									? "text-violet-400"
+									: "text-white/30 hover:text-violet-400"
 							}`}
 						>
 							<span>{comment.likedByMe ? "♥" : "♡"}</span>
@@ -115,14 +114,14 @@ function CommentItem({
 						{currentUserId === comment.user.id && (
 							<button
 								onClick={() => onDelete(comment.id)}
-								className="text-xs text-gray-300 hover:text-red-400 transition-colors"
+								className="text-xs text-white/20 hover:text-red-400 transition-colors"
 							>
 								삭제
 							</button>
 						)}
 					</div>
 				</div>
-				<p className="mt-2 text-sm text-gray-700 leading-relaxed ml-9">
+				<p className="mt-2 text-sm text-white/60 leading-relaxed ml-9">
 					{comment.content}
 				</p>
 
@@ -130,7 +129,7 @@ function CommentItem({
 				{depth === 0 && currentUserId && (
 					<button
 						onClick={() => setShowReplyForm((v) => !v)}
-						className="ml-9 mt-1 text-xs text-gray-400 hover:text-rose-500 transition-colors"
+						className="ml-9 mt-1 text-xs text-white/30 hover:text-violet-400 transition-colors"
 					>
 						{showReplyForm ? "취소" : "답글 달기"}
 					</button>
@@ -150,12 +149,12 @@ function CommentItem({
 							}}
 							placeholder="답글을 입력하세요..."
 							maxLength={500}
-							className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-200"
+							className="flex-1 text-sm px-3 py-2 bg-white/[0.06] border border-white/[0.1] rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
 						/>
 						<button
 							onClick={handleReply}
 							disabled={submitting || !replyText.trim()}
-							className="px-3 py-2 bg-rose-500 text-white text-xs font-semibold rounded-xl hover:bg-rose-600 disabled:opacity-60 transition-colors"
+							className="px-3 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-500 disabled:opacity-40 transition-colors"
 						>
 							{submitting ? "..." : "등록"}
 						</button>
@@ -192,7 +191,6 @@ export default function PostDetailPage() {
 	const [newComment, setNewComment] = useState("");
 	const [submittingComment, setSubmittingComment] = useState(false);
 	const [deleting, setDeleting] = useState(false);
-	const [selectedPage, setSelectedPage] = useState<Page | null>(null);
 
 	useEffect(() => {
 		fetch("/api/auth/me")
@@ -373,8 +371,8 @@ export default function PostDetailPage() {
 
 	if (loading) {
 		return (
-			<div className="min-h-screen bg-gradient-to-b from-rose-50 to-white flex items-center justify-center">
-				<div className="text-gray-400">불러오는 중...</div>
+			<div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+				<div className="text-white/40">불러오는 중...</div>
 			</div>
 		);
 	}
@@ -387,13 +385,13 @@ export default function PostDetailPage() {
 	const pages = post.project.pages;
 
 	return (
-		<div className="min-h-screen bg-gradient-to-b from-rose-50 to-white">
+		<div className="min-h-screen bg-zinc-950 text-white">
 			{/* 헤더 */}
-			<header className="bg-white/80 backdrop-blur-sm border-b border-rose-100 sticky top-0 z-40">
-				<div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+			<header className="bg-zinc-950 border-b border-white/[0.08] sticky top-0 z-40">
+				<div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
 					<Link
 						href="/community"
-						className="text-sm text-gray-500 hover:text-rose-600 transition-colors"
+						className="text-sm text-white/50 hover:text-white transition-colors"
 					>
 						← 커뮤니티
 					</Link>
@@ -401,7 +399,7 @@ export default function PostDetailPage() {
 						<button
 							onClick={handleDelete}
 							disabled={deleting}
-							className="text-sm text-red-400 hover:text-red-600 transition-colors disabled:opacity-60"
+							className="text-sm text-red-400/70 hover:text-red-400 transition-colors disabled:opacity-60"
 						>
 							{deleting ? "삭제 중..." : "게시글 삭제"}
 						</button>
@@ -409,190 +407,161 @@ export default function PostDetailPage() {
 				</div>
 			</header>
 
-			<main className="max-w-4xl mx-auto px-4 py-8">
-				<div className="grid md:grid-cols-[280px,1fr] gap-8">
-					{/* 커버 사이드 */}
-					<div className="flex-shrink-0">
-						<div className="relative aspect-[3/4] rounded-3xl overflow-hidden shadow-lg bg-gradient-to-br from-rose-100 to-purple-100">
-							{post.project.coverImageUrl ? (
-								<Image
-									src={post.project.coverImageUrl}
-									alt={post.project.title}
-									fill
-									className="object-cover"
-									sizes="280px"
-									priority
-								/>
-							) : (
-								<div className="flex items-center justify-center h-full text-6xl">
-									{post.projectType === "COMIC" ? "✍️" : "📚"}
-								</div>
-							)}
-						</div>
-
-						{/* 좋아요 버튼 */}
-						<button
-							onClick={handleLike}
-							className={`mt-4 w-full py-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
-								post.likedByMe
-									? "bg-rose-500 text-white"
-									: "bg-white border border-rose-200 text-rose-500 hover:bg-rose-50"
+			<main>
+				{/* ── 작품 정보 ── */}
+				<section className="max-w-3xl mx-auto px-4 py-10">
+					<div className="flex items-center gap-2 mb-4">
+						<span
+							className={`text-xs font-bold px-3 py-1 rounded-full ${
+								post.projectType === "COMIC"
+									? "bg-violet-900/60 text-violet-300"
+									: "bg-blue-900/60 text-blue-300"
 							}`}
 						>
-							<span className="text-base">
-								{post.likedByMe ? "♥" : "♡"}
+							{type.label}
+						</span>
+						{post.project.genre && (
+							<span className="text-xs px-3 py-1 rounded-full bg-white/[0.07] text-white/50">
+								{post.project.genre}
 							</span>
-							<span>
-								{post.likedByMe ? "좋아요 취소" : "좋아요"}
-							</span>
-							<span className="font-bold">
-								{post._count.likes}
-							</span>
-						</button>
+						)}
 					</div>
 
-					{/* 내용 */}
-					<div>
-						<div className="flex items-start gap-3 mb-3">
-							<span
-								className={`text-xs font-bold px-3 py-1 rounded-full flex-shrink-0 ${type.color}`}
-							>
-								{type.label}
-							</span>
-							{post.project.genre && (
-								<span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 flex-shrink-0">
-									{post.project.genre}
-								</span>
-							)}
+					<h1 className="text-2xl font-bold text-white mb-3">
+						{post.project.title}
+					</h1>
+
+					<div className="flex items-center gap-2 mb-5 text-sm text-white/40">
+						<div className="w-6 h-6 bg-violet-700 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+							{(post.user.name ?? "?")[0].toUpperCase()}
 						</div>
-
-						<h1 className="text-2xl font-bold text-gray-900 mb-2">
-							{post.project.title}
-						</h1>
-
-						<div className="flex items-center gap-2 mb-4 text-sm text-gray-500">
-							<div className="w-6 h-6 bg-gradient-to-br from-rose-300 to-purple-300 rounded-full flex items-center justify-center text-white text-xs font-bold">
-								{(post.user.name ?? "?")[0].toUpperCase()}
-							</div>
-							<span>{post.user.name ?? "익명"}</span>
-							<span>·</span>
-							<span>{formatDate(post.createdAt)}</span>
-							<span>·</span>
-							<span>💬 {post._count.comments}</span>
-						</div>
-
-						{post.description && (
-							<div className="bg-white rounded-2xl border border-rose-100 p-4 mb-4">
-								<p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
-									{post.description}
-								</p>
-							</div>
-						)}
-
-						{post.project.synopsis && (
-							<div className="mb-4">
-								<h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">
-									줄거리
-								</h2>
-								<p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
-									{post.project.synopsis}
-								</p>
-							</div>
-						)}
-
-						<div className="flex items-center gap-4 text-sm text-gray-400">
-							<span>{pages.length}페이지</span>
-							{post.project.comicStyle && (
-								<span>스타일: {post.project.comicStyle}</span>
-							)}
-						</div>
+						<span className="text-white/60">
+							{post.user.name ?? "익명"}
+						</span>
+						<span>·</span>
+						<span>{formatDate(post.createdAt)}</span>
+						<span>·</span>
+						<span>💬 {post._count.comments}</span>
+						<span>·</span>
+						<span>{pages.length}페이지</span>
 					</div>
-				</div>
 
-				{/* 페이지 갤러리 (COMIC) */}
+					{post.description && (
+						<div className="bg-white/[0.05] rounded-xl border border-white/[0.07] p-4 mb-4">
+							<p className="text-white/70 text-sm leading-relaxed whitespace-pre-wrap">
+								{post.description}
+							</p>
+						</div>
+					)}
+
+					{post.project.synopsis && (
+						<div className="mb-5">
+							<p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-2">
+								줄거리
+							</p>
+							<p className="text-white/50 text-sm leading-relaxed whitespace-pre-wrap">
+								{post.project.synopsis}
+							</p>
+						</div>
+					)}
+
+					{/* 좋아요 버튼 */}
+					<button
+						onClick={handleLike}
+						className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+							post.likedByMe
+								? "bg-violet-600 text-white"
+								: "bg-white/[0.07] text-white/60 border border-white/[0.1] hover:bg-white/[0.12] hover:text-white"
+						}`}
+					>
+						<span>{post.likedByMe ? "♥" : "♡"}</span>
+						<span>{post.likedByMe ? "좋아요 취소" : "좋아요"}</span>
+						<span className="font-bold">{post._count.likes}</span>
+					</button>
+				</section>
+
+				{/* ── 웹툰 스크롤 뷰어 (COMIC) ── */}
 				{post.projectType === "COMIC" && pages.length > 0 && (
-					<section className="mt-12">
-						<h2 className="text-lg font-bold text-gray-800 mb-4">
-							페이지 미리보기
-						</h2>
-						<div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+					<section className="border-t border-white/[0.06] bg-black">
+						<div className="max-w-[720px] mx-auto">
 							{pages.map((page) => (
-								<button
-									key={page.id}
-									onClick={() => setSelectedPage(page)}
-									className="group relative aspect-[3/4] rounded-xl overflow-hidden bg-rose-50 hover:ring-2 hover:ring-rose-400 transition-all"
-								>
+								<div key={page.id} className="w-full">
 									{page.imageUrl ? (
-										<Image
+										<img
 											src={page.imageUrl}
-											alt={`${page.pageOrder}페이지`}
-											fill
-											className="object-cover group-hover:scale-105 transition-transform"
-											sizes="120px"
+											alt={`${page.pageOrder}화`}
+											className="w-full h-auto block"
 										/>
 									) : (
-										<div className="flex items-center justify-center h-full text-2xl">
-											🖼
+										<div className="w-full aspect-[3/4] bg-zinc-900 flex items-center justify-center text-white/20 text-sm">
+											이미지 없음
 										</div>
 									)}
-									<div className="absolute bottom-0 inset-x-0 bg-black/30 text-white text-xs py-1 text-center">
-										{page.pageOrder}
-									</div>
-								</button>
+									{page.caption && (
+										<div className="bg-black px-6 py-3 text-center">
+											<p className="text-white/50 text-sm leading-relaxed">
+												{page.caption}
+											</p>
+										</div>
+									)}
+								</div>
 							))}
+							<div className="py-6 text-center text-white/20 text-xs border-t border-white/[0.06]">
+								끝 · 총 {pages.length}화
+							</div>
 						</div>
 					</section>
 				)}
 
-				{/* 소설 텍스트 미리보기 */}
+				{/* ── 소설 스크롤 뷰어 (NOVEL) ── */}
 				{post.projectType === "NOVEL" && pages.length > 0 && (
-					<section className="mt-12">
-						<h2 className="text-lg font-bold text-gray-800 mb-4">
-							본문 미리보기
-						</h2>
-						<div className="space-y-4">
-							{pages.slice(0, 3).map((page) => (
-								<div
-									key={page.id}
-									className="bg-white rounded-2xl border border-rose-100 p-5"
-								>
-									<p className="text-xs font-bold text-gray-400 mb-2">
+					<section className="border-t border-white/[0.06]">
+						<div className="max-w-[680px] mx-auto px-6 py-12 space-y-14">
+							{pages.map((page) => (
+								<div key={page.id}>
+									<p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-5">
 										{page.pageOrder}페이지
 									</p>
 									{page.caption ? (
-										<p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap line-clamp-6">
+										<p className="text-white/75 text-[17px] leading-[1.9] whitespace-pre-wrap tracking-wide">
 											{page.caption}
 										</p>
 									) : (
-										<p className="text-sm text-gray-400 italic">
+										<p className="text-white/20 text-sm italic">
 											내용 없음
 										</p>
 									)}
+									{page.imageUrl && (
+										<img
+											src={page.imageUrl}
+											alt={`${page.pageOrder}페이지 삽화`}
+											className="mt-6 w-full h-auto rounded-xl"
+										/>
+									)}
+									{page.pageOrder < pages.length && (
+										<div className="mt-14 border-t border-white/[0.06]" />
+									)}
 								</div>
 							))}
-							{pages.length > 3 && (
-								<p className="text-center text-sm text-gray-400">
-									총 {pages.length}페이지 · 나머지{" "}
-									{pages.length - 3}페이지는 작품을
-									구매하세요.
-								</p>
-							)}
+							<p className="text-center text-white/20 text-xs pt-4 border-t border-white/[0.06]">
+								끝 · 총 {pages.length}페이지
+							</p>
 						</div>
 					</section>
 				)}
 
-				{/* 댓글 */}
-				<section className="mt-12">
-					<h2 className="text-lg font-bold text-gray-800 mb-6">
-						댓글{" "}
+				{/* ── 댓글 ── */}
+				<section className="border-t border-white/[0.06] max-w-3xl mx-auto px-4 py-12">
+					<h2 className="text-base font-bold text-white mb-6">
+						댓글
 						{post._count.comments > 0
-							? `(${post._count.comments})`
+							? ` (${post._count.comments})`
 							: ""}
 					</h2>
 
 					{/* 댓글 입력 */}
 					<div className="flex gap-3 mb-8">
-						<div className="w-8 h-8 bg-gradient-to-br from-rose-300 to-purple-300 rounded-full flex-shrink-0" />
+						<div className="w-8 h-8 bg-violet-700 rounded-full flex-shrink-0" />
 						<div className="flex-1 flex gap-2">
 							<input
 								type="text"
@@ -606,14 +575,14 @@ export default function PostDetailPage() {
 								}}
 								placeholder="댓글을 입력하세요..."
 								maxLength={500}
-								className="flex-1 text-sm px-4 py-2.5 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-rose-200"
+								className="flex-1 text-sm px-4 py-2.5 bg-white/[0.06] border border-white/[0.1] rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
 							/>
 							<button
 								onClick={handleCommentSubmit}
 								disabled={
 									submittingComment || !newComment.trim()
 								}
-								className="px-4 py-2.5 bg-rose-500 text-white text-sm font-semibold rounded-2xl hover:bg-rose-600 disabled:opacity-60 transition-colors"
+								className="px-4 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-500 disabled:opacity-40 transition-colors"
 							>
 								{submittingComment ? "..." : "등록"}
 							</button>
@@ -622,11 +591,11 @@ export default function PostDetailPage() {
 
 					{/* 댓글 목록 */}
 					{comments.length === 0 ? (
-						<p className="text-center text-gray-400 py-8">
+						<p className="text-center text-white/30 py-8 text-sm">
 							첫 댓글을 남겨보세요!
 						</p>
 					) : (
-						<div className="divide-y divide-gray-50">
+						<div className="divide-y divide-white/[0.05]">
 							{comments.map((comment) => (
 								<CommentItem
 									key={comment.id}
@@ -643,41 +612,6 @@ export default function PostDetailPage() {
 					)}
 				</section>
 			</main>
-
-			{/* 페이지 라이트박스 */}
-			{selectedPage && (
-				<div
-					className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-					onClick={() => setSelectedPage(null)}
-				>
-					<div
-						className="relative max-w-lg w-full max-h-[90vh]"
-						onClick={(e) => e.stopPropagation()}
-					>
-						{selectedPage.imageUrl && (
-							<img
-								src={selectedPage.imageUrl}
-								alt={`${selectedPage.pageOrder}페이지`}
-								className="w-full h-auto rounded-2xl object-contain max-h-[80vh]"
-							/>
-						)}
-						{selectedPage.caption && (
-							<p className="mt-3 text-white text-sm text-center leading-relaxed">
-								{selectedPage.caption}
-							</p>
-						)}
-						<p className="text-gray-400 text-xs text-center mt-2">
-							{selectedPage.pageOrder} / {pages.length}페이지
-						</p>
-						<button
-							onClick={() => setSelectedPage(null)}
-							className="absolute -top-2 -right-2 w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full text-white flex items-center justify-center text-lg"
-						>
-							×
-						</button>
-					</div>
-				</div>
-			)}
 		</div>
 	);
 }
