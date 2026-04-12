@@ -286,7 +286,7 @@ export default async function HomePage() {
 						AI 기반 만화·소설 자동 생성 플랫폼
 					</div>
 					<h1 className="text-4xl md:text-[64px] font-black leading-[1.1] tracking-tight mb-6">
-						상상을 AI로 만들고,
+						상상했던 만화나 소설을 AI로 만들고,
 						<br />
 						<span className="text-violet-400">
 							커뮤니티에서 공유하세요

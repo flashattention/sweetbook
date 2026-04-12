@@ -21,6 +21,11 @@ import {
 export type BookKind = "COMIC" | "NOVEL";
 export type ComicStyle = "MANGA" | "CARTOON" | "AMERICAN" | "PICTURE_BOOK";
 
+export interface CharacterImageRef {
+	name: string;
+	imageUrl: string;
+}
+
 export interface GenerateBookInput {
 	title: string;
 	characters: string;
@@ -602,6 +607,7 @@ export async function generateComicImages(params: {
 		shotDirection?: string;
 	}>;
 	characterProfiles?: string[];
+	characterImages?: CharacterImageRef[];
 	imageModel?: ImageModel;
 	maxParallel?: number;
 	retryCount?: number;
@@ -615,6 +621,32 @@ export async function generateComicImages(params: {
 	const imageModel = params.imageModel || DEFAULT_IMAGE_MODEL;
 	const maxParallel = Math.max(1, Math.min(8, params.maxParallel || 4));
 	const retryCount = Math.max(0, Math.min(3, params.retryCount ?? 2));
+	const charImages = (params.characterImages || []).filter(
+		(r) => r.imageUrl && r.name,
+	);
+	// gpt-image-1 / gpt-image-1-hd 는 Responses API로 참조 이미지 지원
+	const useResponsesApi =
+		(imageModel === "gpt-image-1" || imageModel === "gpt-image-1-hd") &&
+		charImages.length > 0;
+	const imageQuality =
+		imageModel === "dall-e-3-hd"
+			? "hd"
+			: imageModel === "gpt-image-1-hd"
+				? "high"
+				: imageModel === "dall-e-3"
+					? "standard"
+					: imageModel === "gpt-image-1"
+						? "medium"
+						: undefined;
+	// Responses API 사용 시 모델은 gpt-4o (visual reasoning)
+	const responsesModel = "gpt-4o";
+	// images.generate 에서 사용할 실제 모델 식별자
+	const generateApiModel =
+		imageModel === "dall-e-3-hd"
+			? "dall-e-3"
+			: imageModel === "gpt-image-1-hd"
+				? "gpt-image-1"
+				: imageModel;
 
 	const stylePrefix =
 		{
@@ -629,13 +661,22 @@ export async function generateComicImages(params: {
 			? `Characters: ${params.characterProfiles.slice(0, 4).join(" | ")}.`
 			: "";
 
+	// 참조 이미지로부터 캐릭터 앵커 추가
+	const refCharacterNote =
+		charImages.length > 0
+			? `Character reference names: ${charImages.map((r) => r.name).join(", ")}. Strictly maintain each character's visual appearance from the provided reference images.`
+			: "";
+
 	const coverPrompt = [
 		stylePrefix + " cover art",
 		`Title: ${params.title}`,
 		`Synopsis: ${params.synopsis}`,
 		characterAnchor,
+		refCharacterNote,
 		"No text, no letters on image. Vivid composition, high quality, full scene.",
-	].join(". ");
+	]
+		.filter(Boolean)
+		.join(". ");
 
 	const checkpoint = (await readComicImageCheckpoint(
 		params.checkpointKey,
@@ -645,23 +686,85 @@ export async function generateComicImages(params: {
 		updatedAt: new Date().toISOString(),
 	};
 
-	let coverImageUrl = checkpoint.coverImageUrl;
-	if (!coverImageUrl) {
-		const cover = await client.images.generate({
-			model: imageModel,
-			prompt: coverPrompt,
-			size: "1024x1024",
+	/**
+	 * Responses API를 통해 참조 이미지와 함께 이미지 생성
+	 */
+	async function generateWithResponsesApi(
+		prompt: string,
+		prefix: string,
+	): Promise<string> {
+		const contentItems: Array<Record<string, unknown>> = charImages.map(
+			(ref) => ({
+				type: "input_image",
+				image_url: ref.imageUrl,
+			}),
+		);
+		contentItems.push({ type: "input_text", text: prompt });
+
+		const response = await (client as any).responses.create({
+			model: responsesModel,
+			input: [{ role: "user", content: contentItems }],
+			tools: [
+				{
+					type: "image_generation",
+					quality:
+						imageModel === "gpt-image-1-hd" ? "high" : "medium",
+					size: "1024x1024",
+					output_format: "png",
+				},
+			],
 		});
 
-		const coverImage = cover.data?.[0];
-		if (!coverImage) {
-			throw new Error("OpenAI 표지 이미지 생성에 실패했습니다.");
+		const imageCall = (
+			response.output as Array<Record<string, unknown>>
+		)?.find((o) => o.type === "image_generation_call");
+		if (!imageCall?.result) {
+			throw new Error("Responses API에서 이미지 결과를 받지 못했습니다.");
 		}
 
-		coverImageUrl = await persistGeneratedImage({
-			image: coverImage,
-			prefix: "comic-cover",
+		return persistGeneratedImage({
+			image: { b64_json: imageCall.result as string },
+			prefix,
 		});
+	}
+
+	/**
+	 * 일반 images.generate API 사용
+	 */
+	async function generateWithImagesApi(
+		prompt: string,
+		prefix: string,
+	): Promise<string> {
+		const genParams: Record<string, unknown> = {
+			model: generateApiModel,
+			prompt,
+			size: "1024x1024",
+		};
+		if (imageQuality) {
+			genParams.quality = imageQuality;
+		}
+		const result = await client.images.generate(
+			genParams as unknown as Parameters<
+				typeof client.images.generate
+			>[0],
+		);
+		const img = result.data?.[0];
+		if (!img) throw new Error("이미지 생성 응답이 비어 있습니다.");
+		return persistGeneratedImage({ image: img, prefix });
+	}
+
+	async function generateImage(
+		prompt: string,
+		prefix: string,
+	): Promise<string> {
+		return useResponsesApi
+			? generateWithResponsesApi(prompt, prefix)
+			: generateWithImagesApi(prompt, prefix);
+	}
+
+	let coverImageUrl = checkpoint.coverImageUrl;
+	if (!coverImageUrl) {
+		coverImageUrl = await generateImage(coverPrompt, "comic-cover");
 		checkpoint.coverImageUrl = coverImageUrl;
 		checkpoint.updatedAt = new Date().toISOString();
 		await writeComicImageCheckpoint({
@@ -669,6 +772,7 @@ export async function generateComicImages(params: {
 			data: checkpoint,
 		});
 	}
+
 	const coverVisualLock = buildCoverVisualLock({
 		title: params.title,
 		synopsis: params.synopsis,
@@ -711,7 +815,7 @@ export async function generateComicImages(params: {
 		const dialogues = ensurePageDialogues(page);
 		const shotDirection = String(page.shotDirection || "").trim();
 		const lowCostBooster =
-			params.imageModel === "dall-e-2"
+			imageModel === "dall-e-2"
 				? buildLowCostModelPromptBooster({
 						pageOrder: page.pageOrder,
 						totalCount,
@@ -723,6 +827,7 @@ export async function generateComicImages(params: {
 			`Use the same character appearance as the already generated cover image (${coverImageUrl}).`,
 			coverVisualLock,
 			characterAnchor,
+			refCharacterNote,
 			shotDirection ? `Shot direction: ${shotDirection}` : "",
 			page.imagePrompt || page.caption,
 			`Speech bubble requirements: include exactly ${dialogues.length} readable Korean speech bubble(s).`,
@@ -730,27 +835,16 @@ export async function generateComicImages(params: {
 			"Consistent character appearance with other panels. Dynamic camera angle. Distinct composition from adjacent scenes.",
 			"No watermark.",
 			lowCostBooster,
-		].join(". ");
+		]
+			.filter(Boolean)
+			.join(". ");
 
 		for (let attempt = 0; attempt <= retryCount; attempt++) {
 			try {
-				const pageImageRes = await client.images.generate({
-					model: imageModel,
-					prompt: pagePrompt,
-					size: "1024x1024",
-				});
-
-				const image = pageImageRes.data?.[0];
-				if (!image) {
-					throw new Error(
-						`${page.pageOrder}페이지 이미지 생성 응답이 비어 있습니다.`,
-					);
-				}
-
-				const localUrl = await persistGeneratedImage({
-					image,
-					prefix: `comic-page-${page.pageOrder}`,
-				});
+				const localUrl = await generateImage(
+					pagePrompt,
+					`comic-page-${page.pageOrder}`,
+				);
 				pageImageUrls[idx] = localUrl;
 				checkpoint.pageImageUrlsByOrder[page.pageOrder] = localUrl;
 				checkpoint.updatedAt = new Date().toISOString();
@@ -820,11 +914,34 @@ export async function generateStoryCoverImage(params: {
 		.filter(Boolean)
 		.join(". ");
 
-	const response = await client.images.generate({
-		model: imageModel,
+	const generateApiModel =
+		imageModel === "dall-e-3-hd"
+			? "dall-e-3"
+			: imageModel === "gpt-image-1-hd"
+				? "gpt-image-1"
+				: imageModel;
+	const imageQuality =
+		imageModel === "dall-e-3-hd"
+			? "hd"
+			: imageModel === "gpt-image-1-hd"
+				? "high"
+				: imageModel === "dall-e-3"
+					? "standard"
+					: imageModel === "gpt-image-1"
+						? "medium"
+						: undefined;
+
+	const genParams: Record<string, unknown> = {
+		model: generateApiModel,
 		prompt: coverPrompt,
 		size: "1024x1024",
-	});
+	};
+	if (imageQuality) {
+		genParams.quality = imageQuality;
+	}
+	const response = await client.images.generate(
+		genParams as unknown as Parameters<typeof client.images.generate>[0],
+	);
 
 	const image = response.data?.[0];
 	if (!image) {

@@ -19,6 +19,7 @@ interface CreateProjectBody {
 	comicStyle?: unknown;
 	storyModel?: unknown;
 	imageModel?: unknown;
+	characterImages?: unknown;
 	bookSpecUid?: unknown;
 	coverTemplateUid?: unknown;
 	contentTemplateUid?: unknown;
@@ -255,6 +256,7 @@ async function createStoryProject(params: {
 	pageCount: number;
 	comicStyle?: "MANGA" | "CARTOON" | "AMERICAN" | "PICTURE_BOOK";
 	storyModel?: unknown;
+	characterImages?: Array<{ name: string; imageUrl: string }>;
 	bookSpecUid?: string;
 	coverTemplateUid?: string;
 	contentTemplateUid?: string;
@@ -297,6 +299,10 @@ async function createStoryProject(params: {
 			comicStyle:
 				params.projectType === "COMIC"
 					? params.comicStyle || "MANGA"
+					: null,
+			characterImagesJson:
+				params.characterImages && params.characterImages.length > 0
+					? JSON.stringify(params.characterImages)
 					: null,
 			coverCaption: "",
 			coverImageUrl: null,
@@ -372,6 +378,7 @@ export async function POST(req: NextRequest) {
 			comicStyle,
 			storyModel,
 			imageModel,
+			characterImages,
 			bookSpecUid,
 			coverTemplateUid,
 			contentTemplateUid,
@@ -435,6 +442,19 @@ export async function POST(req: NextRequest) {
 					? comicStyle
 					: undefined,
 			storyModel,
+			characterImages: Array.isArray(characterImages)
+				? (
+						characterImages as Array<{
+							name: string;
+							imageUrl: string;
+						}>
+					).filter(
+						(item) =>
+							item &&
+							typeof item.name === "string" &&
+							typeof item.imageUrl === "string",
+					)
+				: undefined,
 			bookSpecUid:
 				typeof bookSpecUid === "string" ? bookSpecUid : undefined,
 			coverTemplateUid:

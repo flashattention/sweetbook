@@ -7,6 +7,7 @@ import {
 	generateBookPlan,
 	generateComicImages,
 	generateStoryCoverImage,
+	type CharacterImageRef,
 } from "@/lib/ai-generator";
 import {
 	DEFAULT_IMAGE_MODEL,
@@ -80,6 +81,27 @@ export async function POST(
 				{ status: 404 },
 			);
 		}
+
+		const characterImages: CharacterImageRef[] = (() => {
+			try {
+				const raw = (
+					project as unknown as {
+						characterImagesJson?: string | null;
+					}
+				).characterImagesJson;
+				if (!raw) return [];
+				const parsed = JSON.parse(raw);
+				if (!Array.isArray(parsed)) return [];
+				return parsed.filter(
+					(item): item is CharacterImageRef =>
+						item &&
+						typeof item.name === "string" &&
+						typeof item.imageUrl === "string",
+				);
+			} catch {
+				return [];
+			}
+		})();
 		if (project.projectType === "PHOTOBOOK") {
 			return NextResponse.json(
 				{ success: false, error: "포토북 프로젝트는 대상이 아닙니다." },
@@ -177,6 +199,7 @@ export async function POST(
 				pages: plan.pages,
 				characterProfiles: plan.characterProfiles,
 				imageModel,
+				characterImages,
 				maxParallel: imageModel === "dall-e-2" ? 6 : 4,
 				retryCount: 2,
 				checkpointKey: project.id,

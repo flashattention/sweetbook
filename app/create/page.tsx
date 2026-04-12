@@ -11,6 +11,7 @@ import {
 	IMAGE_MODEL_OPTIONS,
 	STORY_MODEL_OPTIONS,
 	estimateOpenAICost,
+	imageModelSupportsReferenceInput,
 	type ImageModel,
 	type StoryModel,
 } from "@/lib/ai-pricing";
@@ -276,6 +277,9 @@ export default function CreatePage() {
 		useState<StoryModel>(DEFAULT_STORY_MODEL);
 	const [imageModel, setImageModel] =
 		useState<ImageModel>(DEFAULT_IMAGE_MODEL);
+	const [characterImages, setCharacterImages] = useState<
+		Array<{ name: string; imageUrl: string; uploading?: boolean }>
+	>([]);
 	const [usdToKrwRate, setUsdToKrwRate] = useState(DEFAULT_USD_TO_KRW);
 	const [exchangeRateMeta, setExchangeRateMeta] = useState<{
 		provider: string;
@@ -309,6 +313,8 @@ export default function CreatePage() {
 					pageCount,
 					storyModel,
 					imageModel,
+					refImageCount:
+						mode === "COMIC" ? characterImages.length : 0,
 				});
 	const selectedPhotobookSpec = getSupportedBookSpec(bookSpecUid);
 	const photobookProductionEstimate = estimateBookProductionCost({
@@ -610,6 +616,55 @@ export default function CreatePage() {
 		}
 	}, [bookSpecUid, contentTemplateUid, contentTemplates]);
 
+	async function handleCharacterImageUpload(
+		index: number,
+		file: File,
+	): Promise<void> {
+		if (file.size > 5 * 1024 * 1024) {
+			alert("이미지 파일은 5MB 이하만 업로드 가능합니다.");
+			return;
+		}
+		setCharacterImages((prev) =>
+			prev.map((item, i) =>
+				i === index ? { ...item, uploading: true } : item,
+			),
+		);
+		try {
+			const formData = new FormData();
+			formData.append("file", file);
+			const res = await fetch("/api/upload/ref", {
+				method: "POST",
+				body: formData,
+			});
+			const json = (await res.json()) as {
+				success?: boolean;
+				url?: string;
+				error?: string;
+			};
+			if (!res.ok || !json.success || !json.url) {
+				throw new Error(json.error || "업로드 실패");
+			}
+			setCharacterImages((prev) =>
+				prev.map((item, i) =>
+					i === index
+						? { ...item, imageUrl: json.url!, uploading: false }
+						: item,
+				),
+			);
+		} catch (err) {
+			setCharacterImages((prev) =>
+				prev.map((item, i) =>
+					i === index ? { ...item, uploading: false } : item,
+				),
+			);
+			alert(
+				err instanceof Error
+					? err.message
+					: "이미지 업로드에 실패했습니다.",
+			);
+		}
+	}
+
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		setLoading(true);
@@ -685,6 +740,15 @@ export default function CreatePage() {
 						comicStyle: mode === "COMIC" ? comicStyle : undefined,
 						storyModel,
 						imageModel: mode === "COMIC" ? imageModel : undefined,
+						characterImages:
+							mode === "COMIC" &&
+							imageModelSupportsReferenceInput(imageModel) &&
+							characterImages.length > 0
+								? characterImages.map(({ name, imageUrl }) => ({
+										name,
+										imageUrl,
+									}))
+								: undefined,
 					};
 
 		try {
@@ -1066,6 +1130,219 @@ export default function CreatePage() {
 										</div>
 									)}
 								</div>
+
+								{/* 캐릭터 참조 이미지 (gpt-image-1 이상 모델에서만) */}
+								{mode === "COMIC" &&
+									imageModelSupportsReferenceInput(
+										imageModel,
+									) && (
+										<div className="mt-4 border border-violet-100 rounded-xl p-4 bg-violet-50/50">
+											<div className="flex items-center justify-between mb-3">
+												<div>
+													<h4 className="text-sm font-semibold text-violet-700">
+														캐릭터 참조 이미지{" "}
+														<span className="font-normal text-violet-500">
+															(선택)
+														</span>
+													</h4>
+													<p className="text-xs text-violet-500 mt-0.5">
+														각 캐릭터의 이름과
+														사진을 등록하면 AI가
+														외모를 일관성 있게
+														그립니다.
+													</p>
+												</div>
+												{characterImages.length < 5 && (
+													<button
+														type="button"
+														onClick={() =>
+															setCharacterImages(
+																(prev) => [
+																	...prev,
+																	{
+																		name: "",
+																		imageUrl:
+																			"",
+																	},
+																],
+															)
+														}
+														className="text-xs bg-violet-500 text-white rounded-lg px-3 py-1.5 hover:bg-violet-600 transition-colors"
+													>
+														+ 캐릭터 추가
+													</button>
+												)}
+											</div>
+											{characterImages.length === 0 && (
+												<p className="text-xs text-violet-400 text-center py-2">
+													캐릭터 이미지를 추가하면
+													일관된 캐릭터 표현이
+													가능합니다.
+												</p>
+											)}
+											<div className="space-y-2">
+												{characterImages.map(
+													(char, idx) => (
+														<div
+															key={idx}
+															className="flex items-center gap-2 bg-white rounded-lg border border-violet-100 p-2"
+														>
+															{char.imageUrl ? (
+																// eslint-disable-next-line @next/next/no-img-element
+																<img
+																	src={
+																		char.imageUrl
+																	}
+																	alt={
+																		char.name ||
+																		"캐릭터"
+																	}
+																	className="w-10 h-10 object-cover rounded-lg flex-shrink-0"
+																/>
+															) : (
+																<label
+																	className={`w-10 h-10 flex items-center justify-center rounded-lg border-2 border-dashed ${char.uploading ? "border-violet-300 bg-violet-50" : "border-violet-200 hover:border-violet-400 cursor-pointer"} flex-shrink-0 transition-colors`}
+																>
+																	<input
+																		type="file"
+																		accept="image/jpeg,image/png,image/webp"
+																		className="hidden"
+																		disabled={
+																			char.uploading
+																		}
+																		onChange={(
+																			e,
+																		) => {
+																			const file =
+																				e
+																					.target
+																					.files?.[0];
+																			if (
+																				file
+																			) {
+																				void handleCharacterImageUpload(
+																					idx,
+																					file,
+																				);
+																			}
+																		}}
+																	/>
+																	{char.uploading ? (
+																		<svg
+																			className="animate-spin w-4 h-4 text-violet-400"
+																			fill="none"
+																			viewBox="0 0 24 24"
+																		>
+																			<circle
+																				className="opacity-25"
+																				cx="12"
+																				cy="12"
+																				r="10"
+																				stroke="currentColor"
+																				strokeWidth="4"
+																			/>
+																			<path
+																				className="opacity-75"
+																				fill="currentColor"
+																				d="M4 12a8 8 0 018-8v8z"
+																			/>
+																		</svg>
+																	) : (
+																		<span className="text-violet-300 text-lg">
+																			+
+																		</span>
+																	)}
+																</label>
+															)}
+															<input
+																type="text"
+																value={
+																	char.name
+																}
+																onChange={(
+																	e,
+																) => {
+																	const v =
+																		e.target
+																			.value;
+																	setCharacterImages(
+																		(
+																			prev,
+																		) =>
+																			prev.map(
+																				(
+																					item,
+																					i,
+																				) =>
+																					i ===
+																					idx
+																						? {
+																								...item,
+																								name: v,
+																							}
+																						: item,
+																			),
+																	);
+																}}
+																placeholder="캐릭터 이름"
+																className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-violet-300"
+															/>
+															{char.imageUrl && (
+																<label
+																	className="text-xs text-violet-400 cursor-pointer hover:text-violet-600 flex-shrink-0"
+																	title="이미지 변경"
+																>
+																	<input
+																		type="file"
+																		accept="image/jpeg,image/png,image/webp"
+																		className="hidden"
+																		onChange={(
+																			e,
+																		) => {
+																			const file =
+																				e
+																					.target
+																					.files?.[0];
+																			if (
+																				file
+																			) {
+																				void handleCharacterImageUpload(
+																					idx,
+																					file,
+																				);
+																			}
+																		}}
+																	/>
+																	변경
+																</label>
+															)}
+															<button
+																type="button"
+																onClick={() =>
+																	setCharacterImages(
+																		(
+																			prev,
+																		) =>
+																			prev.filter(
+																				(
+																					_,
+																					i,
+																				) =>
+																					i !==
+																					idx,
+																			),
+																	)
+																}
+																className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"
+															>
+																✕
+															</button>
+														</div>
+													),
+												)}
+											</div>
+										</div>
+									)}
 							</div>
 
 							<div className="space-y-4">
