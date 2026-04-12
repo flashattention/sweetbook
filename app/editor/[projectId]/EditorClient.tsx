@@ -437,7 +437,10 @@ function hasRequiredFieldValue(
 
 	// file 바인딩은 defaultValue가 있어도 실제 파일 첨부를 보장하지 않으므로
 	// raw 입력값(또는 자동 매핑) 기준으로만 채워짐 여부를 판단한다.
-	if (!isFileLikeBindingValue(binding) && String(field.defaultValue || "").trim()) {
+	if (
+		!isFileLikeBindingValue(binding) &&
+		String(field.defaultValue || "").trim()
+	) {
 		return true;
 	}
 
@@ -592,7 +595,10 @@ function getAutoDefaultFieldValue(
 				return optionImageUrl;
 			}
 		}
-		return page.imageUrl || "https://picsum.photos/seed/momento-parent-balloon/1200/900";
+		return (
+			page.imageUrl ||
+			"https://picsum.photos/seed/momento-parent-balloon/1200/900"
+		);
 	}
 
 	if (Array.isArray(field.options) && field.options.length > 0) {
@@ -645,7 +651,8 @@ function getRandomFieldValue(
 	field: TemplateRequiredInput,
 	page: Pick<Page, "imageUrl">,
 ): string {
-	const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+	const pick = <T,>(arr: T[]): T =>
+		arr[Math.floor(Math.random() * arr.length)];
 	const search = normalizeTemplateFieldSearch(
 		field.name,
 		field.label,
@@ -668,7 +675,10 @@ function getRandomFieldValue(
 					return optionImageUrl;
 				}
 			}
-			return page.imageUrl || "https://picsum.photos/seed/momento-parent-balloon/1200/900";
+			return (
+				page.imageUrl ||
+				"https://picsum.photos/seed/momento-parent-balloon/1200/900"
+			);
 		}
 
 		if (Array.isArray(field.options) && field.options.length > 0) {
@@ -729,8 +739,21 @@ function getRandomFieldValue(
 	// 4. 키 기반 특수 필드들
 	const key = normalizeFieldKey(field.name || "");
 
-	const weatherLabels = ["오늘의 날씨", "하늘 상태", "오늘 날씨", "날씨 기록"];
-	const weatherValues = ["맑음", "구름 조금", "흐림", "봄비가 내려요", "소나기", "쨍쨍", "포근해요"];
+	const weatherLabels = [
+		"오늘의 날씨",
+		"하늘 상태",
+		"오늘 날씨",
+		"날씨 기록",
+	];
+	const weatherValues = [
+		"맑음",
+		"구름 조금",
+		"흐림",
+		"봄비가 내려요",
+		"소나기",
+		"쨍쨍",
+		"포근해요",
+	];
 	const mealLabels = ["오늘의 급식", "점심 메뉴", "오늘 점심", "급식 메뉴"];
 	const mealValues = [
 		"소고기미역국, 잡곡밥, 김치",
@@ -739,7 +762,12 @@ function getRandomFieldValue(
 		"카레라이스, 오이무침, 과일",
 	];
 	const napLabels = ["낮잠", "낮잠 시간", "오늘의 낮잠", "휴식"];
-	const napValues = ["13:00~14:30", "12:30~14:00", "1시간 30분 잘 잠", "충분히 잠"];
+	const napValues = [
+		"13:00~14:30",
+		"12:30~14:00",
+		"1시간 30분 잘 잠",
+		"충분히 잠",
+	];
 
 	if (key.includes("weatherlabel")) return pick(weatherLabels);
 	if (key.includes("weathervalue")) return pick(weatherValues);
@@ -1719,15 +1747,18 @@ export default function EditorClient({ initialProject }: Props) {
 				);
 				while (workingPages.length < minPages) {
 					const seed = Math.random().toString(36).slice(2);
-					const res = await fetch(`/api/projects/${project.id}/pages`, {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							imageUrl: `https://picsum.photos/seed/${seed}/800/600`,
-							caption: "",
-							pageOrder: workingPages.length + 1,
-						}),
-					});
+					const res = await fetch(
+						`/api/projects/${project.id}/pages`,
+						{
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({
+								imageUrl: `https://picsum.photos/seed/${seed}/800/600`,
+								caption: "",
+								pageOrder: workingPages.length + 1,
+							}),
+						},
+					);
 					if (res.ok) {
 						const json = await res.json();
 						const newPage = json.data as Page;
@@ -1743,36 +1774,38 @@ export default function EditorClient({ initialProject }: Props) {
 			// 1. 표지 템플릿 랜덤 선택 & 값 채우기 (빈 필드만)
 			setDevPublishStageMessage("표지 템플릿 랜덤 설정 중...");
 			const randomCoverTemplate = pickRandom(coverTemplates);
-			const hasCoverPhotoField = (randomCoverTemplate.requiredInputs || []).some(
-				(f) => isAutoManagedCoverTemplateField(f),
-			);
+			const hasCoverPhotoField = (
+				randomCoverTemplate.requiredInputs || []
+			).some((f) => isAutoManagedCoverTemplateField(f));
 			const coverImageUrl = hasCoverPhotoField
-				? (project.coverImageUrl ||
-				  `https://picsum.photos/seed/${Math.random().toString(36).slice(2)}/1200/900`)
-				: (project.coverImageUrl || "");
+				? project.coverImageUrl ||
+					`https://picsum.photos/seed/${Math.random().toString(36).slice(2)}/1200/900`
+				: project.coverImageUrl || "";
 
-			const coverFields = (randomCoverTemplate.requiredInputs || []).filter(
-				(field) => {
-					// 기본 자동 관리 필드 제외
-					if (isAutoManagedCoverTemplateField(field)) return false;
-					if (isAutoManagedCoordinateField(field)) return false;
-					if (isAutoManagedTemporalField(field)) return false;
+			const coverFields = (
+				randomCoverTemplate.requiredInputs || []
+			).filter((field) => {
+				// 기본 자동 관리 필드 제외
+				if (isAutoManagedCoverTemplateField(field)) return false;
+				if (isAutoManagedCoordinateField(field)) return false;
+				if (isAutoManagedTemporalField(field)) return false;
 
-					// file binding 필드 처리: options이 있으면 포함 (예: parentBalloon b1~b4)
-					const binding = String(field.binding || "").toLowerCase();
-					if (isFileLikeBindingValue(binding)) {
-						return true;
-					}
-
-					if (isDecorativeLineField(field)) return false;
-
+				// file binding 필드 처리: options이 있으면 포함 (예: parentBalloon b1~b4)
+				const binding = String(field.binding || "").toLowerCase();
+				if (isFileLikeBindingValue(binding)) {
 					return true;
-				},
-			);
+				}
+
+				if (isDecorativeLineField(field)) return false;
+
+				return true;
+			});
 			const existingCoverValues = toInputValueMap(
 				parseOverrides(project.coverTemplateOverrides),
 			);
-			const coverValues: Record<string, string> = { ...existingCoverValues };
+			const coverValues: Record<string, string> = {
+				...existingCoverValues,
+			};
 			for (const field of coverFields) {
 				// 이미 값이 있으면 스킵
 				if (
@@ -1789,7 +1822,10 @@ export default function EditorClient({ initialProject }: Props) {
 				});
 			}
 			const coverOverrides = withTemplateFingerprint(
-				buildTemplateOverrides({ fields: coverFields, values: coverValues }),
+				buildTemplateOverrides({
+					fields: coverFields,
+					values: coverValues,
+				}),
 				randomCoverTemplate,
 			);
 			await saveCover(
@@ -1806,13 +1842,13 @@ export default function EditorClient({ initialProject }: Props) {
 					`${index + 1}/${workingPages.length} 페이지 랜덤값 설정 중...`,
 				);
 				const randomTemplate = pickRandom(contentTemplates);
-				const hasPagePhotoField = (randomTemplate.requiredInputs || []).some(
-					(f) => isAutoManagedPagePhotoField(f),
-				);
+				const hasPagePhotoField = (
+					randomTemplate.requiredInputs || []
+				).some((f) => isAutoManagedPagePhotoField(f));
 				const pageImageUrl = hasPagePhotoField
-					? (page.imageUrl ||
-					  `https://picsum.photos/seed/${Math.random().toString(36).slice(2)}/1200/900`)
-					: (page.imageUrl || "");
+					? page.imageUrl ||
+						`https://picsum.photos/seed/${Math.random().toString(36).slice(2)}/1200/900`
+					: page.imageUrl || "";
 
 				const fields = (randomTemplate.requiredInputs || []).filter(
 					(field) => {
@@ -1823,7 +1859,9 @@ export default function EditorClient({ initialProject }: Props) {
 						if (isAutoManagedTemporalField(field)) return false;
 
 						// file binding 필드 처리: options이 있으면 포함 (예: parentBalloon b1~b4)
-						const binding = String(field.binding || "").toLowerCase();
+						const binding = String(
+							field.binding || "",
+						).toLowerCase();
 						if (isFileLikeBindingValue(binding)) {
 							return true;
 						}
@@ -2341,86 +2379,87 @@ function CoverPanel({
 
 			{/* 이미지 프리뷰 */}
 			{hasAutoPhotoCoverField && (
-			<div
-				className="relative w-full aspect-[4/3] bg-rose-50 rounded-2xl border-2 border-dashed border-rose-200 overflow-hidden mb-5 cursor-pointer upload-zone group"
-				onClick={() => fileRef.current?.click()}
-				onDragOver={(e) => {
-					e.preventDefault();
-					e.currentTarget.classList.add("drag-over");
-				}}
-				onDragLeave={(e) =>
-					e.currentTarget.classList.remove("drag-over")
-				}
-				onDrop={async (e) => {
-					e.preventDefault();
-					e.currentTarget.classList.remove("drag-over");
-					const file = e.dataTransfer.files[0];
-					if (file) await handleFile(file);
-				}}
-			>
-				{imageUrl ? (
-					<Image
-						src={imageUrl}
-						alt="표지"
-						fill
-						className="object-cover"
-						unoptimized
-					/>
-				) : (
-					<div className="absolute inset-0 flex flex-col items-center justify-center text-rose-300">
-						<span className="text-4xl mb-2">📷</span>
-						<span className="text-sm">
-							표지 사진을 선택해주세요
-						</span>
-					</div>
-				)}
-				{uploading && (
-					<div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-sm">
-						업로드 중...
-					</div>
-				)}
-				{imageUrl && (
-					<div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-						<span className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full">
-							사진 변경
-						</span>
-					</div>
-				)}
-			</div>
+				<div
+					className="relative w-full aspect-[4/3] bg-rose-50 rounded-2xl border-2 border-dashed border-rose-200 overflow-hidden mb-5 cursor-pointer upload-zone group"
+					onClick={() => fileRef.current?.click()}
+					onDragOver={(e) => {
+						e.preventDefault();
+						e.currentTarget.classList.add("drag-over");
+					}}
+					onDragLeave={(e) =>
+						e.currentTarget.classList.remove("drag-over")
+					}
+					onDrop={async (e) => {
+						e.preventDefault();
+						e.currentTarget.classList.remove("drag-over");
+						const file = e.dataTransfer.files[0];
+						if (file) await handleFile(file);
+					}}
+				>
+					{imageUrl ? (
+						<Image
+							src={imageUrl}
+							alt="표지"
+							fill
+							className="object-cover"
+							unoptimized
+						/>
+					) : (
+						<div className="absolute inset-0 flex flex-col items-center justify-center text-rose-300">
+							<span className="text-4xl mb-2">📷</span>
+							<span className="text-sm">
+								표지 사진을 선택해주세요
+							</span>
+						</div>
+					)}
+					{uploading && (
+						<div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-sm">
+							업로드 중...
+						</div>
+					)}
+					{imageUrl && (
+						<div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+							<span className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full">
+								사진 변경
+							</span>
+						</div>
+					)}
+				</div>
 			)}
 
 			{hasAutoPhotoCoverField && (
-			<input
-				ref={fileRef}
-				type="file"
-				accept="image/*"
-				className="hidden"
-				onChange={async (e) => {
-					const file = e.target.files?.[0];
-					if (file) await handleFile(file);
-				}}
-			/>
+				<input
+					ref={fileRef}
+					type="file"
+					accept="image/*"
+					className="hidden"
+					onChange={async (e) => {
+						const file = e.target.files?.[0];
+						if (file) await handleFile(file);
+					}}
+				/>
 			)}
 
 			{/* URL 직접 입력 */}
 			{hasAutoPhotoCoverField && (
-			<div className="grid grid-cols-[1fr,auto] gap-2 mb-4">
-				<input
-					type="url"
-					placeholder="또는 이미지 URL을 직접 입력하세요"
-					value={imageUrl}
-					onChange={(e) => setImageUrl(e.target.value)}
-					className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
-				/>
-				<button
-					onClick={() => {
-						if (imageUrl.trim()) onSave(imageUrl.trim(), caption);
-					}}
-					className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg transition-colors"
-				>
-					미리보기
-				</button>
-			</div>
+				<div className="grid grid-cols-[1fr,auto] gap-2 mb-4">
+					<input
+						type="url"
+						placeholder="또는 이미지 URL을 직접 입력하세요"
+						value={imageUrl}
+						onChange={(e) => setImageUrl(e.target.value)}
+						className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
+					/>
+					<button
+						onClick={() => {
+							if (imageUrl.trim())
+								onSave(imageUrl.trim(), caption);
+						}}
+						className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg transition-colors"
+					>
+						미리보기
+					</button>
+				</div>
 			)}
 
 			{/* 표지 문구 */}
@@ -2469,10 +2508,9 @@ function CoverPanel({
 							const hasDefaultValue = Boolean(
 								String(field.defaultValue || "").trim(),
 							);
-							const placeholder =
-								isFileLikeBindingValue(binding)
-									? "파일 URL 입력 (여러 개는 콤마로 구분)"
-									: "값을 입력하세요";
+							const placeholder = isFileLikeBindingValue(binding)
+								? "파일 URL 입력 (여러 개는 콤마로 구분)"
+								: "값을 입력하세요";
 							const selectedColorRaw =
 								selectedTemplateValues[field.name] || "";
 							const selectedColor =
@@ -3283,10 +3321,9 @@ function PagePanel({
 								);
 							}
 
-							const placeholder =
-								isFileLikeBindingValue(binding)
-									? "파일 URL 입력 (여러 개는 콤마로 구분)"
-									: "값을 입력하세요";
+							const placeholder = isFileLikeBindingValue(binding)
+								? "파일 URL 입력 (여러 개는 콤마로 구분)"
+								: "값을 입력하세요";
 							const selectedColorRaw =
 								selectedTemplateValues[field.name] || "";
 							const selectedColor =
