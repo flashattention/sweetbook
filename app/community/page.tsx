@@ -29,8 +29,8 @@ type ShareableProject = {
 };
 
 const TYPE_MAP: Record<string, { label: string; color: string }> = {
-	COMIC: { label: "만화책", color: "bg-violet-100 text-violet-700" },
-	NOVEL: { label: "소설", color: "bg-blue-100 text-blue-700" },
+	COMIC: { label: "만화책", color: "bg-violet-900/60 text-violet-300" },
+	NOVEL: { label: "소설", color: "bg-blue-900/60 text-blue-300" },
 };
 
 function PostCard({
@@ -42,16 +42,16 @@ function PostCard({
 }) {
 	const type = TYPE_MAP[post.projectType] ?? {
 		label: post.projectType,
-		color: "bg-gray-100 text-gray-700",
+		color: "bg-zinc-800 text-zinc-400",
 	};
 
 	return (
 		<Link
 			href={`/community/${post.id}`}
-			className="group bg-white rounded-2xl overflow-hidden border border-rose-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col"
+			className="group bg-zinc-900 rounded-2xl overflow-hidden border border-white/[0.07] hover:border-violet-500/30 hover:shadow-lg hover:shadow-violet-900/20 transition-all duration-200 flex flex-col"
 		>
 			{/* 커버 이미지 */}
-			<div className="relative w-full aspect-[3/4] bg-gradient-to-br from-rose-50 to-purple-50 overflow-hidden">
+			<div className="relative w-full aspect-[3/4] bg-gradient-to-br from-zinc-800 to-zinc-900 overflow-hidden">
 				{post.project.coverImageUrl ? (
 					<Image
 						src={post.project.coverImageUrl}
@@ -76,19 +76,19 @@ function PostCard({
 
 			{/* 정보 */}
 			<div className="p-4 flex flex-col gap-2 flex-1">
-				<h3 className="font-bold text-gray-800 line-clamp-1 group-hover:text-rose-600 transition-colors">
+				<h3 className="font-bold text-white line-clamp-1 group-hover:text-violet-300 transition-colors">
 					{post.project.title}
 				</h3>
 				{post.description && (
-					<p className="text-gray-500 text-sm line-clamp-2">
+					<p className="text-zinc-400 text-sm line-clamp-2">
 						{post.description}
 					</p>
 				)}
 				<div className="flex items-center justify-between mt-auto pt-2">
-					<span className="text-xs text-gray-400 truncate">
+					<span className="text-xs text-zinc-500 truncate">
 						{post.user.name ?? "익명"}
 					</span>
-					<div className="flex items-center gap-3 text-xs text-gray-500">
+					<div className="flex items-center gap-3 text-xs text-zinc-500">
 						<button
 							onClick={(e) => {
 								e.preventDefault();
@@ -97,8 +97,8 @@ function PostCard({
 							}}
 							className={`flex items-center gap-1 transition-colors ${
 								post.likedByMe
-									? "text-rose-500"
-									: "hover:text-rose-500"
+									? "text-violet-400"
+									: "hover:text-violet-400"
 							}`}
 						>
 							<span>{post.likedByMe ? "♥" : "♡"}</span>
@@ -295,25 +295,25 @@ export default function CommunityPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-b from-rose-50 to-white">
+		<div className="min-h-screen bg-zinc-950">
 			{/* 헤더 */}
-			<header className="bg-white/80 backdrop-blur-sm border-b border-rose-100 sticky top-0 z-40">
+			<header className="bg-zinc-950 border-b border-white/[0.07] sticky top-0 z-40">
 				<div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
 					<div className="flex items-center gap-4">
 						<Link
 							href="/"
-							className="text-sm text-gray-500 hover:text-rose-600 transition-colors"
+							className="text-sm text-zinc-400 hover:text-white transition-colors"
 						>
 							← 홈
 						</Link>
-						<h1 className="text-base font-bold text-gray-800">
+						<h1 className="text-base font-bold text-white">
 							커뮤니티
 						</h1>
 					</div>
 					{currentUser && (
 						<button
 							onClick={openShareModal}
-							className="text-sm font-semibold bg-rose-500 text-white px-4 py-1.5 rounded-full hover:bg-rose-600 transition-colors"
+							className="text-sm font-semibold bg-violet-600 text-white px-4 py-1.5 rounded-full hover:bg-violet-500 transition-colors"
 						>
 							+ 내 작품 공유하기
 						</button>
@@ -324,7 +324,7 @@ export default function CommunityPage() {
 			<main className="max-w-5xl mx-auto px-4 py-8">
 				{/* 검색 */}
 				<div className="relative mb-8">
-					<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+					<span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">
 						🔍
 					</span>
 					<input
@@ -332,13 +332,13 @@ export default function CommunityPage() {
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
 						placeholder="제목, 설명, 작가 이름으로 검색..."
-						className="w-full pl-10 pr-4 py-3 rounded-2xl border border-rose-100 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-300 text-gray-800 placeholder-gray-400"
+						className="w-full pl-10 pr-4 py-3 rounded-2xl border border-white/[0.08] bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 text-white placeholder-zinc-500"
 					/>
 				</div>
 
 				{/* 성공 메시지 */}
 				{shareSuccess && (
-					<div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl text-green-700 text-sm">
+					<div className="mb-6 p-4 bg-green-900/20 border border-green-800/30 rounded-2xl text-green-300 text-sm">
 						🎉 작품이 커뮤니티에 공유되었습니다!
 					</div>
 				)}
@@ -349,18 +349,18 @@ export default function CommunityPage() {
 						{Array.from({ length: 8 }).map((_, i) => (
 							<div
 								key={i}
-								className="bg-white rounded-2xl overflow-hidden border border-rose-100 animate-pulse"
+								className="bg-zinc-900 rounded-2xl overflow-hidden border border-white/[0.06] animate-pulse"
 							>
-								<div className="aspect-[3/4] bg-rose-50" />
+								<div className="aspect-[3/4] bg-zinc-800" />
 								<div className="p-4 space-y-2">
-									<div className="h-4 bg-rose-50 rounded w-3/4" />
-									<div className="h-3 bg-rose-50 rounded w-1/2" />
+									<div className="h-4 bg-zinc-800 rounded w-3/4" />
+									<div className="h-3 bg-zinc-800 rounded w-1/2" />
 								</div>
 							</div>
 						))}
 					</div>
 				) : posts.length === 0 ? (
-					<div className="text-center py-20 text-gray-400">
+					<div className="text-center py-20 text-zinc-500">
 						<p className="text-4xl mb-4">📭</p>
 						<p className="text-lg font-medium">
 							{debouncedQuery
@@ -389,7 +389,7 @@ export default function CommunityPage() {
 						<button
 							onClick={loadMore}
 							disabled={loadingMore}
-							className="px-8 py-3 rounded-full border border-rose-200 text-rose-600 font-medium hover:bg-rose-50 transition-colors disabled:opacity-60"
+							className="px-8 py-3 rounded-full border border-white/[0.1] text-zinc-300 font-medium hover:bg-white/[0.05] transition-colors disabled:opacity-60"
 						>
 							{loadingMore ? "불러오는 중..." : "더 보기"}
 						</button>
@@ -399,41 +399,41 @@ export default function CommunityPage() {
 
 			{/* 공유 모달 */}
 			{showShareModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-					<div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+					<div className="bg-zinc-900 border border-white/[0.08] rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
 						<div className="p-6">
 							<div className="flex items-center justify-between mb-5">
-								<h2 className="text-xl font-bold text-gray-800">
+								<h2 className="text-xl font-bold text-white">
 									작품 공유하기
 								</h2>
 								<button
 									onClick={() => setShowShareModal(false)}
-									className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+									className="text-zinc-500 hover:text-white text-2xl leading-none transition-colors"
 								>
 									×
 								</button>
 							</div>
 
 							{shareableProjects.length === 0 ? (
-								<div className="text-center py-8 text-gray-500">
+								<div className="text-center py-8 text-zinc-400">
 									<p className="text-3xl mb-3">📦</p>
-									<p className="font-medium">
+									<p className="font-medium text-white">
 										공유 가능한 작품이 없습니다.
 									</p>
-									<p className="text-sm mt-1 text-gray-400">
+									<p className="text-sm mt-1">
 										출판 완료된 만화책 또는 소설을 먼저
 										제작해주세요.
 									</p>
 									<Link
 										href="/create"
-										className="inline-block mt-4 px-5 py-2 bg-rose-500 text-white rounded-full text-sm font-semibold hover:bg-rose-600"
+										className="inline-block mt-4 px-5 py-2 bg-violet-600 text-white rounded-full text-sm font-semibold hover:bg-violet-500"
 									>
 										새 작품 만들기
 									</Link>
 								</div>
 							) : (
 								<>
-									<p className="text-sm text-gray-500 mb-4">
+									<p className="text-sm text-zinc-400 mb-4">
 										공유할 출판 작품을 선택하세요. (이미
 										공유된 작품은 표시되지 않습니다)
 									</p>
@@ -448,11 +448,11 @@ export default function CommunityPage() {
 												}
 												className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors text-left ${
 													selectedProjectId === p.id
-														? "border-rose-400 bg-rose-50"
-														: "border-gray-100 hover:border-rose-200"
+														? "border-violet-500 bg-violet-900/20"
+														: "border-white/[0.07] hover:border-violet-500/40"
 												}`}
 											>
-												<div className="w-10 h-14 bg-rose-50 rounded overflow-hidden flex-shrink-0 relative">
+												<div className="w-10 h-14 bg-zinc-800 rounded overflow-hidden flex-shrink-0 relative">
 													{p.coverImageUrl ? (
 														<Image
 															src={
@@ -473,10 +473,10 @@ export default function CommunityPage() {
 													)}
 												</div>
 												<div className="min-w-0">
-													<p className="font-medium text-gray-800 truncate">
+													<p className="font-medium text-white truncate">
 														{p.title}
 													</p>
-													<p className="text-xs text-gray-400">
+													<p className="text-xs text-zinc-400">
 														{p.projectType ===
 														"COMIC"
 															? "만화책"
@@ -496,14 +496,14 @@ export default function CommunityPage() {
 										placeholder="작품 소개를 입력하세요 (선택사항)"
 										rows={3}
 										maxLength={300}
-										className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 resize-none mb-1"
+										className="w-full px-4 py-3 rounded-xl border border-white/[0.08] bg-zinc-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50 resize-none mb-1"
 									/>
-									<p className="text-xs text-gray-400 text-right mb-4">
+									<p className="text-xs text-zinc-500 text-right mb-4">
 										{shareDescription.length}/300
 									</p>
 
 									{shareError && (
-										<p className="text-red-500 text-sm mb-3">
+										<p className="text-red-400 text-sm mb-3">
 											{shareError}
 										</p>
 									)}
@@ -511,7 +511,7 @@ export default function CommunityPage() {
 									<button
 										onClick={handleShare}
 										disabled={sharing || !selectedProjectId}
-										className="w-full py-3 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 transition-colors disabled:opacity-60"
+										className="w-full py-3 bg-violet-600 text-white font-bold rounded-xl hover:bg-violet-500 transition-colors disabled:opacity-60"
 									>
 										{sharing ? "공유 중..." : "공유하기"}
 									</button>

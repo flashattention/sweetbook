@@ -62,6 +62,8 @@ model User {
   email        String    @unique
   passwordHash String
   name         String?
+  avatarUrl    String?
+  emailVerified Boolean  @default(false)
 
   projects     Project[]
   posts        Post[]
@@ -151,4 +153,15 @@ model Page {
   updatedAt DateTime @updatedAt
 
   @@index([projectId])
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  verified  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
 }

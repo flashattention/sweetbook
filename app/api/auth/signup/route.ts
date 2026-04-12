@@ -61,14 +61,36 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
+		// 이메일 인증 확인
+		const verification = await (prisma as any).emailVerification.findFirst({
+			where: { email, verified: true },
+			orderBy: { createdAt: "desc" },
+		});
+		if (
+			!verification ||
+			new Date() >
+				new Date(verification.expiresAt.getTime() + 10 * 60 * 1000)
+		) {
+			return NextResponse.json(
+				{ success: false, error: "이메일 인증을 먼저 완료해 주세요." },
+				{ status: 400 },
+			);
+		}
+
 		const passwordHash = await hashPassword(password);
 		const user = await prisma.user.create({
 			data: {
 				email,
 				passwordHash,
 				name: name || null,
+				emailVerified: true,
 			},
 			select: { id: true, email: true, name: true },
+		});
+
+		// 사용된 인증 레코드 정리
+		await (prisma as any).emailVerification.deleteMany({
+			where: { email },
 		});
 
 		const token = createSessionToken(user.id);

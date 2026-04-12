@@ -48,9 +48,13 @@ export function AuthMenu({ user }: AuthMenuProps) {
 
 	return (
 		<div className="flex items-center gap-3">
-			<p className="text-sm text-slate-700 max-w-[220px] truncate">
-				{user.name || user.email}
-			</p>
+			<Link
+				href="/profile"
+				className="inline-flex items-center justify-center rounded-full border border-slate-600 bg-white/10 px-3 py-1.5 text-sm font-medium text-white/80 shadow-sm transition-colors hover:bg-white/20 max-w-[160px] truncate"
+				title={user.name || user.email}
+			>
+				{user.name || user.email.split("@")[0]}
+			</Link>
 			<button
 				onClick={handleLogout}
 				disabled={loading}
