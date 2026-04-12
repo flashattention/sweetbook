@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { existsSync } from "fs";
-import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { createClient } from "@supabase/supabase-js";
 import { getAuthUserFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// POST /api/upload — 사진 파일 업로드 (로컬 저장)
+function getSupabaseAdmin() {
+	const url = process.env.SUPABASE_URL;
+	const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+	if (!url || !key) throw new Error("Supabase env vars missing");
+	return createClient(url, key);
+}
+
+// POST /api/upload — 사진 파일 업로드 (Supabase Storage)
 export async function POST(req: NextRequest) {
 	try {
 		const user = await getAuthUserFromRequest(req);
@@ -72,19 +77,38 @@ export async function POST(req: NextRequest) {
 		}
 
 		const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-		const fileName = `${uuidv4()}.${ext}`;
-		const uploadsDir = path.join(process.cwd(), "public", "uploads");
+		const fileName = `${projectId}/${uuidv4()}.${ext}`;
+		const buffer = Buffer.from(await file.arrayBuffer());
 
-		if (!existsSync(uploadsDir)) {
-			await mkdir(uploadsDir, { recursive: true });
+		const supabase = getSupabaseAdmin();
+		const { error: uploadError } = await supabase.storage
+			.from("uploads")
+			.upload(fileName, buffer, {
+				contentType: file.type,
+				upsert: false,
+			});
+
+		if (uploadError) {
+			console.error(
+				"[POST /api/upload] Supabase Storage error",
+				uploadError,
+			);
+			return NextResponse.json(
+				{
+					success: false,
+					error: "파일 업로드 중 오류가 발생했습니다.",
+				},
+				{ status: 500 },
+			);
 		}
 
-		const buffer = Buffer.from(await file.arrayBuffer());
-		await writeFile(path.join(uploadsDir, fileName), buffer);
+		const {
+			data: { publicUrl },
+		} = supabase.storage.from("uploads").getPublicUrl(fileName);
 
 		return NextResponse.json({
 			success: true,
-			url: `/uploads/${fileName}`,
+			url: publicUrl,
 			fileName,
 		});
 	} catch (err) {

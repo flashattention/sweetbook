@@ -3,6 +3,14 @@ import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { createClient } from "@supabase/supabase-js";
+
+function getSupabaseAdmin() {
+	const url = process.env.SUPABASE_URL;
+	const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+	if (!url || !key) throw new Error("Supabase env vars missing");
+	return createClient(url, key);
+}
 import {
 	DEFAULT_IMAGE_MODEL,
 	DEFAULT_STORY_MODEL,
@@ -87,12 +95,10 @@ function getCheckpointPath(checkpointKey?: string): string | null {
 		return null;
 	}
 	const safeKey = checkpointKey.replace(/[^a-zA-Z0-9_-]/g, "_");
-	return path.join(
-		process.cwd(),
-		".cache",
-		"comic-checkpoints",
-		`${safeKey}.json`,
-	);
+	const baseDir = process.env.VERCEL
+		? "/tmp/comic-checkpoints"
+		: path.join(process.cwd(), ".cache", "comic-checkpoints");
+	return path.join(baseDir, `${safeKey}.json`);
 }
 
 async function readComicImageCheckpoint(
@@ -156,35 +162,37 @@ async function persistGeneratedImage(params: {
 	image: { url?: string | null; b64_json?: string | null };
 	prefix: string;
 }): Promise<string> {
-	const uploadsDir = path.join(process.cwd(), "public", "uploads");
-	if (!existsSync(uploadsDir)) {
-		await mkdir(uploadsDir, { recursive: true });
-	}
-
-	const fileName = `${params.prefix}-${uuidv4()}.png`;
-	const outputPath = path.join(uploadsDir, fileName);
+	const fileName = `ai-generated/${params.prefix}-${uuidv4()}.png`;
+	let buffer: Buffer;
 
 	if (params.image.b64_json) {
-		await writeFile(
-			outputPath,
-			Buffer.from(params.image.b64_json, "base64"),
-		);
-		return `/uploads/${fileName}`;
-	}
-
-	if (params.image.url) {
+		buffer = Buffer.from(params.image.b64_json, "base64");
+	} else if (params.image.url) {
 		const res = await fetch(params.image.url);
 		if (!res.ok) {
 			throw new Error(`이미지 다운로드 실패: ${res.status}`);
 		}
-		const data = Buffer.from(await res.arrayBuffer());
-		await writeFile(outputPath, data);
-		return `/uploads/${fileName}`;
+		buffer = Buffer.from(await res.arrayBuffer());
+	} else {
+		throw new Error(
+			"OpenAI 이미지 응답에서 URL 또는 base64 데이터를 찾을 수 없습니다.",
+		);
 	}
 
-	throw new Error(
-		"OpenAI 이미지 응답에서 URL 또는 base64 데이터를 찾을 수 없습니다.",
-	);
+	const supabase = getSupabaseAdmin();
+	const { error } = await supabase.storage
+		.from("uploads")
+		.upload(fileName, buffer, { contentType: "image/png", upsert: false });
+
+	if (error) {
+		throw new Error(`Supabase Storage 업로드 실패: ${error.message}`);
+	}
+
+	const {
+		data: { publicUrl },
+	} = supabase.storage.from("uploads").getPublicUrl(fileName);
+
+	return publicUrl;
 }
 
 function clampNovelPageText(text: string): string {
