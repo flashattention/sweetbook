@@ -532,11 +532,7 @@ export default async function ViewPage({
 																className="block w-full h-auto object-contain"
 															/>
 														</div>
-													) : (
-														<p className="text-xs text-slate-400">
-															없음
-														</p>
-													)}
+													) : null}
 												</div>
 
 												<div>
