@@ -37,10 +37,14 @@
 ### 주요 기능
 
 - **포토북 편집**: 이미지·템플릿·추가 입력을 편집한 뒤 출판
-- **AI 만화 생성**: 시놉시스 입력 → 이미지+스토리 자동 생성 → 출판/주문
+- **AI 만화 생성**: 시놉시스 입력 → 이미지+스토리 자동 생성 → 출판/주문 (4종 스토리 모델 / 5종 이미지 모델 선택)
 - **AI 소설 생성**: 시놉시스 입력 → 페이지별 본문 자동 생성 → 출판/주문
+- **캐릭터 참조 이미지**: gpt-image-1 계열 모델 선택 시 캐릭터 사진+이름을 등록해 일관된 외모로 생성
 - **주문·배송 상태 조회**: 주문 생성, 실시간 견적, 상태 추적
-- **계정 기반 데이터 분리**: 회원가입·로그인·세션 인증
+- **커뮤니티**: 게시글·댓글·좋아요 기반 창작물 공유 게시판
+- **마이페이지**: 프로필 사진 업로드, 닉네임·비밀번호 변경
+- **이메일 인증 회원가입**: 3단계 흐름 (이메일 → 인증코드 → 정보 입력), SMTP 미설정 시 자동 우회
+- **계정 기반 데이터 분리**: 로그인·세션 인증 (scrypt + HttpOnly 쿠키)
 - **기본 샘플 프로젝트**: 로그인한 모든 사용자에게 완성된 샘플 3종 자동 표시
 
 ---
@@ -120,6 +124,13 @@ SWEETBOOK_CONTENT_TEMPLATE_UID=46VqZhVNOfAp
 # ── OpenAI (AI 만화·소설 생성) ─────────────────────────────────────────────
 OPENAI_API_KEY=your_openai_api_key
 
+# ── 이메일 인증 (선택 — 미설정 시 인증 단계 자동 우회) ────────────────────────
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM="Dreamcatcher <your@gmail.com>"
+
 # ── 선택 항목 ──────────────────────────────────────────────────────────────
 NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
 APP_BASE_URL=https://your-app.vercel.app
@@ -138,6 +149,11 @@ APP_BASE_URL=https://your-app.vercel.app
 | `SWEETBOOK_COVER_TEMPLATE_UID` | 선택 | 폴백 표지 템플릿 UID (프로젝트 설정값 우선) |
 | `SWEETBOOK_CONTENT_TEMPLATE_UID` | 선택 | 폴백 내지 템플릿 UID (프로젝트 설정값 우선) |
 | `OPENAI_API_KEY` | AI 기능 시 필수 | AI 만화·소설 생성에 필요 |
+| `SMTP_HOST` | 선택 | 이메일 인증용 SMTP 서버 (미설정 시 인증 단계 건너뜀) |
+| `SMTP_PORT` | 선택 | SMTP 포트 (기본 587) |
+| `SMTP_USER` | 선택 | SMTP 계정 이메일 |
+| `SMTP_PASS` | 선택 | SMTP 앱 비밀번호 |
+| `SMTP_FROM` | 선택 | 발신자 표시 이름 및 이메일 |
 | `NEXT_PUBLIC_APP_URL` | 선택 | 이미지 URL 절대 경로 해상용 |
 
 ---
@@ -203,11 +219,25 @@ APP_BASE_URL=https://your-app.vercel.app
 
 1. 홈 화면에서 **+ 만들기** 클릭
 2. **AI 만화** 또는 **AI 소설** 선택
-3. 장르·캐릭터·시놉시스 입력 → **생성 시작**
-4. 진행 화면(`/create/progress/[id]`)에서 실시간 생성 상태 확인
-5. 생성 완료 후 에디터에서 수정 → 출판 → 주문
+3. 장르·캐릭터·시놉시스 입력
+4. 줄거리 생성 모델(`gpt-4o-mini` ~ `gpt-4.1`) 및 이미지 모델(`dall-e-2` ~ `gpt-image-1-hd`) 선택
+5. *(AI 만화 + gpt-image-1 계열 선택 시)* 캐릭터 이름과 참조 사진 등록 (최대 5명)
+6. **생성 시작** → 진행 화면(`/create/progress/[id]`)에서 실시간 생성 상태 확인
+7. 생성 완료 후 에디터에서 수정 → 출판 → 주문
 
-### 7-4. 주문 및 배송 상태 확인 (`SWEETBOOK_API_KEY` 필요)
+### 7-4. 커뮤니티
+
+1. 상단 내비게이션 또는 홈 히어로 버튼에서 **커뮤니티** 진입
+2. 게시글 목록 확인, **글쓰기**로 새 포스트 작성
+3. 게시글 상세에서 댓글 작성·좋아요 가능
+
+### 7-5. 마이페이지
+
+1. 우측 상단 프로필 아이콘 → **마이페이지** 클릭
+2. 프로필 사진 업로드, 닉네임 수정
+3. 현재 비밀번호 확인 후 새 비밀번호로 변경
+
+### 7-6. 주문 및 배송 상태 확인 (`SWEETBOOK_API_KEY` 필요)
 
 1. 발행된 프로젝트(`PUBLISHED`)에서 **주문하기** 클릭
 2. 수량·배송지 입력 → 실시간 견적 확인
@@ -243,29 +273,33 @@ sweetbook/
 │   ├── globals.css
 │   ├── api/
 │   │   ├── ai/generate-book/        # AI 만화·소설 생성 엔드포인트
-│   │   ├── auth/                    # 회원가입·로그인·로그아웃·세션 확인
+│   │   ├── auth/                    # 회원가입(이메일 인증 포함)·로그인·로그아웃·세션·프로필·비밀번호 변경
 │   │   ├── book-specs/              # 판형 목록 프록시
+│   │   ├── community/               # 커뮤니티 게시글·댓글·좋아요 CRUD
 │   │   ├── exchange-rate/           # 환율 조회
 │   │   ├── orders/                  # 주문 생성·조회·견적
 │   │   ├── projects/                # 프로젝트 CRUD·페이지 관리·출판
 │   │   ├── templates/               # 템플릿 프록시
-│   │   ├── upload/                  # 이미지 업로드
+│   │   ├── upload/                  # 이미지 업로드 (일반 + 캐릭터 참조 이미지)
 │   │   └── webhook/                 # Sweetbook 웹훅 수신 및 처리
 │   ├── components/
-│   │   ├── AuthMenu.tsx             # 로그인/로그아웃 메뉴
+│   │   ├── AuthMenu.tsx             # 로그인/로그아웃/마이페이지 메뉴
 │   │   └── ProjectCard.tsx          # 프로젝트 카드 (샘플 배지 포함)
+│   ├── community/                   # 커뮤니티 목록·상세 페이지
 │   ├── create/                      # 프로젝트 유형 선택 및 AI 생성 진행 화면
 │   ├── editor/[projectId]/          # 포토북 에디터
 │   ├── login/                       # 로그인
-│   ├── signup/                      # 회원가입
+│   ├── profile/                     # 마이페이지 (프로필 사진·닉네임·비밀번호 변경)
+│   ├── signup/                      # 회원가입 (3단계: 이메일 → 인증코드 → 정보 입력)
 │   ├── order/[projectId]/           # 주문 페이지 (샘플 → 자동 복제 후 주문)
 │   ├── status/[orderId]/            # 배송 상태 조회
 │   └── view/[projectId]/            # 완성 프로젝트 뷰어
 ├── lib/
-│   ├── ai-generator.ts              # OpenAI 기반 AI 콘텐츠 생성 로직
-│   ├── ai-pricing.ts                # AI 생성 비용 예측 유틸
+│   ├── ai-generator.ts              # OpenAI 기반 AI 콘텐츠 생성 로직 (캐릭터 참조 이미지 지원)
+│   ├── ai-pricing.ts                # AI 생성 비용 예측 (4종 스토리·5종 이미지 모델)
 │   ├── auth.ts                      # 세션 인증 헬퍼 (scrypt, HttpOnly 쿠키)
 │   ├── book-specs.ts                # 판형 데이터 캐시
+│   ├── email.ts                     # 이메일 인증 코드 발송 (nodemailer)
 │   ├── prisma.ts                    # Prisma 클라이언트 싱글턴
 │   ├── sweetbook-api.ts             # Book Print API SDK 래퍼
 │   ├── template-mappings.ts         # 템플릿 UID 매핑 테이블
@@ -300,8 +334,9 @@ sweetbook/
 | 배포 | Vercel (Hobby, 도쿄 리전 hnd1) |
 | 스타일링 | Tailwind CSS |
 | 인증 | 자체 구현 (scrypt 해시, HttpOnly 세션 쿠키) |
-| AI 텍스트 | OpenAI API (`gpt-4o-mini`, `gpt-4.1-mini` 선택 가능) |
-| AI 이미지 | OpenAI API (`gpt-image-1`, `dall-e-2`) |
+| AI 텍스트 | OpenAI API (`gpt-4o-mini`, `gpt-4.1-mini`, `gpt-4o`, `gpt-4.1` 선택) |
+| AI 이미지 | OpenAI API (`dall-e-2`, `dall-e-3`, `dall-e-3-hd`, `gpt-image-1`, `gpt-image-1-hd` 선택) |
+| 이메일 | nodemailer (SMTP) — 미설정 시 인증 단계 자동 우회 |
 | 외부 API | Sweetbook Book Print API |
 
 ---
@@ -329,8 +364,8 @@ sweetbook/
 | AI 도구 | 활용 내용 |
 |---|---|
 | GitHub Copilot Chat | 라우트 구현·상태 흐름·템플릿 처리 로직 구현 및 리팩터링 |
-| OpenAI `gpt-4o-mini` / `gpt-4.1-mini` | AI 만화·소설 텍스트 및 페이지 캡션 생성 (기본: gpt-4o-mini) |
-| OpenAI `gpt-image-1` / `dall-e-2` | AI 만화 표지·페이지 이미지 생성 |
+| OpenAI `gpt-4o-mini` / `gpt-4.1-mini` / `gpt-4o` / `gpt-4.1` | AI 만화·소설 텍스트 및 페이지 캡션 생성 (기본: gpt-4o-mini) |
+| OpenAI `dall-e-2` / `dall-e-3` / `dall-e-3-hd` / `gpt-image-1` / `gpt-image-1-hd` | AI 만화 표지·페이지 이미지 생성 (gpt-image-1 계열은 캐릭터 참조 이미지 지원) |
 
 ---
 
@@ -358,7 +393,8 @@ sweetbook/
 - 팀·가족 공동 편집 협업 기능
 - 장바구니·복수 권수 할인 정책
 - 관리자 대시보드 (주문·에러·사용량 분석)
-- AI기능 고도화 (상위모델 서포트 및 프롬프트 및 워크플로우 개선으로 성능 개선)
+- 커뮤니티 게시글 기반 프로젝트 공유·댓글·팔로우 확장
+- 소셜 로그인 (카카오·구글) 연동
 
 ---
 
