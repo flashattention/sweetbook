@@ -557,17 +557,17 @@ export default function PostDetailPage() {
 					</p>
 					<button
 						onClick={handleLike}
-						className={`inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-200 ${
+						className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 ${
 							post.likedByMe
 								? "bg-violet-600 text-white shadow-lg shadow-violet-900/50 scale-105"
 								: "bg-white/[0.07] text-white/60 border border-white/[0.12] hover:bg-violet-600/20 hover:text-white hover:border-violet-500/40 hover:scale-105"
 						}`}
 					>
-						<span className="text-2xl">
+						<span className="text-base">
 							{post.likedByMe ? "♥" : "♡"}
 						</span>
 						<span>{post.likedByMe ? "좋아요 취소" : "좋아요"}</span>
-						<span className="bg-white/10 rounded-lg px-2.5 py-0.5 text-base font-bold">
+						<span className="bg-white/10 rounded-md px-2 py-0.5 text-sm font-bold">
 							{post._count.likes}
 						</span>
 					</button>
