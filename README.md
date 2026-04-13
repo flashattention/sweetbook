@@ -15,10 +15,9 @@
 9. [프로젝트 구조](#9-프로젝트-구조)
 10. [기술 스택](#10-기술-스택)
 11. [Book Print API 사용 목록](#11-book-print-api-사용-목록)
-12. [AI 도구 사용 내역](#12-ai-도구-사용-내역)
+12. [사용 AI 모델](#12-사용-ai-모델)
 13. [설계 의도](#13-설계-의도)
-14. [과제 요구사항 체크리스트](#14-과제-요구사항-체크리스트)
-15. [보안 유의사항](#15-보안-유의사항)
+14. [보안 유의사항](#14-보안-유의사항)
 
 ---
 
@@ -46,6 +45,7 @@
 - **이메일 인증 회원가입**: 3단계 흐름 (이메일 → 인증코드 → 정보 입력), SMTP 미설정 시 자동 우회
 - **계정 기반 데이터 분리**: 로그인·세션 인증 (scrypt + HttpOnly 쿠키)
 - **기본 샘플 프로젝트**: 로그인한 모든 사용자에게 완성된 샘플 3종 자동 표시
+- **크레딧 시스템**: AI 생성 비용이 크레딧으로 차감되며, 마이페이지에서 4종 패키지(100·500·1000·3000 크레딧)로 충전 가능
 
 ---
 
@@ -155,6 +155,7 @@ APP_BASE_URL=https://your-app.vercel.app
 | `SMTP_PASS` | 선택 | SMTP 앱 비밀번호 |
 | `SMTP_FROM` | 선택 | 발신자 표시 이름 및 이메일 |
 | `NEXT_PUBLIC_APP_URL` | 선택 | 이미지 URL 절대 경로 해상용 |
+| `APP_BASE_URL` | 선택 | 서버 사이드에서 상대 이미지 경로 해석 시 사용 (미설정 시 NEXT_PUBLIC_APP_URL 폴백) |
 
 ---
 
@@ -236,6 +237,7 @@ APP_BASE_URL=https://your-app.vercel.app
 1. 우측 상단 프로필 아이콘 → **마이페이지** 클릭
 2. 프로필 사진 업로드, 닉네임 수정
 3. 현재 비밀번호 확인 후 새 비밀번호로 변경
+4. 크레딧 잔액 확인 및 패키지 선택 후 충전
 
 ### 7-6. 주문 및 배송 상태 확인 (`SWEETBOOK_API_KEY` 필요)
 
@@ -254,6 +256,15 @@ npm run start              # 프로덕션 서버 실행 (build 후 사용)
 
 npx prisma db push         # Supabase PostgreSQL에 스키마 동기화
 node prisma/seed.js        # 샘플 프로젝트 3개 삽입
+npm run db:seed            # 위와 동일 (npm 단축 명령)
+npm run db:setup           # prisma db push + seed.js 한 번에 실행
+npm run db:setup:safe      # DB 백업 후 db:setup 실행 (안전한 재설정)
+npm run db:reset           # 스키마 강제 초기화 + seed 재삽입 (데이터 모두 삭제됨)
+
+npm run db:backup          # DB 수동 백업 (scripts/backup-db.js)
+npm run db:backup:auto:install    # macOS launchd 자동 백업 등록
+npm run db:backup:auto:uninstall  # macOS launchd 자동 백업 제거
+npm run db:backup:auto:status     # 자동 백업 등록 상태 확인
 
 node scripts/migrate-uploads.js  # 로컬 public/uploads/ → Supabase Storage 마이그레이션
 
@@ -276,7 +287,8 @@ sweetbook/
 │   │   ├── auth/                    # 회원가입(이메일 인증 포함)·로그인·로그아웃·세션·프로필·비밀번호 변경
 │   │   ├── book-specs/              # 판형 목록 프록시
 │   │   ├── community/               # 커뮤니티 게시글·댓글·좋아요 CRUD
-│   │   ├── exchange-rate/           # 환율 조회
+│   │   ├── credits/                 # 크레딧 잔액 조회 및 충전
+│   │   ├── exchange-rate/           # 환율 조회 (실시간 USD/KRW)
 │   │   ├── orders/                  # 주문 생성·조회·견적
 │   │   ├── projects/                # 프로젝트 CRUD·페이지 관리·출판
 │   │   ├── templates/               # 템플릿 프록시
@@ -299,11 +311,16 @@ sweetbook/
 │   ├── ai-pricing.ts                # AI 생성 비용 예측 (4종 스토리·5종 이미지 모델)
 │   ├── auth.ts                      # 세션 인증 헬퍼 (scrypt, HttpOnly 쿠키)
 │   ├── book-specs.ts                # 판형 데이터 캐시
+│   ├── client.js                    # Sweetbook API SDK 클라이언트 구현
+│   ├── core.js                      # SDK 공통 기반 (에러, 파서, BaseClient)
+│   ├── credits.ts                   # 크레딧 패키지 정의
 │   ├── email.ts                     # 이메일 인증 코드 발송 (nodemailer)
+│   ├── order-status.ts              # 주문 상태 정규화 유틸
 │   ├── prisma.ts                    # Prisma 클라이언트 싱글턴
 │   ├── sweetbook-api.ts             # Book Print API SDK 래퍼
 │   ├── template-mappings.ts         # 템플릿 UID 매핑 테이블
-│   └── template-overrides.ts        # 템플릿 필드 오버라이드 유틸
+│   ├── template-overrides.ts        # 템플릿 필드 오버라이드 유틸
+│   └── webhook.js                   # 웹훅 이벤트 처리 로직
 ├── prisma/
 │   ├── schema.prisma                # PostgreSQL provider, directUrl 설정
 │   ├── seed.js                      # 기본 샘플 프로젝트 시드 (isDefault 3종)
@@ -312,9 +329,15 @@ sweetbook/
 │   └── uploads/                     # 로컬 개발용 임시 디렉터리
 │                                    # (프로덕션은 Supabase Storage 사용)
 ├── scripts/
-│   ├── smoke-test.js                # API 엔드포인트 동작 검증
+│   ├── backup-db.js                 # DB 수동 백업
+│   ├── check-urls.js                # URL 유효성 검사
+│   ├── install-db-backup-launchd.sh # macOS launchd 자동 백업 등록
+│   ├── migrate-uploads.js           # 로컬 uploads → Supabase Storage 마이그레이션
 │   ├── probe-templates.js           # 템플릿 탐색 캐시 생성
-│   └── migrate-uploads.js           # 로컬 uploads → Supabase Storage 마이그레이션
+│   ├── smoke-test.js                # API 엔드포인트 동작 검증
+│   ├── uninstall-db-backup-launchd.sh # macOS launchd 자동 백업 제거
+│   ├── verify-pricing.js            # 크레딧 요금 체계 검증
+│   └── verify-pricing.ts            # (TypeScript 버전)
 ├── types/
 │   └── index.ts                     # 공용 TypeScript 타입 정의
 ├── middleware.ts                    # 인증 미들웨어 (보호 라우트 처리)
@@ -359,21 +382,25 @@ sweetbook/
 
 ---
 
-## 12. AI 도구 사용 내역
+## 12. 사용 AI 모델
 
-| AI 도구 | 활용 내용 |
-|---|---|
-| GitHub Copilot Chat | 라우트 구현·상태 흐름·템플릿 처리 로직 구현 및 리팩터링 |
-| OpenAI `gpt-4o-mini` / `gpt-4.1-mini` / `gpt-4o` / `gpt-4.1` | AI 만화·소설 텍스트 및 페이지 캡션 생성 (기본: gpt-4o-mini) |
-| OpenAI `dall-e-2` / `dall-e-3` / `dall-e-3-hd` / `gpt-image-1` / `gpt-image-1-hd` | AI 만화 표지·페이지 이미지 생성 (gpt-image-1 계열은 캐릭터 참조 이미지 지원) |
+| 구분 | 모델 | 설명 |
+|---|---|---|
+| 텍스트 (스토리) | `gpt-4o-mini` | 기본 — 가성비 |
+| 텍스트 (스토리) | `gpt-4.1-mini` | 균형 |
+| 텍스트 (스토리) | `gpt-4o` | 고품질 |
+| 텍스트 (스토리) | `gpt-4.1` | 최신 최고품질 |
+| 이미지 | `dall-e-2` | 가성비 |
+| 이미지 | `dall-e-3` / `dall-e-3-hd` | 균형 / 고품질 |
+| 이미지 | `gpt-image-1` / `gpt-image-1-hd` | 최고품질 — 캐릭터 참조 이미지(Responses API) 지원 |
 
 ---
 
 ## 13. 설계 의도
 
-### 왜 이 서비스를 선택했는가
+### 기획 배경
 
-단순 CRUD가 아닌, AI를 이용한 스토리 및 내용 성성부터 실제 사용자 가치(책 제작·주문)까지 이어지는 AI 동반 end-to-end 제품 흐름을 구현하기 위해 선택했습니다. Book Print API의 핵심 가치인 "콘텐츠를 실물 책으로 전환"과 AI 기술의 통합을 가장 직관적으로 드러낼 수 있는 도메인입니다.
+AI를 이용한 스토리·이미지 생성부터 실제 사용자 가치(책 제작·주문)까지 이어지는 end-to-end 제품 흐름을 구현하는 것이 목표입니다. Sweetbook Book Print API의 핵심 가치인 "콘텐츠를 실물 책으로 전환"과 AI 기술을 가장 직관적으로 결합할 수 있는 도메인으로 선정했습니다.
 
 ### 기본 샘플 프로젝트 설계
 
@@ -388,7 +415,7 @@ sweetbook/
 - AI 생성형 콘텐츠(만화·소설)와 결합된 출판 기능은 AI 기반 도서 제작 장벽을 크게 낮출 수 있습니다.
 - 템플릿 기반 제작으로 운영 자동화가 가능하며 B2C/B2B(교육기관, 소모임) 확장성이 있습니다.
 
-### 더 시간이 있었다면
+### 향후 계획
 
 - 팀·가족 공동 편집 협업 기능
 - 장바구니·복수 권수 할인 정책
@@ -398,19 +425,7 @@ sweetbook/
 
 ---
 
-## 14. 과제 요구사항 체크리스트
-
-- [x] 최종 사용자 프론트엔드 UI 제공
-- [x] 백엔드에서 API Key 관리 및 Book Print API 통신
-- [x] Books API + Orders API 사용
-- [x] 샘플 데이터 포함 — `npm run db:setup` 실행 시 샘플 프로젝트 3개 자동 생성
-- [x] `.env.example` 제공 및 키 하드코딩·커밋 방지 (`.env`는 `.gitignore` 처리)
-- [x] 로컬 실행 절차 명시
-- [x] GitHub 저장소 Public 설정 (https://github.com/flashattention/sweetbook)
-
----
-
-## 15. 보안 유의사항
+## 14. 보안 유의사항
 
 - 실제 API Key가 들어간 `.env`는 절대 커밋하지 마세요 (`.gitignore`에 포함됨).
 - 공개 저장소에는 `.env.example`만 포함하세요.
