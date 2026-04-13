@@ -1563,20 +1563,33 @@ export default function CreatePage() {
 
 					{/* 크레딧 표시 (AI 생성 모드) */}
 					{mode !== "PHOTOBOOK" && (
-						<div className={`flex items-center justify-between text-sm px-4 py-3 rounded-lg border ${
-							hasEnoughCredits
-								? "bg-zinc-800/60 border-white/[0.07] text-zinc-300"
-								: "bg-red-900/20 border-red-800/30 text-red-300"
-						}`}>
+						<div
+							className={`flex items-center justify-between text-sm px-4 py-3 rounded-lg border ${
+								hasEnoughCredits
+									? "bg-zinc-800/60 border-white/[0.07] text-zinc-300"
+									: "bg-red-900/20 border-red-800/30 text-red-300"
+							}`}
+						>
 							<span>
-								필요 크레딧: <strong className="text-white">{requiredCredits.toLocaleString()} C</strong>
+								필요 크레딧:{" "}
+								<strong className="text-white">
+									{requiredCredits.toLocaleString()} C
+								</strong>
 							</span>
 							<span>
 								보유:{" "}
 								{userCredits === null ? (
-									<span className="text-zinc-500">확인 중...</span>
+									<span className="text-zinc-500">
+										확인 중...
+									</span>
 								) : (
-									<strong className={hasEnoughCredits ? "text-violet-300" : "text-red-400"}>
+									<strong
+										className={
+											hasEnoughCredits
+												? "text-violet-300"
+												: "text-red-400"
+										}
+									>
 										{userCredits.toLocaleString()} C
 									</strong>
 								)}
@@ -1586,7 +1599,12 @@ export default function CreatePage() {
 					{mode !== "PHOTOBOOK" && !hasEnoughCredits && (
 						<p className="text-xs text-red-400 text-center">
 							크레딧이 부족합니다.{" "}
-							<a href="/profile" className="underline hover:text-red-300">마이페이지</a>
+							<a
+								href="/profile"
+								className="underline hover:text-red-300"
+							>
+								마이페이지
+							</a>
 							에서 충전해주세요.
 						</p>
 					)}
@@ -1594,7 +1612,10 @@ export default function CreatePage() {
 					{/* 제출 */}
 					<button
 						type="submit"
-						disabled={loading || (mode !== "PHOTOBOOK" && !hasEnoughCredits)}
+						disabled={
+							loading ||
+							(mode !== "PHOTOBOOK" && !hasEnoughCredits)
+						}
 						className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors duration-200"
 					>
 						{loading

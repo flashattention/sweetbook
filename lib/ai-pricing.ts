@@ -110,14 +110,66 @@ export function calcStoryActualCostUsd(
 
 function estimateStoryTokens(pageCount: number, kind: StoryKind) {
 	const safeCount = Math.max(4, Math.min(120, pageCount || 12));
+
 	if (kind === "NOVEL") {
-		const inputTokens = 800 + safeCount * 1500;
-		const outputTokens = 500 + safeCount * 700;
+		// ── 실제 생성 플로우 (ai-generator.ts 기준) ──
+		//
+		// [1] 아웃라인 호출 (1회, callJsonObject)
+		//   입력: 프롬프트 약 500 토큰
+		//   출력: tagline + synopsis + characterProfiles + chapters
+		//         + pageBlueprints(페이지별 beat/emotion/keyDetail)
+		//         ≈ 500 + 50 × pageCount 토큰
+		//
+		// [2] 페이지별 본문 호출 (pageCount 회, callJsonObject)
+		//   입력 구성:
+		//     - 시스템 지시 + 제목/장르 + 규칙:  약 400 토큰
+		//     - synopsis:                       약 150 토큰
+		//     - characterProfiles:              약 150 토큰
+		//     - chapter hint + blueprint:       약  60 토큰
+		//     - 직전 2페이지 캡션 평균
+		//       (페이지 1-2: 0토큰, 페이지 3+: 각 ~1,200토큰 × 2)
+		//       24페이지 평균 ≈ (2×0 + 22×2,400) / 24 ≈ 2,200 토큰
+		//   → 평균 입력 ≈ 400+150+150+60+2,200 = 2,960 → 보수적으로 3,300
+		//   출력: 한국어 1,000자 JSON ≈ 1,200 토큰 (Korean ≈ 1.2 token/char)
+		//
+		// [3] strengthen 보강 호출 (약 70% 페이지, isNovelPageLengthPreferred 실패 시)
+		//   입력: 본문 호출 그대로 + 초안 캡션 ~ 1,200 토큰 추가 ≈ 4,500 토큰
+		//   출력: ≈ 1,200 토큰
+
+		const STRENGTHEN_RATE = 0.7;
+
+		const outlineInput = 500;
+		const outlineOutput = 500 + 50 * safeCount;
+
+		const mainCallInput = 3300;
+		const mainCallOutput = 1200;
+
+		const strengthenInput = mainCallInput + 1200; // 4,500
+		const strengthenOutput = 1200;
+
+		const inputTokens =
+			outlineInput +
+			safeCount * mainCallInput +
+			Math.round(safeCount * STRENGTHEN_RATE * strengthenInput);
+
+		const outputTokens =
+			outlineOutput +
+			safeCount * mainCallOutput +
+			Math.round(safeCount * STRENGTHEN_RATE * strengthenOutput);
+
 		return { inputTokens, outputTokens };
 	}
-	// COMIC
-	const inputTokens = 1400 + safeCount * 150;
-	const outputTokens = 1800 + safeCount * 260;
+
+	// ── COMIC: callJsonObject 단 1회 호출 ──
+	//
+	// 입력: 고정 프롬프트(제목/등장인물/장르/요청/지시문 + 캐릭터 일관성 지침)
+	//        ≈ 600 토큰 (페이지 수와 무관)
+	//
+	// 출력: JSON 전체 (tagline + synopsis + characterProfiles + chapters
+	//        + pages 배열 각 pageOrder/caption/imagePrompt/dialogues/shotDirection)
+	//       오버헤드 ≈ 800, 페이지당 ≈ 200 토큰
+	const inputTokens = 600;
+	const outputTokens = 800 + safeCount * 200;
 	return { inputTokens, outputTokens };
 }
 
