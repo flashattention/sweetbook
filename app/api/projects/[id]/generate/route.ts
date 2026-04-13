@@ -16,6 +16,8 @@ import {
 	isStoryModel,
 	calcStoryActualCostUsd,
 	IMAGE_PRICING_PER_IMAGE_USD,
+	estimateOpenAICost,
+	usdToCredits,
 	type ImageModel,
 } from "@/lib/ai-pricing";
 import { isSweetbookConfigured } from "@/lib/sweetbook-api";
@@ -113,15 +115,7 @@ export async function POST(
 			return NextResponse.json({ success: true, data: project });
 		}
 
-		await prisma.project.update({
-			where: { id: project.id },
-			data: {
-				generationStage: "PLANNING",
-				generationProgress: 10,
-				generationError: null,
-			} as any,
-		});
-
+		// ── 크레딧 확인 및 선차감 ──
 		const normalizedType =
 			project.projectType === "NOVEL" ? "NOVEL" : "COMIC";
 		const pageCount = Math.max(
@@ -132,184 +126,274 @@ export async function POST(
 					.requestedPageCount || 24,
 			),
 		);
-		const comicStyle = toComicStyle(project.comicStyle);
-		let runningCostUsd = 0;
-		const plan = await generateBookPlan(
-			{
-				title: project.title,
-				characters: project.storyCharacters || "주인공",
-				genre: project.genre || "일반",
-				description: project.synopsis || "",
-				pageCount,
-				bookKind: normalizedType,
-				comicStyle,
-			},
-			{
-				storyModel,
-				onNovelPageDone: async (done, total, usage) => {
-					if (normalizedType !== "NOVEL") {
-						return;
-					}
-					const safeTotal = Math.max(1, total);
-					const safeDone = Math.max(0, Math.min(done, safeTotal));
-					const progress =
-						12 + Math.floor((safeDone / safeTotal) * 76);
-					runningCostUsd = calcStoryActualCostUsd(usage, storyModel);
-					await prisma.project.update({
-						where: { id: project.id },
-						data: {
-							generationStage: `WRITING:${safeDone}:${safeTotal}`,
-							generationProgress: progress,
-							generationCostUsd: runningCostUsd,
-						} as any,
-					});
-				},
-			},
-		);
-
-		// 실제 스토리 생성 비용 계산 후 저장
-		runningCostUsd = calcStoryActualCostUsd(plan.actualUsage, storyModel);
-		await prisma.project.update({
-			where: { id: project.id },
-			data: { generationCostUsd: runningCostUsd } as any,
+		const refImageCount = (() => {
+			try {
+				const raw = (project as any).characterImagesJson;
+				if (!raw) return 0;
+				const parsed = JSON.parse(raw);
+				return Array.isArray(parsed) ? parsed.length : 0;
+			} catch {
+				return 0;
+			}
+		})();
+		const costEstimate = estimateOpenAICost({
+			kind: normalizedType,
+			pageCount,
+			storyModel,
+			imageModel,
+			refImageCount,
 		});
+		const requiredCredits = usdToCredits(costEstimate.totalUsd);
 
-		let coverImageUrl = `https://picsum.photos/seed/${encodeURIComponent(project.title)}-cover/900/700`;
-		let pageImageUrls: string[] = [];
-
-		if (normalizedType === "COMIC") {
-			pageImageUrls = plan.pages.map(
-				(page) =>
-					`https://picsum.photos/seed/${encodeURIComponent(project.title)}-${page.pageOrder}/900/700`,
+		// 트랜잭션으로 크레딧 잔액 확인 + 차감
+		const userBefore = await (prisma.user as any).findUnique({
+			where: { id: user.id },
+			select: { credits: true },
+		});
+		if (!userBefore || (userBefore.credits ?? 0) < requiredCredits) {
+			return NextResponse.json(
+				{
+					success: false,
+					error: "크레딧이 부족합니다.",
+					required: requiredCredits,
+					current: userBefore?.credits ?? 0,
+				},
+				{ status: 402 },
 			);
-			const totalPages = plan.pages.length;
+		}
+		await (prisma as any).$transaction([
+			(prisma.user as any).update({
+				where: { id: user.id },
+				data: { credits: { decrement: requiredCredits } },
+			}),
+			(prisma as any).creditTransaction.create({
+				data: {
+					userId: user.id,
+					amount: -requiredCredits,
+					reason: "GENERATE_AI",
+					projectId: project.id,
+				},
+			}),
+		]);
+		let creditDeducted = true;
+
+		try {
+			// ── 생성 시작 ──
 			await prisma.project.update({
 				where: { id: project.id },
 				data: {
-					generationStage: `IMAGING:0:${totalPages}`,
-					generationProgress: 35,
+					generationStage: "PLANNING",
+					generationProgress: 10,
+					generationError: null,
 				} as any,
 			});
-			let lastDoneCount = 0;
-
-			const generatedImages = await generateComicImages({
-				title: project.title,
-				synopsis: plan.synopsis,
-				comicStyle,
-				pages: plan.pages,
-				characterProfiles: plan.characterProfiles,
-				imageModel,
-				characterImages,
-				maxParallel: imageModel === "dall-e-2" ? 6 : 4,
-				retryCount: 2,
-				checkpointKey: project.id,
-				onPageDone: async (done, total) => {
-					const progress = 35 + Math.floor((done / total) * 50);
-					const delta = Math.max(0, done - lastDoneCount);
-					lastDoneCount = done;
-					if (delta > 0) {
-						runningCostUsd +=
-							delta * IMAGE_PRICING_PER_IMAGE_USD[imageModel];
-					}
-					await prisma.project.update({
-						where: { id: project.id },
-						data: {
-							generationStage: `IMAGING:${done}:${total}`,
-							generationProgress: progress,
-							generationCostUsd: runningCostUsd,
-						} as any,
-					});
+			const comicStyle = toComicStyle(project.comicStyle);
+			let runningCostUsd = 0;
+			const plan = await generateBookPlan(
+				{
+					title: project.title,
+					characters: project.storyCharacters || "주인공",
+					genre: project.genre || "일반",
+					description: project.synopsis || "",
+					pageCount,
+					bookKind: normalizedType,
+					comicStyle,
 				},
-			});
-			// 표지 이미지 비용도 누적 (+1)
-			runningCostUsd += IMAGE_PRICING_PER_IMAGE_USD[imageModel];
-			coverImageUrl = generatedImages.coverImageUrl;
-			pageImageUrls = generatedImages.pageImageUrls;
-		} else {
-			const generatedCoverImageUrl = await generateStoryCoverImage({
-				title: project.title,
-				synopsis: plan.synopsis,
-				genre: project.genre || undefined,
-				imageModel,
-			});
-			coverImageUrl = generatedCoverImageUrl;
-		}
-
-		await prisma.project.update({
-			where: { id: project.id },
-			data: {
-				synopsis: plan.synopsis,
-				coverCaption: plan.tagline,
-				coverImageUrl,
-				comicStyle: normalizedType === "COMIC" ? comicStyle : null,
-				pages: {
-					deleteMany: {},
-					create: plan.pages.map((page, index) => ({
-						pageOrder: page.pageOrder,
-						caption: page.caption,
-						imageUrl:
-							normalizedType === "NOVEL"
-								? ""
-								: pageImageUrls[index] ||
-									`https://picsum.photos/seed/${encodeURIComponent(project.title)}-${page.pageOrder}/900/700`,
-					})),
+				{
+					storyModel,
+					onNovelPageDone: async (done, total, usage) => {
+						if (normalizedType !== "NOVEL") {
+							return;
+						}
+						const safeTotal = Math.max(1, total);
+						const safeDone = Math.max(0, Math.min(done, safeTotal));
+						const progress =
+							12 + Math.floor((safeDone / safeTotal) * 76);
+						runningCostUsd = calcStoryActualCostUsd(
+							usage,
+							storyModel,
+						);
+						await prisma.project.update({
+							where: { id: project.id },
+							data: {
+								generationStage: `WRITING:${safeDone}:${safeTotal}`,
+								generationProgress: progress,
+								generationCostUsd: runningCostUsd,
+							} as any,
+						});
+					},
 				},
-				generationStage: "SAVING",
-				generationProgress: 92,
-			} as any,
-		});
-
-		await prisma.project.update({
-			where: { id: project.id },
-			data: {
-				generationStage: "PUBLISHING",
-				generationProgress: 96,
-			} as any,
-		});
-
-		const publishRes = await fetch(
-			`${req.nextUrl.origin}/api/projects/${project.id}/publish`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					cookie: req.headers.get("cookie") || "",
-				},
-				body: JSON.stringify({}),
-			},
-		);
-		const publishJson = (await publishRes.json().catch(() => ({}))) as {
-			success?: boolean;
-			error?: string;
-			bookUid?: string;
-		};
-		if (!publishRes.ok || !publishJson.success) {
-			throw new Error(
-				publishJson.error ||
-					"출판 단계에서 실패했습니다. 잠시 후 다시 시도해 주세요.",
 			);
-		}
-		if (isSweetbookConfigured() && !publishJson.bookUid) {
-			throw new Error(
-				"출판은 성공했지만 bookUid를 받지 못했습니다. 템플릿/API 설정을 확인해 주세요.",
+
+			// 실제 스토리 생성 비용 계산 후 저장
+			runningCostUsd = calcStoryActualCostUsd(
+				plan.actualUsage,
+				storyModel,
 			);
+			await prisma.project.update({
+				where: { id: project.id },
+				data: { generationCostUsd: runningCostUsd } as any,
+			});
+
+			let coverImageUrl = `https://picsum.photos/seed/${encodeURIComponent(project.title)}-cover/900/700`;
+			let pageImageUrls: string[] = [];
+
+			if (normalizedType === "COMIC") {
+				pageImageUrls = plan.pages.map(
+					(page) =>
+						`https://picsum.photos/seed/${encodeURIComponent(project.title)}-${page.pageOrder}/900/700`,
+				);
+				const totalPages = plan.pages.length;
+				await prisma.project.update({
+					where: { id: project.id },
+					data: {
+						generationStage: `IMAGING:0:${totalPages}`,
+						generationProgress: 35,
+					} as any,
+				});
+				let lastDoneCount = 0;
+
+				const generatedImages = await generateComicImages({
+					title: project.title,
+					synopsis: plan.synopsis,
+					comicStyle,
+					pages: plan.pages,
+					characterProfiles: plan.characterProfiles,
+					imageModel,
+					characterImages,
+					maxParallel: imageModel === "dall-e-2" ? 6 : 4,
+					retryCount: 2,
+					checkpointKey: project.id,
+					onPageDone: async (done, total) => {
+						const progress = 35 + Math.floor((done / total) * 50);
+						const delta = Math.max(0, done - lastDoneCount);
+						lastDoneCount = done;
+						if (delta > 0) {
+							runningCostUsd +=
+								delta * IMAGE_PRICING_PER_IMAGE_USD[imageModel];
+						}
+						await prisma.project.update({
+							where: { id: project.id },
+							data: {
+								generationStage: `IMAGING:${done}:${total}`,
+								generationProgress: progress,
+								generationCostUsd: runningCostUsd,
+							} as any,
+						});
+					},
+				});
+				// 표지 이미지 비용도 누적 (+1)
+				runningCostUsd += IMAGE_PRICING_PER_IMAGE_USD[imageModel];
+				coverImageUrl = generatedImages.coverImageUrl;
+				pageImageUrls = generatedImages.pageImageUrls;
+			} else {
+				const generatedCoverImageUrl = await generateStoryCoverImage({
+					title: project.title,
+					synopsis: plan.synopsis,
+					genre: project.genre || undefined,
+					imageModel,
+				});
+				coverImageUrl = generatedCoverImageUrl;
+			}
+
+			await prisma.project.update({
+				where: { id: project.id },
+				data: {
+					synopsis: plan.synopsis,
+					coverCaption: plan.tagline,
+					coverImageUrl,
+					comicStyle: normalizedType === "COMIC" ? comicStyle : null,
+					pages: {
+						deleteMany: {},
+						create: plan.pages.map((page, index) => ({
+							pageOrder: page.pageOrder,
+							caption: page.caption,
+							imageUrl:
+								normalizedType === "NOVEL"
+									? ""
+									: pageImageUrls[index] ||
+										`https://picsum.photos/seed/${encodeURIComponent(project.title)}-${page.pageOrder}/900/700`,
+						})),
+					},
+					generationStage: "SAVING",
+					generationProgress: 92,
+				} as any,
+			});
+
+			await prisma.project.update({
+				where: { id: project.id },
+				data: {
+					generationStage: "PUBLISHING",
+					generationProgress: 96,
+				} as any,
+			});
+
+			const publishRes = await fetch(
+				`${req.nextUrl.origin}/api/projects/${project.id}/publish`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						cookie: req.headers.get("cookie") || "",
+					},
+					body: JSON.stringify({}),
+				},
+			);
+			const publishJson = (await publishRes.json().catch(() => ({}))) as {
+				success?: boolean;
+				error?: string;
+				bookUid?: string;
+			};
+			if (!publishRes.ok || !publishJson.success) {
+				throw new Error(
+					publishJson.error ||
+						"출판 단계에서 실패했습니다. 잠시 후 다시 시도해 주세요.",
+				);
+			}
+			if (isSweetbookConfigured() && !publishJson.bookUid) {
+				throw new Error(
+					"출판은 성공했지만 bookUid를 받지 못했습니다. 템플릿/API 설정을 확인해 주세요.",
+				);
+			}
+
+			await prisma.project.update({
+				where: { id: project.id },
+				data: {
+					generationStage: "COMPLETED",
+					generationProgress: 100,
+					generationError: null,
+				} as any,
+			});
+
+			const updated = await prisma.project.findUnique({
+				where: { id: project.id },
+				include: { pages: { orderBy: { pageOrder: "asc" } } },
+			});
+
+			creditDeducted = false; // 성공 — 환불 불필요
+			return NextResponse.json({ success: true, data: updated });
+		} catch (innerErr) {
+			// 생성 실패 시 차감 크레딧 환불
+			if (creditDeducted) {
+				await (prisma as any)
+					.$transaction([
+						(prisma.user as any).update({
+							where: { id: user.id },
+							data: { credits: { increment: requiredCredits } },
+						}),
+						(prisma as any).creditTransaction.create({
+							data: {
+								userId: user.id,
+								amount: requiredCredits,
+								reason: "REFUND",
+								projectId: project.id,
+							},
+						}),
+					])
+					.catch(() => {});
+			}
+			throw innerErr;
 		}
-
-		await prisma.project.update({
-			where: { id: project.id },
-			data: {
-				generationStage: "COMPLETED",
-				generationProgress: 100,
-				generationError: null,
-			} as any,
-		});
-
-		const updated = await prisma.project.findUnique({
-			where: { id: project.id },
-			include: { pages: { orderBy: { pageOrder: "asc" } } },
-		});
-
-		return NextResponse.json({ success: true, data: updated });
 	} catch (err) {
 		if (err instanceof MissingOpenAIKeyError) {
 			return NextResponse.json(

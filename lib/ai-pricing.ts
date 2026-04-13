@@ -11,6 +11,20 @@ export const DEFAULT_STORY_MODEL: StoryModel = "gpt-4o-mini";
 export const DEFAULT_IMAGE_MODEL: ImageModel = "gpt-image-1";
 export const DEFAULT_USD_TO_KRW = 1350;
 
+/** 1 크레딧 = 1 KRW 기준 */
+export const CREDIT_MARKUP = 1.3;
+
+/**
+ * USD 비용을 크레딧으로 변환 (API 비용 × 1.3배)
+ * 크레딧 단위는 KRW 기반: 1 credit = 1 KRW
+ */
+export function usdToCredits(
+	usd: number,
+	exchangeRate: number = DEFAULT_USD_TO_KRW,
+): number {
+	return Math.ceil(usd * exchangeRate * CREDIT_MARKUP);
+}
+
 export const STORY_MODEL_OPTIONS: Array<{
 	value: StoryModel;
 	label: string;

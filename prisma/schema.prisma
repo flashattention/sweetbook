@@ -66,15 +66,30 @@ model User {
   name         String?
   avatarUrl    String?
   emailVerified Boolean  @default(false)
+  credits      Int       @default(0)
 
   projects     Project[]
   posts        Post[]
   postLikes    PostLike[]
   comments     Comment[]
   commentLikes CommentLike[]
+  creditTxns   CreditTransaction[]
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+/// 크레딧 거래 내역 (충전 / 차감)
+model CreditTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int      // 양수=충전, 음수=차감
+  reason    String   // "CHARGE" | "GENERATE_AI" | "GENERATE_PHOTOBOOK" | "REFUND"
+  projectId String?  // 차감 시 연결된 프로젝트
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Post {

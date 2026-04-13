@@ -13,12 +13,42 @@ type Profile = {
 	createdAt: string;
 };
 
+type CreditTxn = {
+	id: string;
+	amount: number;
+	reason: string;
+	createdAt: string;
+};
+
+const CREDIT_PACKAGES = [
+	{ id: "pack_100", credits: 100, priceKrw: 1000, label: "100 크레딧" },
+	{ id: "pack_500", credits: 500, priceKrw: 4500, label: "500 크레딧" },
+	{ id: "pack_1000", credits: 1000, priceKrw: 8000, label: "1,000 크레딧" },
+	{ id: "pack_3000", credits: 3000, priceKrw: 21000, label: "3,000 크레딧" },
+] as const;
+
+const REASON_LABEL: Record<string, string> = {
+	CHARGE: "충전",
+	GENERATE_AI: "AI 생성",
+	GENERATE_PHOTOBOOK: "포토북 생성",
+	REFUND: "환불",
+};
+
 export default function ProfileClient() {
 	const router = useRouter();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const [profile, setProfile] = useState<Profile | null>(null);
 	const [loading, setLoading] = useState(true);
+
+	// 크레딧
+	const [credits, setCredits] = useState<number>(0);
+	const [creditTxns, setCreditTxns] = useState<CreditTxn[]>([]);
+	const [chargingPkg, setChargingPkg] = useState<string | null>(null);
+	const [chargeMsg, setChargeMsg] = useState<{
+		type: "ok" | "err";
+		text: string;
+	} | null>(null);
 
 	// 프로필 편집
 	const [name, setName] = useState("");
@@ -46,19 +76,63 @@ export default function ProfileClient() {
 	} | null>(null);
 
 	useEffect(() => {
-		fetch("/api/auth/profile")
-			.then((r) => r.json())
-			.then((d) => {
+		Promise.all([
+			fetch("/api/auth/profile").then((r) => r.json()),
+			fetch("/api/credits").then((r) => r.json()),
+		])
+			.then(([d, c]) => {
 				if (d.success && d.data) {
 					setProfile(d.data);
 					setName(d.data.name || "");
 				} else {
 					router.push("/login?next=/profile");
+					return;
+				}
+				if (c.success && c.data) {
+					setCredits(c.data.credits);
+					setCreditTxns(c.data.transactions);
 				}
 			})
 			.catch(() => router.push("/login?next=/profile"))
 			.finally(() => setLoading(false));
 	}, [router]);
+
+	async function handleCharge(pkgId: string) {
+		setChargingPkg(pkgId);
+		setChargeMsg(null);
+		try {
+			const res = await fetch("/api/credits", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ packageId: pkgId }),
+			});
+			const json = await res.json();
+			if (!res.ok || !json.success)
+				throw new Error(json.error || "충전 실패");
+			setCredits(json.data.credits);
+			const charged = json.data.charged;
+			setCreditTxns((prev) => [
+				{
+					id: Date.now().toString(),
+					amount: charged,
+					reason: "CHARGE",
+					createdAt: new Date().toISOString(),
+				},
+				...prev,
+			]);
+			setChargeMsg({
+				type: "ok",
+				text: `${charged.toLocaleString()} 크레딧이 충전됐습니다!`,
+			});
+		} catch (err) {
+			setChargeMsg({
+				type: "err",
+				text: err instanceof Error ? err.message : "충전 실패",
+			});
+		} finally {
+			setChargingPkg(null);
+		}
+	}
 
 	async function handleSaveProfile(e: React.FormEvent) {
 		e.preventDefault();
@@ -347,6 +421,100 @@ export default function ProfileClient() {
 					가입일:{" "}
 					{new Date(profile.createdAt).toLocaleDateString("ko-KR")}
 				</p>
+
+				{/* ── 크레딧 ── */}
+				<section className="bg-zinc-900 rounded-2xl border border-white/[0.08] p-6">
+					<div className="flex items-center justify-between mb-5">
+						<h2 className="text-base font-bold text-white">
+							크레딧
+						</h2>
+						<div className="flex items-center gap-2 bg-violet-900/30 border border-violet-500/30 rounded-xl px-4 py-2">
+							<span className="text-violet-300 text-sm">
+								잔액
+							</span>
+							<span className="text-white font-bold text-lg">
+								{credits.toLocaleString()}
+							</span>
+							<span className="text-violet-400 text-sm">C</span>
+						</div>
+					</div>
+
+					<div className="grid grid-cols-2 gap-3 mb-5">
+						{CREDIT_PACKAGES.map((pkg) => (
+							<button
+								key={pkg.id}
+								onClick={() => handleCharge(pkg.id)}
+								disabled={chargingPkg !== null}
+								className="flex flex-col items-center gap-1 bg-zinc-800 hover:bg-zinc-700 border border-white/[0.08] hover:border-violet-500/40 rounded-xl px-4 py-3 transition-all disabled:opacity-50"
+							>
+								<span className="text-white font-bold text-base">
+									{chargingPkg === pkg.id
+										? "처리 중..."
+										: pkg.label}
+								</span>
+								<span className="text-zinc-400 text-xs">
+									{pkg.priceKrw.toLocaleString()}원
+								</span>
+							</button>
+						))}
+					</div>
+
+					{chargeMsg && (
+						<p
+							className={`mb-4 text-sm px-3 py-2 rounded-lg ${
+								chargeMsg.type === "ok"
+									? "text-green-300 bg-green-900/20 border border-green-800/30"
+									: "text-red-400 bg-red-900/20 border border-red-800/30"
+							}`}
+						>
+							{chargeMsg.text}
+						</p>
+					)}
+
+					{creditTxns.length > 0 && (
+						<div>
+							<p className="text-xs font-medium text-zinc-500 mb-2">
+								최근 내역
+							</p>
+							<div className="space-y-1.5 max-h-52 overflow-y-auto">
+								{creditTxns.map((txn) => (
+									<div
+										key={txn.id}
+										className="flex items-center justify-between text-sm py-1.5 border-b border-white/[0.05] last:border-0"
+									>
+										<div className="flex items-center gap-2">
+											<span
+												className={`text-xs px-2 py-0.5 rounded-full ${
+													txn.amount > 0
+														? "bg-green-900/40 text-green-400"
+														: "bg-zinc-800 text-zinc-400"
+												}`}
+											>
+												{REASON_LABEL[txn.reason] ??
+													txn.reason}
+											</span>
+											<span className="text-zinc-500 text-xs">
+												{new Date(
+													txn.createdAt,
+												).toLocaleDateString("ko-KR")}
+											</span>
+										</div>
+										<span
+											className={`font-semibold ${
+												txn.amount > 0
+													? "text-green-400"
+													: "text-zinc-300"
+											}`}
+										>
+											{txn.amount > 0 ? "+" : ""}
+											{txn.amount.toLocaleString()} C
+										</span>
+									</div>
+								))}
+							</div>
+						</div>
+					)}
+				</section>
 			</main>
 		</div>
 	);
