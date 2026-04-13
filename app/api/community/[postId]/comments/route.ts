@@ -112,8 +112,12 @@ export async function POST(
 			createdAt: true,
 			parentId: true,
 			user: { select: { id: true, name: true } },
+			_count: { select: { likes: true } },
 		},
 	});
 
-	return NextResponse.json({ success: true, data: comment }, { status: 201 });
+	return NextResponse.json(
+		{ success: true, data: { ...comment, likedByMe: false, replies: [] } },
+		{ status: 201 },
+	);
 }
