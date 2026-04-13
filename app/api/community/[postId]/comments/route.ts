@@ -47,6 +47,7 @@ export async function GET(
 				...r,
 				likedByMe: r.likes ? r.likes.length > 0 : false,
 				likes: undefined,
+				replies: [],
 			})),
 		})),
 	});

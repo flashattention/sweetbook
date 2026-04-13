@@ -163,7 +163,7 @@ function CommentItem({
 			</div>
 
 			{/* 대댓글 */}
-			{comment.replies.map((reply) => (
+		{(comment.replies ?? []).map((reply) => (
 				<CommentItem
 					key={reply.id}
 					comment={reply}
