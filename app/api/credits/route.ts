@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromRequest } from "@/lib/auth";
-
-// 크레딧 패키지 정의 (KRW 기준)
-export const CREDIT_PACKAGES = [
-	{ id: "pack_100", credits: 100, priceKrw: 1000, label: "100 크레딧" },
-	{ id: "pack_500", credits: 500, priceKrw: 4500, label: "500 크레딧" },
-	{ id: "pack_1000", credits: 1000, priceKrw: 8000, label: "1,000 크레딧" },
-	{ id: "pack_3000", credits: 3000, priceKrw: 21000, label: "3,000 크레딧" },
-] as const;
-
-export type CreditPackageId = (typeof CREDIT_PACKAGES)[number]["id"];
+import { CREDIT_PACKAGES } from "@/lib/credits";
 
 // GET /api/credits — 잔액 + 최근 내역 20건
 export async function GET(req: NextRequest) {
