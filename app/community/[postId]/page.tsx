@@ -84,7 +84,7 @@ function CommentItem({
 
 	return (
 		<div
-			className={`${depth > 0 ? "ml-8 border-l-2 border-white/[0.07] pl-4" : ""}`}
+			className={`${depth > 0 ? `ml-${Math.min(depth, 5) * 4} border-l-2 border-white/[0.07] pl-4` : ""}`}
 		>
 			<div className="py-3">
 				<div className="flex items-start justify-between gap-2">
@@ -125,8 +125,8 @@ function CommentItem({
 					{comment.content}
 				</p>
 
-				{/* 답글 버튼 (2단계만 허용) */}
-				{depth === 0 && currentUserId && (
+				{/* 답글 버튼 (무한 깊이 허용) */}
+				{currentUserId && (
 					<button
 						onClick={() => setShowReplyForm((v) => !v)}
 						className="ml-9 mt-1 text-xs text-white/30 hover:text-violet-400 transition-colors"
@@ -163,7 +163,7 @@ function CommentItem({
 			</div>
 
 			{/* 대댓글 */}
-		{(comment.replies ?? []).map((reply) => (
+			{(comment.replies ?? []).map((reply) => (
 				<CommentItem
 					key={reply.id}
 					comment={reply}
@@ -290,19 +290,20 @@ export default function PostDetailPage() {
 		});
 		const data = await res.json();
 		if (!data.success) return;
-		setComments((prev) =>
-			prev.map((c) =>
-				c.id === parentId
-					? {
-							...c,
-							replies: [
-								...c.replies,
-								{ ...data.data, replies: [] },
-							],
-						}
-					: c,
-			),
-		);
+
+		function insertReply(comments: CommentData[]): CommentData[] {
+			return comments.map((c) => {
+				if (c.id === parentId) {
+					return {
+						...c,
+						replies: [...c.replies, { ...data.data, replies: [] }],
+					};
+				}
+				const updated = insertReply(c.replies);
+				return updated === c.replies ? c : { ...c, replies: updated };
+			});
+		}
+		setComments((prev) => insertReply(prev));
 		setPost((p) =>
 			p
 				? {
@@ -323,14 +324,13 @@ export default function PostDetailPage() {
 			{ method: "DELETE" },
 		);
 		if (!res.ok) return;
-		// 최상위 댓글 또는 대댓글 찾아서 제거
-		setComments((prev) => {
-			const filtered = prev.filter((c) => c.id !== commentId);
-			return filtered.map((c) => ({
-				...c,
-				replies: c.replies.filter((r) => r.id !== commentId),
-			}));
-		});
+
+		function deleteFromTree(comments: CommentData[]): CommentData[] {
+			return comments
+				.filter((c) => c.id !== commentId)
+				.map((c) => ({ ...c, replies: deleteFromTree(c.replies) }));
+		}
+		setComments((prev) => deleteFromTree(prev));
 		setPost((p) =>
 			p
 				? {

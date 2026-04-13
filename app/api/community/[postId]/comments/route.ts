@@ -9,48 +9,40 @@ export async function GET(
 ) {
 	const user = await getAuthUserFromRequest(req).catch(() => null);
 
-	// 최상위 댓글만 가져오고 replies는 중첩으로
-	const replyLikesSelect = user
-		? { likes: { where: { userId: user.id }, select: { id: true } } }
-		: {};
-	const comments = await prisma.comment.findMany({
-		where: { postId: params.postId, parentId: null },
+	// 전체 댓글을 평면으로 가져온 뒤 트리로 조립 (무한 깊이 지원)
+	const allComments = await prisma.comment.findMany({
+		where: { postId: params.postId },
 		orderBy: { createdAt: "asc" },
 		select: {
 			id: true,
 			content: true,
 			createdAt: true,
+			parentId: true,
 			user: { select: { id: true, name: true } },
 			_count: { select: { likes: true } },
-			...replyLikesSelect,
-			replies: {
-				orderBy: { createdAt: "asc" },
-				select: {
-					id: true,
-					content: true,
-					createdAt: true,
-					user: { select: { id: true, name: true } },
-					_count: { select: { likes: true } },
-					...replyLikesSelect,
-				},
-			},
+			...(user
+				? {
+						likes: {
+							where: { userId: user.id },
+							select: { id: true },
+						},
+					}
+				: {}),
 		},
 	});
 
-	return NextResponse.json({
-		success: true,
-		data: comments.map((c: any) => ({
-			...c,
-			likedByMe: c.likes ? c.likes.length > 0 : false,
-			likes: undefined,
-			replies: c.replies.map((r: any) => ({
-				...r,
-				likedByMe: r.likes ? r.likes.length > 0 : false,
+	function buildTree(parentId: string | null): any[] {
+		return allComments
+			.filter((c: any) => c.parentId === parentId)
+			.map((c: any) => ({
+				...c,
+				likedByMe: c.likes ? c.likes.length > 0 : false,
 				likes: undefined,
-				replies: [],
-			})),
-		})),
-	});
+				replies: buildTree(c.id),
+			}));
+	}
+
+	return NextResponse.json({ success: true, data: buildTree(null) });
 }
 
 // POST /api/community/[postId]/comments
@@ -91,13 +83,9 @@ export async function POST(
 	if (parentId) {
 		const parent = await prisma.comment.findUnique({
 			where: { id: parentId },
-			select: { postId: true, parentId: true },
+			select: { postId: true },
 		});
-		if (
-			!parent ||
-			parent.postId !== params.postId ||
-			parent.parentId !== null
-		) {
+		if (!parent || parent.postId !== params.postId) {
 			return NextResponse.json(
 				{ success: false, error: "잘못된 대댓글 요청입니다." },
 				{ status: 400 },

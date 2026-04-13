@@ -289,7 +289,7 @@ export default async function HomePage() {
 						상상했던 만화나 소설을 AI로 만들고,
 						<br />
 						<span className="text-violet-400">
-							커뮤니티에서 공유하세요
+							커뮤니티에서 공유하세요.
 						</span>
 					</h1>
 					<p className="text-white/50 text-base md:text-lg mb-10 max-w-xl mx-auto leading-relaxed">
