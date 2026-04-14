@@ -16,7 +16,7 @@ type PostItem = {
 		coverImageUrl: string | null;
 		genre: string | null;
 		_count: { pages: number };
-	};
+	} | null;
 	_count: { likes: number; comments: number };
 	likedByMe: boolean;
 };
@@ -52,10 +52,10 @@ function PostCard({
 		>
 			{/* 커버 이미지 */}
 			<div className="relative w-full aspect-[3/4] bg-gradient-to-br from-zinc-800 to-zinc-900 overflow-hidden">
-				{post.project.coverImageUrl ? (
+				{post.project?.coverImageUrl ? (
 					<Image
 						src={post.project.coverImageUrl}
-						alt={post.project.title}
+						alt={post.project.title ?? ""}
 						fill
 						className="object-cover group-hover:scale-105 transition-transform duration-300"
 						sizes="(max-width: 768px) 50vw, 33vw"
@@ -77,7 +77,7 @@ function PostCard({
 			{/* 정보 */}
 			<div className="p-4 flex flex-col gap-2 flex-1">
 				<h3 className="font-bold text-white line-clamp-1 group-hover:text-violet-300 transition-colors">
-					{post.project.title}
+					{post.project?.title ?? "(작품 삭제됨)"}
 				</h3>
 				{post.description && (
 					<p className="text-zinc-400 text-sm line-clamp-2">
@@ -245,7 +245,7 @@ export default function CommunityPage() {
 		const sharedProjectIds = new Set<string>(
 			(communityData.data ?? [])
 				.filter((p: PostItem) => p.user.id === currentUser?.id)
-				.map((p: PostItem) => p.project.title), // title이 아니라 projectId를 써야함
+				.map((p: PostItem) => p.project?.title), // title이 아니라 projectId를 써야함
 		);
 
 		// 공유 가능한 프로젝트: 로그인 유저 소유, PUBLISHED, COMIC/NOVEL

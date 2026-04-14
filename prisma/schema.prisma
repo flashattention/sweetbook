@@ -96,8 +96,8 @@ model Post {
   id            String   @id @default(cuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId     String   @unique
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId     String?  @unique
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   description   String?
   projectType   String   // COMIC | NOVEL
 

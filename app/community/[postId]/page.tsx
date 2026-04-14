@@ -34,7 +34,7 @@ type PostDetail = {
 		synopsis: string | null;
 		comicStyle: string | null;
 		pages: Page[];
-	};
+	} | null;
 	_count: { likes: number; comments: number };
 	likedByMe: boolean;
 };
@@ -390,7 +390,7 @@ export default function PostDetailPage() {
 		label: post.projectType,
 		color: "bg-gray-100 text-gray-700",
 	};
-	const pages = post.project.pages;
+	const pages = post.project?.pages ?? [];
 
 	return (
 		<div className="min-h-screen bg-zinc-950 text-white">
@@ -428,7 +428,7 @@ export default function PostDetailPage() {
 						>
 							{type.label}
 						</span>
-						{post.project.genre && (
+						{post.project?.genre && (
 							<span className="text-xs px-3 py-1 rounded-full bg-white/[0.07] text-white/50">
 								{post.project.genre}
 							</span>
@@ -436,7 +436,7 @@ export default function PostDetailPage() {
 					</div>
 
 					<h1 className="text-2xl font-bold text-white mb-3">
-						{post.project.title}
+						{post.project?.title ?? "(작품 삭제됨)"}
 					</h1>
 
 					<div className="flex items-center gap-2 mb-5 text-sm text-white/40">
@@ -462,7 +462,7 @@ export default function PostDetailPage() {
 						</div>
 					)}
 
-					{post.project.synopsis && (
+					{post.project?.synopsis && (
 						<div className="mb-5">
 							<p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-2">
 								줄거리
