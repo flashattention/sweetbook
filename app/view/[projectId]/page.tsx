@@ -23,7 +23,7 @@ function parseTemplateOverrides(value: string | null) {
 
 async function getProject(id: string, userId: string): Promise<Project | null> {
 	const p = await prisma.project.findFirst({
-		where: { id, OR: [{ userId }, { isDefault: true }] },
+		where: { id, userId },
 		include: { pages: { orderBy: { pageOrder: "asc" } } },
 	});
 	if (!p) return null;

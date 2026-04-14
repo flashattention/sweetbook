@@ -1,5 +1,5 @@
 /**
- * Prisma Seed — 기본 샘플 프로젝트
+ * Prisma Seed — 커뮤니티 샘플 포스트
  *
  * 실행: node prisma/seed.js  또는  npx prisma db seed
  */
@@ -22,214 +22,31 @@ async function hashPassword(password) {
 
 async function main() {
 	// 기존 데이터 초기화
+	await prisma.commentLike.deleteMany();
+	await prisma.comment.deleteMany();
+	await prisma.postLike.deleteMany();
+	await prisma.post.deleteMany();
 	await prisma.page.deleteMany();
 	await prisma.project.deleteMany();
 
 	const passwordHash = await hashPassword(DEFAULT_TEST_USER_PASSWORD);
-	await prisma.user.upsert({
+	const testUser = await prisma.user.upsert({
 		where: { email: DEFAULT_TEST_USER_EMAIL },
 		update: { name: DEFAULT_TEST_USER_NAME, passwordHash },
-		create: { email: DEFAULT_TEST_USER_EMAIL, name: DEFAULT_TEST_USER_NAME, passwordHash },
-	});
-
-	// ─────────────────────────────────────────────────────────
-	// 기본 샘플 프로젝트 1: 포토북
-	// ─────────────────────────────────────────────────────────
-	await prisma.project.create({
-		data: {
-			userId: null,
-			isDefault: true,
-			title: "우리의 첫 번째 이야기",
-			projectType: "PHOTOBOOK",
-			status: "PUBLISHED",
-			bookSpecUid: "SQUAREBOOK_HC",
-			coverTemplateUid: "1Es0DP4oARn8",
-			bookUid: "bk_XdrVXgfT9WCx",
-			coverImageUrl: "https://picsum.photos/seed/5gdz6v7n5sf/1200/900",
-			coverCaption: "",
-			coverTemplateOverrides: "{\"parameters\":{\"subtitle\":\"오늘도 즐거운 하루\",\"dateRange\":\"2026년 6월 - 2026년 7월\",\"__sbTemplateFingerprint\":\"squarebook_hc::cover::표지::구글포토북a::coverphoto|daterange|subtitle\"},\"fileUrls\":{}}",
-			pages: {
-				create: [
-					{
-						pageOrder: 1,
-						imageUrl: "https://picsum.photos/seed/26ak5b3r7skh/800/600",
-						caption: "",
-						contentTemplateUid: "2mi1ao0Z4Vxl",
-						contentTemplateOverrides: "{\"parameters\":{\"__sbTemplateFingerprint\":\"squarebook_hc::content::빈내지::공용::\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 2,
-						imageUrl: "https://picsum.photos/seed/fai7fqor1cj/800/600",
-						caption: "",
-						contentTemplateUid: "5B4ds6i0Rywx",
-						contentTemplateOverrides: "{\"parameters\":{\"diaryText\":\"행복한 추억\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지b::일기장a::daynum|diarytext|monthnum\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 3,
-						imageUrl: "https://picsum.photos/seed/bk6kxopvs0p/800/600",
-						caption: "",
-						contentTemplateUid: "3FhSEhJ94c0T",
-						contentTemplateOverrides: "{\"parameters\":{\"date\":\"17\",\"title\":\"특별한 하루\",\"diaryText\":\"특별한 하루\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지a_contain::일기장b::date|diarytext|photo1|title\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 4,
-						imageUrl: "https://picsum.photos/seed/8brzng3553/800/600",
-						caption: "",
-						contentTemplateUid: "4B0Nc4myZ17u",
-						contentTemplateOverrides: "{\"parameters\":{\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지_monthheader::구글포토북c::monthyearlabel\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 5,
-						imageUrl: "https://picsum.photos/seed/cmj3vy68aqg/800/600",
-						caption: "",
-						contentTemplateUid: "5B4ds6i0Rywx",
-						contentTemplateOverrides: "{\"parameters\":{\"diaryText\":\"따뜻한 기억\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지b::일기장a::daynum|diarytext|monthnum\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 6,
-						imageUrl: "https://picsum.photos/seed/oyv2lsp9hb/800/600",
-						caption: "",
-						contentTemplateUid: "2mi1ao0Z4Vxl",
-						contentTemplateOverrides: "{\"parameters\":{\"__sbTemplateFingerprint\":\"squarebook_hc::content::빈내지::공용::\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 7,
-						imageUrl: "https://picsum.photos/seed/6dkakj8pwit/800/600",
-						caption: "",
-						contentTemplateUid: "3FhSEhJ94c0T",
-						contentTemplateOverrides: "{\"parameters\":{\"date\":\"5\",\"title\":\"우리의 이야기\",\"diaryText\":\"기억에 남는 날\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지a_contain::일기장b::date|diarytext|photo1|title\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 8,
-						imageUrl: "https://picsum.photos/seed/xik95qmzcc/800/600",
-						caption: "",
-						contentTemplateUid: "1aHHt1g7uHjw",
-						contentTemplateOverrides: "{\"parameters\":{\"year\":\"2026\",\"month\":\"2\",\"monthColor\":\"#FFEC4899\",\"date\":\"3\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지_월시작::알림장a::booktitle|date|dayofweek|dayofweekx|linevertical|month|monthcolor|monthnamecapitalized|monthnum|year\"},\"fileUrls\":{\"lineVertical\":\"https://picsum.photos/seed/xik95qmzcc/800/600\"}}",
-					},
-					{
-						pageOrder: 9,
-						imageUrl: "https://picsum.photos/seed/1el79jrmzl/800/600",
-						caption: "",
-						contentTemplateUid: "2R8uMwVgTrpc",
-						contentTemplateOverrides: "{\"parameters\":{\"date\":\"23\",\"title\":\"기억에 남는 날\",\"diaryText\":\"행복한 추억\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지a_cover::일기장b::date|diarytext|photo1|title\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 10,
-						imageUrl: "https://picsum.photos/seed/lhqupps66n/800/600",
-						caption: "",
-						contentTemplateUid: "1zWsJbGghVO4",
-						contentTemplateOverrides: "{\"parameters\":{\"__sbTemplateFingerprint\":\"squarebook_hc::content::빈내지::구글포토북a::\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 11,
-						imageUrl: "https://picsum.photos/seed/9kofancyzp4/800/600",
-						caption: "",
-						contentTemplateUid: "1Tjgb7UpvetN",
-						contentTemplateOverrides: "{\"parameters\":{\"year\":\"2026\",\"month\":\"9\",\"date\":\"20\",\"pointColor\":\"#FFF59E0B\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지_월시작::알림장b::booktitle|date|meallabelx|mealvaluex|month|monthnamecapitalized|naplabelx|napvaluex|pointcolor|weatherlabelx|weathervaluex|year\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 12,
-						imageUrl: "https://picsum.photos/seed/ewbhaxlkn0j/800/600",
-						caption: "",
-						contentTemplateUid: "1vuzMfUnCkXS",
-						contentTemplateOverrides: "{\"parameters\":{\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지_datea::구글포토북a::monthyearlabel|photos\"},\"fileUrls\":{\"photos\":\"https://picsum.photos/seed/ewbhaxlkn0j/800/600\"}}",
-					},
-					{
-						pageOrder: 13,
-						imageUrl: "https://picsum.photos/seed/iy5uidca2z/800/600",
-						caption: "",
-						contentTemplateUid: "1zWsJbGghVO4",
-						contentTemplateOverrides: "{\"parameters\":{\"__sbTemplateFingerprint\":\"squarebook_hc::content::빈내지::구글포토북a::\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 14,
-						imageUrl: "https://picsum.photos/seed/3ywl35sv2ee/800/600",
-						caption: "",
-						contentTemplateUid: "2rSDdrabgqlr",
-						contentTemplateOverrides: "{\"parameters\":{\"year\":\"2026\",\"month\":\"2\",\"date\":\"27\",\"pointColor\":\"#FFEC4899\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지::알림장b::booktitle|date|meallabelx|mealvaluex|month|naplabelx|napvaluex|pointcolor|weatherlabelx|weathervaluex|year\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 15,
-						imageUrl: "https://picsum.photos/seed/lwiylv6d3/800/600",
-						caption: "",
-						contentTemplateUid: "1GtF7gRSeKAX",
-						contentTemplateOverrides: "{\"parameters\":{\"year\":\"2025\",\"month\":\"12\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::빈내지::알림장b::booktitle|month|year\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 16,
-						imageUrl: "https://picsum.photos/seed/1itxhdm64zq/800/600",
-						caption: "",
-						contentTemplateUid: "46VqZhVNOfAp",
-						contentTemplateOverrides: "{\"parameters\":{\"diaryText\":\"소중한 순간\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지a::일기장a::daynum|diarytext|monthnum|photo\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 17,
-						imageUrl: "https://picsum.photos/seed/eeyzln19v2k/800/600",
-						caption: "",
-						contentTemplateUid: "6qlvRxFJRX5q",
-						contentTemplateOverrides: "{\"parameters\":{\"__sbTemplateFingerprint\":\"squarebook_hc::content::빈내지::구글포토북b::\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 18,
-						imageUrl: "https://picsum.photos/seed/00o8guhjcxgu/800/600",
-						caption: "",
-						contentTemplateUid: "5B4ds6i0Rywx",
-						contentTemplateOverrides: "{\"parameters\":{\"diaryText\":\"오늘도 즐거운 하루\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지b::일기장a::daynum|diarytext|monthnum\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 19,
-						imageUrl: "https://picsum.photos/seed/r8g445nd1i9/800/600",
-						caption: "",
-						contentTemplateUid: "22cuXuCxZiD0",
-						contentTemplateOverrides: "{\"parameters\":{\"year\":\"2026\",\"month\":\"5\",\"date\":\"2\",\"pointColor\":\"#FF22C55E\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지_월시작::알림장c::booktitle|date|month|monthnamecapitalized|parentballoon|pointcolor|year\"},\"fileUrls\":{\"parentBalloon\":\"https://picsum.photos/seed/r8g445nd1i9/800/600\"}}",
-					},
-					{
-						pageOrder: 20,
-						imageUrl: "https://picsum.photos/seed/wlvhyb4vjt/800/600",
-						caption: "",
-						contentTemplateUid: "4slyauW5rkUE",
-						contentTemplateOverrides: "{\"parameters\":{\"year\":\"2026\",\"month\":\"7\",\"date\":\"7\",\"pointColor\":\"#FFEAB308\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::알림장b_내지_fill::::booktitle|date|meallabelx|mealvaluex|month|naplabelx|napvaluex|pointcolor|weatherlabelx|weathervaluex|year\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 21,
-						imageUrl: "https://picsum.photos/seed/o1nvvg917n/800/600",
-						caption: "",
-						contentTemplateUid: "6qlvRxFJRX5q",
-						contentTemplateOverrides: "{\"parameters\":{\"__sbTemplateFingerprint\":\"squarebook_hc::content::빈내지::구글포토북b::\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 22,
-						imageUrl: "https://picsum.photos/seed/kyhf9j78h3/800/600",
-						caption: "",
-						contentTemplateUid: "6qlvRxFJRX5q",
-						contentTemplateOverrides: "{\"parameters\":{\"__sbTemplateFingerprint\":\"squarebook_hc::content::빈내지::구글포토북b::\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 23,
-						imageUrl: "https://picsum.photos/seed/xpbbjfbabi/800/600",
-						caption: "",
-						contentTemplateUid: "3FhSEhJ94c0T",
-						contentTemplateOverrides: "{\"parameters\":{\"date\":\"15\",\"title\":\"오늘도 즐거운 하루\",\"diaryText\":\"특별한 하루\",\"__sbTemplateFingerprint\":\"squarebook_hc::content::내지a_contain::일기장b::date|diarytext|photo1|title\"},\"fileUrls\":{}}",
-					},
-					{
-						pageOrder: 24,
-						imageUrl: "https://picsum.photos/seed/addpkgde93m/800/600",
-						caption: "",
-						contentTemplateUid: "3tQ8WjQZOgId",
-						contentTemplateOverrides: "{\"parameters\":{\"__sbTemplateFingerprint\":\"squarebook_hc::content::빈내지::알림장a::booktitle|linevertical\"},\"fileUrls\":{\"lineVertical\":\"https://picsum.photos/seed/addpkgde93m/800/600\"}}",
-					},
-				],
-			},
+		create: {
+			email: DEFAULT_TEST_USER_EMAIL,
+			name: DEFAULT_TEST_USER_NAME,
+			passwordHash,
 		},
 	});
 
 	// ─────────────────────────────────────────────────────────
-	// 기본 샘플 프로젝트 2: 만화
+	// 커뮤니티 샘플 포스트 1: 만화
 	// ─────────────────────────────────────────────────────────
-	await prisma.project.create({
+	const comicProject = await prisma.project.create({
 		data: {
-			userId: null,
-			isDefault: true,
+			userId: testUser.id,
+			isDefault: false,
 			title: "슈퍼파워 고양이",
 			projectType: "COMIC",
 			status: "PUBLISHED",
@@ -239,132 +56,158 @@ async function main() {
 			bookUid: "bk_50VXUJtsAsY1",
 			genre: "판타지",
 			comicStyle: "AMERICAN",
-			synopsis: "길을 걷던 준호는 우연히 버려진 고양이를 발견하게 된다. 이 고양이는 이마에 번개문양이 있는 특별한 존재로, 준호와 함께 신비로운 모험을 시작하게 된다. 친구 민지와 철수도 함께 하며, 슈퍼고양이의 능력을 통해 여러 사건을 해결해 나간다.",
+			synopsis:
+				"길을 걷던 준호는 우연히 버려진 고양이를 발견하게 된다. 이 고양이는 이마에 번개문양이 있는 특별한 존재로, 준호와 함께 신비로운 모험을 시작하게 된다. 친구 민지와 철수도 함께 하며, 슈퍼고양이의 능력을 통해 여러 사건을 해결해 나간다.",
 			storyCharacters: "민지, 준호, 슈퍼고양이, 철수",
 			requestedPageCount: 24,
 			generationStage: "COMPLETED",
-			coverImageUrl: "/uploads/comic-cover-47fb9d02-1b39-4819-b823-1f42ece42e4a.png",
+			coverImageUrl:
+				"/uploads/comic-cover-47fb9d02-1b39-4819-b823-1f42ece42e4a.png",
 			coverCaption: "모든 고양이는 특별하다!",
 			pages: {
 				create: [
 					{
 						pageOrder: 1,
-						imageUrl: "/uploads/comic-page-1-e6613138-abb0-4d5e-a97b-18b7605b8206.png",
+						imageUrl:
+							"/uploads/comic-page-1-e6613138-abb0-4d5e-a97b-18b7605b8206.png",
 						caption: "준호가 길을 걷고 있다.",
 					},
 					{
 						pageOrder: 2,
-						imageUrl: "/uploads/comic-page-2-f6429590-3baa-470c-a897-3caf4546e2de.png",
+						imageUrl:
+							"/uploads/comic-page-2-f6429590-3baa-470c-a897-3caf4546e2de.png",
 						caption: "준호가 박스를 발견한다.",
 					},
 					{
 						pageOrder: 3,
-						imageUrl: "/uploads/comic-page-3-5b9ea226-5d5b-44cf-b0e7-d1d76dfe36a1.png",
+						imageUrl:
+							"/uploads/comic-page-3-5b9ea226-5d5b-44cf-b0e7-d1d76dfe36a1.png",
 						caption: "고양이가 등장한다.",
 					},
 					{
 						pageOrder: 4,
-						imageUrl: "/uploads/comic-page-4-7f2bfaf1-8b89-4965-be21-18be9a91778e.png",
+						imageUrl:
+							"/uploads/comic-page-4-7f2bfaf1-8b89-4965-be21-18be9a91778e.png",
 						caption: "준호가 고양이를 쓰다듬는다.",
 					},
 					{
 						pageOrder: 5,
-						imageUrl: "/uploads/comic-page-5-e877bc8c-0b71-405b-b8c9-4c521bebeb41.png",
+						imageUrl:
+							"/uploads/comic-page-5-e877bc8c-0b71-405b-b8c9-4c521bebeb41.png",
 						caption: "고양이의 이마가 빛난다.",
 					},
 					{
 						pageOrder: 6,
-						imageUrl: "/uploads/comic-page-6-8afbc5bf-7936-43e9-8c4c-da73bf8e490a.png",
+						imageUrl:
+							"/uploads/comic-page-6-8afbc5bf-7936-43e9-8c4c-da73bf8e490a.png",
 						caption: "민지가 등장한다.",
 					},
 					{
 						pageOrder: 7,
-						imageUrl: "/uploads/comic-page-7-46ac3bf7-0790-4c07-bc2a-f8a063fa9d8d.png",
+						imageUrl:
+							"/uploads/comic-page-7-46ac3bf7-0790-4c07-bc2a-f8a063fa9d8d.png",
 						caption: "준호가 이야기를 한다.",
 					},
 					{
 						pageOrder: 8,
-						imageUrl: "/uploads/comic-page-8-8e7c8e09-ed16-4909-846f-18066113ab85.png",
+						imageUrl:
+							"/uploads/comic-page-8-8e7c8e09-ed16-4909-846f-18066113ab85.png",
 						caption: "철수가 등장한다.",
 					},
 					{
 						pageOrder: 9,
-						imageUrl: "/uploads/comic-page-9-60e8a37b-ec43-45b7-9475-de09757561d5.png",
+						imageUrl:
+							"/uploads/comic-page-9-60e8a37b-ec43-45b7-9475-de09757561d5.png",
 						caption: "모두가 고양이를 둘러본다.",
 					},
 					{
 						pageOrder: 10,
-						imageUrl: "/uploads/comic-page-10-8d72dda0-df68-4967-8bff-bbb578386d4e.png",
+						imageUrl:
+							"/uploads/comic-page-10-8d72dda0-df68-4967-8bff-bbb578386d4e.png",
 						caption: "고양이가 힘을 발휘한다.",
 					},
 					{
 						pageOrder: 11,
-						imageUrl: "/uploads/comic-page-11-f9451a2e-504c-4445-af9d-4ce8cac891b0.png",
+						imageUrl:
+							"/uploads/comic-page-11-f9451a2e-504c-4445-af9d-4ce8cac891b0.png",
 						caption: "모험을 결심한다.",
 					},
 					{
 						pageOrder: 12,
-						imageUrl: "/uploads/comic-page-12-648277cc-bc57-4e16-99d9-ba97ecd29ef4.png",
+						imageUrl:
+							"/uploads/comic-page-12-648277cc-bc57-4e16-99d9-ba97ecd29ef4.png",
 						caption: "모두가 고양이를 따라간다.",
 					},
 					{
 						pageOrder: 13,
-						imageUrl: "/uploads/comic-page-13-2b553bfa-7c87-48e1-96ab-05724a1a05bf.png",
+						imageUrl:
+							"/uploads/comic-page-13-2b553bfa-7c87-48e1-96ab-05724a1a05bf.png",
 						caption: "신비로운 장소에 도착한다.",
 					},
 					{
 						pageOrder: 14,
-						imageUrl: "/uploads/comic-page-14-3781eae2-6212-4ff0-ba4c-e199fcbe29d9.png",
+						imageUrl:
+							"/uploads/comic-page-14-3781eae2-6212-4ff0-ba4c-e199fcbe29d9.png",
 						caption: "고양이가 힘을 발휘할 준비를 한다.",
 					},
 					{
 						pageOrder: 15,
-						imageUrl: "/uploads/comic-page-15-006ce4a1-16e8-4e90-b82a-de617fa29a8d.png",
+						imageUrl:
+							"/uploads/comic-page-15-006ce4a1-16e8-4e90-b82a-de617fa29a8d.png",
 						caption: "준호가 고양이에게 힘을 요청한다.",
 					},
 					{
 						pageOrder: 16,
-						imageUrl: "/uploads/comic-page-16-258ddd33-9ac2-4b30-b42f-d1b9a5424366.png",
+						imageUrl:
+							"/uploads/comic-page-16-258ddd33-9ac2-4b30-b42f-d1b9a5424366.png",
 						caption: "민지가 카메라를 준비한다.",
 					},
 					{
 						pageOrder: 17,
-						imageUrl: "/uploads/comic-page-17-13238d1f-4033-4430-9592-b298860c6338.png",
+						imageUrl:
+							"/uploads/comic-page-17-13238d1f-4033-4430-9592-b298860c6338.png",
 						caption: "철수가 스케이트보드를 준비한다.",
 					},
 					{
 						pageOrder: 18,
-						imageUrl: "/uploads/comic-page-18-de477b6a-f9ea-4427-a9d1-ae51d889801e.png",
+						imageUrl:
+							"/uploads/comic-page-18-de477b6a-f9ea-4427-a9d1-ae51d889801e.png",
 						caption: "모두가 힘을 합친다.",
 					},
 					{
 						pageOrder: 19,
-						imageUrl: "/uploads/comic-page-19-f4b41721-3578-4d3f-877d-756acc7571fd.png",
+						imageUrl:
+							"/uploads/comic-page-19-f4b41721-3578-4d3f-877d-756acc7571fd.png",
 						caption: "신비로운 힘이 발휘된다.",
 					},
 					{
 						pageOrder: 20,
-						imageUrl: "/uploads/comic-page-20-f3c69186-9aa3-4d78-988a-98bfdd2a134c.png",
+						imageUrl:
+							"/uploads/comic-page-20-f3c69186-9aa3-4d78-988a-98bfdd2a134c.png",
 						caption: "모험의 첫 번째 도전을 맞이한다.",
 					},
 					{
 						pageOrder: 21,
-						imageUrl: "/uploads/comic-page-21-7e899e78-962e-473f-b3e7-bd00e409af95.png",
+						imageUrl:
+							"/uploads/comic-page-21-7e899e78-962e-473f-b3e7-bd00e409af95.png",
 						caption: "준호가 결단을 내린다.",
 					},
 					{
 						pageOrder: 22,
-						imageUrl: "/uploads/comic-page-22-d8c33e2e-eb31-4c0c-8192-7d141b69f112.png",
+						imageUrl:
+							"/uploads/comic-page-22-d8c33e2e-eb31-4c0c-8192-7d141b69f112.png",
 						caption: "민지가 사진을 찍는다.",
 					},
 					{
 						pageOrder: 23,
-						imageUrl: "/uploads/comic-page-23-5c11faf5-0ecf-45cd-924a-aadc9dec24f7.png",
+						imageUrl:
+							"/uploads/comic-page-23-5c11faf5-0ecf-45cd-924a-aadc9dec24f7.png",
 						caption: "철수가 스케이트보드를 타고 돌진한다.",
 					},
 					{
 						pageOrder: 24,
-						imageUrl: "/uploads/comic-page-24-a19d0894-aa0d-41fc-834e-3af4c6b7c6b1.png",
+						imageUrl:
+							"/uploads/comic-page-24-a19d0894-aa0d-41fc-834e-3af4c6b7c6b1.png",
 						caption: "모험의 시작을 알린다.",
 					},
 				],
@@ -373,12 +216,12 @@ async function main() {
 	});
 
 	// ─────────────────────────────────────────────────────────
-	// 기본 샘플 프로젝트 3: 소설
+	// 커뮤니티 샘플 포스트 2: 소설
 	// ─────────────────────────────────────────────────────────
-	await prisma.project.create({
+	const novelProject = await prisma.project.create({
 		data: {
-			userId: null,
-			isDefault: true,
+			userId: testUser.id,
+			isDefault: false,
 			title: "선생님의 안경",
 			projectType: "NOVEL",
 			status: "PUBLISHED",
@@ -387,141 +230,183 @@ async function main() {
 			contentTemplateUid: "2NnpiJDM5Dar",
 			bookUid: "bk_7MMdTa13aTKL",
 			genre: "미스테리",
-			synopsis: "평화롭게 학교를 다니던 준원, 효민, 우주. 어느 날, 담임 선생님의 탁상 위에는 선생님의 안경만 남아있고, 선생님이 출근을 하지 않는다. 이상함을 느낀 세 친구는 담임 선생님의 교무실 자리를 수색하다가 의문의 편지를 발견하는데... 그 편지에는 선생님이 사라진 이유와 관련된 단서가 숨겨져 있다. 친구들은 선생님의 안경을 통해 미스터리를 풀기 위해 모험을 시작한다.",
+			synopsis:
+				"평화롭게 학교를 다니던 준원, 효민, 우주. 어느 날, 담임 선생님의 탁상 위에는 선생님의 안경만 남아있고, 선생님이 출근을 하지 않는다. 이상함을 느낀 세 친구는 담임 선생님의 교무실 자리를 수색하다가 의문의 편지를 발견하는데... 그 편지에는 선생님이 사라진 이유와 관련된 단서가 숨겨져 있다. 친구들은 선생님의 안경을 통해 미스터리를 풀기 위해 모험을 시작한다.",
 			storyCharacters: "담임 선생님, 준원, 효민, 우주",
 			requestedPageCount: 24,
 			generationStage: "COMPLETED",
-			coverImageUrl: "/uploads/story-cover-b8e32020-cead-4149-aded-941df61a1e2f.png",
+			coverImageUrl:
+				"/uploads/story-cover-b8e32020-cead-4149-aded-941df61a1e2f.png",
 			coverCaption: "안경 속에 숨겨진 비밀, 친구들이 풀어야 할 미스터리!",
 			pages: {
 				create: [
 					{
 						pageOrder: 1,
 						imageUrl: "",
-						caption: "학교에 도착한 준원, 효민, 우주는 담임 선생님이 출근하지 않았다는 소식에 혼란스러운 마음을 감추지 못했다. 평소와 다름없이 아침 일찍 학교에 도착했지만, 교실 문을 열고 들어서자마자 느껴지는 묘한 정적이 그들을 압도했다. 탁자 위에 놓인 선생님의 안경이 유난히도 눈에 띄었다. 그 안경은 언제나 선생님의 코 위에서 반짝였던 것이었다. '왜 선생님이 안 오셨지?' 효민이 조심스레 물었다. 우주는 눈을 크게 뜨고 교실을 둘러보았다. '뭔가 이상해. 선생님이 없으니까 교실이 이렇게 썰렁할 줄은 몰랐어.' 준원은 안경을 바라보며 마음속에 불안한 예감이 들었다. '이 안경이 뭔가 단서가 될 수 있을지도 몰라.' 그 말에 세 친구는 서로의 눈을 바라보았다. '교무실로 가보자. 뭔가 알아낼 수 있을 거야.' 교실을 나서며 그들은 선생님이 남긴 단서가 무엇일지에 대한 기대와 두려움을 동시에 품었다. 교무실로 향하는 길에서 그들의 마음속에는 의문이 가득했다. '선생님은 왜 사라진 걸까? 이 안경이 정말 단서가 될 수 있을까?' 그들은 속으로 각종 가설을 세우며, 점점 더 깊어지는 미스터리의 세계로 발을 내딛었다. 교무실에 도착하자, 세 친구는 조심스럽게 문을 열고 들어갔다. 교무실은 평소와 다르게 어수선해 보였다. 책상 위에는 서류들이 흩어져 있었고, 벽에는 선생님이 작성한 수업 계획서가 붙어 있었다. 준원은 책상 위에 놓인 선생님의 안경을 다시 한 번 바라보았다. '이 안경이 선생님과 관련이 있을 거야. 우리가 뭔가를 찾아야 해.' 효민은 서랍을 열어보며 말했다. '여기 편지가 있어!' 그녀가 꺼낸 편지는 낡고 찢어진 듯 보였고, 그 위에는 선생님의 이름이 적혀 있었다. 우주는 편지를 펼치며 떨리는 목소리로 읽기 시작했다. '나는 지금 이곳에 없지만, 내가 사라진 이유는...'. 그 순간, 세 친구의 심장은 쿵쿵 뛰기 시작했다. 그들은 서로의 눈을 바라보며, 이 편지가 선생님을 찾는 열쇠가 될 것이라는 확신을 가졌다. '이제 시작이야. 우리가 선생님을 찾을 수 있을 거야.' 준원이 결심하듯 말했다. 그들은 다시 의기투합하여, 선생님이 사라진 미스터리를 풀기 위한 모험을 시작하기로 했다.",
+						caption:
+							"학교에 도착한 준원, 효민, 우주는 담임 선생님이 출근하지 않았다는 소식에 혼란스러운 마음을 감추지 못했다. 평소와 다름없이 아침 일찍 학교에 도착했지만, 교실 문을 열고 들어서자마자 느껴지는 묘한 정적이 그들을 압도했다. 탁자 위에 놓인 선생님의 안경이 유난히도 눈에 띄었다. 그 안경은 언제나 선생님의 코 위에서 반짝였던 것이었다. '왜 선생님이 안 오셨지?' 효민이 조심스레 물었다. 우주는 눈을 크게 뜨고 교실을 둘러보았다. '뭔가 이상해. 선생님이 없으니까 교실이 이렇게 썰렁할 줄은 몰랐어.' 준원은 안경을 바라보며 마음속에 불안한 예감이 들었다. '이 안경이 뭔가 단서가 될 수 있을지도 몰라.' 그 말에 세 친구는 서로의 눈을 바라보았다. '교무실로 가보자. 뭔가 알아낼 수 있을 거야.' 교실을 나서며 그들은 선생님이 남긴 단서가 무엇일지에 대한 기대와 두려움을 동시에 품었다. 교무실로 향하는 길에서 그들의 마음속에는 의문이 가득했다. '선생님은 왜 사라진 걸까? 이 안경이 정말 단서가 될 수 있을까?' 그들은 속으로 각종 가설을 세우며, 점점 더 깊어지는 미스터리의 세계로 발을 내딛었다. 교무실에 도착하자, 세 친구는 조심스럽게 문을 열고 들어갔다. 교무실은 평소와 다르게 어수선해 보였다. 책상 위에는 서류들이 흩어져 있었고, 벽에는 선생님이 작성한 수업 계획서가 붙어 있었다. 준원은 책상 위에 놓인 선생님의 안경을 다시 한 번 바라보았다. '이 안경이 선생님과 관련이 있을 거야. 우리가 뭔가를 찾아야 해.' 효민은 서랍을 열어보며 말했다. '여기 편지가 있어!' 그녀가 꺼낸 편지는 낡고 찢어진 듯 보였고, 그 위에는 선생님의 이름이 적혀 있었다. 우주는 편지를 펼치며 떨리는 목소리로 읽기 시작했다. '나는 지금 이곳에 없지만, 내가 사라진 이유는...'. 그 순간, 세 친구의 심장은 쿵쿵 뛰기 시작했다. 그들은 서로의 눈을 바라보며, 이 편지가 선생님을 찾는 열쇠가 될 것이라는 확신을 가졌다. '이제 시작이야. 우리가 선생님을 찾을 수 있을 거야.' 준원이 결심하듯 말했다. 그들은 다시 의기투합하여, 선생님이 사라진 미스터리를 풀기 위한 모험을 시작하기로 했다.",
 					},
 					{
 						pageOrder: 2,
 						imageUrl: "",
-						caption: "교무실에 들어선 준원, 효민, 우주는 어수선한 분위기 속에서 긴장감을 느끼며 주변을 살폈다. 책상 위에는 선생님이 남긴 서류들이 무질서하게 흩어져 있었고, 벽에는 수업 계획서가 붙어 있었다. 준원은 다시 한 번 선생님의 안경을 바라보았다. '이 안경이 선생님과 관련이 있을 거야. 우리가 뭔가를 찾아야 해.' 그의 말에 효민이 고개를 끄덕이며 서랍을 열었다. '여기 편지가 있어!' 그녀가 꺼낸 편지는 낡고 찢어진 듯 보였고, 그 위에는 선생님의 이름이 적혀 있었다. 우주는 편지를 펼치며 떨리는 목소리로 읽기 시작했다. '나는 지금 이곳에 없지만, 내가 사라진 이유는...' 그 순간, 세 친구의 심장은 쿵쿵 뛰기 시작했다. '이 편지가 선생님을 찾는 열쇠가 될지도 몰라.' 준원이 결심하듯 말했다. 그들은 서로의 눈을 바라보며, 이 편지가 어떤 단서를 제공할지 궁금해졌다. 효민의 손이 편지 위에서 멈추었다. '잠깐, 여기 뭔가 이상해. 이 편지의 뒷면에 무언가 적혀 있어!' 그녀가 종이를 뒤집자, 그곳에는 복잡한 기호와 함께 '안경의 렌즈에 비친 빛을 따라가라'는 문구가 적혀 있었다. 세 친구는 서로의 눈을 바라보며, 이 기호와 문구가 무엇을 의미하는지 고민하기 시작했다. '안경의 렌즈에 비친 빛?' 우주가 중얼거렸다. '그게 뭘 뜻하는 걸까?' 준원이 불안한 마음을 감추지 못한 채 말했다. '그걸 알기 위해선 이 안경을 더 자세히 살펴봐야 할 것 같아.' 그들은 안경을 한 번 더 바라보며, 렌즈에 비친 빛이 무엇을 암시하는지 탐구하기로 결심했다. 그러나 그들이 예상치 못한 사건이 그들을 기다리고 있었다. 교무실 문이 갑자기 열리며, 그들의 앞에 나타난 것은 의문의 인물이었다.",
+						caption:
+							"교무실에 들어선 준원, 효민, 우주는 어수선한 분위기 속에서 긴장감을 느끼며 주변을 살폈다. 책상 위에는 선생님이 남긴 서류들이 무질서하게 흩어져 있었고, 벽에는 수업 계획서가 붙어 있었다. 준원은 다시 한 번 선생님의 안경을 바라보았다. '이 안경이 선생님과 관련이 있을 거야. 우리가 뭔가를 찾아야 해.' 그의 말에 효민이 고개를 끄덕이며 서랍을 열었다. '여기 편지가 있어!' 그녀가 꺼낸 편지는 낡고 찢어진 듯 보였고, 그 위에는 선생님의 이름이 적혀 있었다. 우주는 편지를 펼치며 떨리는 목소리로 읽기 시작했다. '나는 지금 이곳에 없지만, 내가 사라진 이유는...' 그 순간, 세 친구의 심장은 쿵쿵 뛰기 시작했다. '이 편지가 선생님을 찾는 열쇠가 될지도 몰라.' 준원이 결심하듯 말했다. 그들은 서로의 눈을 바라보며, 이 편지가 어떤 단서를 제공할지 궁금해졌다. 효민의 손이 편지 위에서 멈추었다. '잠깐, 여기 뭔가 이상해. 이 편지의 뒷면에 무언가 적혀 있어!' 그녀가 종이를 뒤집자, 그곳에는 복잡한 기호와 함께 '안경의 렌즈에 비친 빛을 따라가라'는 문구가 적혀 있었다. 세 친구는 서로의 눈을 바라보며, 이 기호와 문구가 무엇을 의미하는지 고민하기 시작했다. '안경의 렌즈에 비친 빛?' 우주가 중얼거렸다. '그게 뭘 뜻하는 걸까?' 준원이 불안한 마음을 감추지 못한 채 말했다. '그걸 알기 위해선 이 안경을 더 자세히 살펴봐야 할 것 같아.' 그들은 안경을 한 번 더 바라보며, 렌즈에 비친 빛이 무엇을 암시하는지 탐구하기로 결심했다. 그러나 그들이 예상치 못한 사건이 그들을 기다리고 있었다. 교무실 문이 갑자기 열리며, 그들의 앞에 나타난 것은 의문의 인물이었다.",
 					},
 					{
 						pageOrder: 3,
 						imageUrl: "",
-						caption: "교무실 문이 갑자기 열리며, 그들의 앞에 나타난 것은 의문의 인물이었다. 세 친구는 순간적으로 긴장감을 느꼈다. 그 인물은 머리에 모자를 눌러쓰고, 얼굴은 그늘에 가려져 있어 정체를 알아볼 수 없었다. '누구세요?' 준원이 조심스럽게 물었다. 그러나 그 인물은 대답 대신 교무실 안으로 한 걸음 더 들어왔다. 우주는 그 인물의 행동이 더욱 의심스러워졌다. '너는 그 안경을 찾고 있는 거니?' 그 인물이 말했다. 그 목소리는 낮고 음산하게 울려 퍼졌다. 효민은 그 목소리에 섬뜩한 기분이 들었다. '당신이 선생님을 알고 있나요?' 그녀가 물었다. 인물은 잠시 침묵한 후, '안경은 중요한 열쇠야. 그걸 통해 너희가 진실에 다가갈 수 있을 거야.'라고 말했다. 준원은 흥분과 두려움이 뒤섞인 감정을 느끼며, '당신은 누구죠? 선생님은 어디에 있습니까?'라고 다시 물었다. 그러나 그 인물은 대답하지 않고, 교무실의 한쪽 벽을 가리켰다. '그곳에 가면, 너희가 원하는 것을 찾을 수 있을 거야.' 세 친구는 서로의 눈을 바라보며, 그 인물이 가리킨 곳에 대한 호기심과 두려움을 느꼈다. '가보자.' 준원이 결단을 내리며 말했다. 그들은 조심스럽게 그 방향으로 발걸음을 옮겼다. 교무실의 분위기는 더욱 무겁게 느껴졌고, 그들은 선생님의 행방과 이 인물의 정체에 대한 의문으로 가득 차 있었다. '이 모든 것이 연결되어 있는 걸까?' 우주가 중얼거렸다. 그들은 곧 그 벽에 숨겨진 비밀을 밝혀내야만 했다. 벽에 가까워질수록, 준원의 심장은 점점 더 빠르게 뛰기 시작했다. 그들은 교무실의 한쪽 벽에 다다랐고, 그곳에는 이상한 기호들이 새겨져 있었다. '이 기호들이 아까 편지에 적혀 있었던 것과 비슷해.' 효민이 말했다. 그녀는 안경을 들여다보며 기호들을 다시 살펴보았다. '안경의 렌즈에 비친 빛을 따라가라… 이 기호들이 그 빛과 관련이 있을지도 몰라.' 준원이 말했다. 그 순간, 우주가 벽에 손을 대자, 갑자기 벽이 우르르 소리를 내며 움직이기 시작했다. '뭐야?!' 효민이 소리쳤다. 벽이 열리자, 그곳에서 희미한 빛이 새어 나왔다. '이곳이 비밀의 장소인가?' 준원이 두려움과 호기심이 뒤섞인 목소리로 말했다. 그들은 서로의 손을 꼭 잡고, 그 빛을 향해 한 발짝 내딛었다. 그러나 그들의 뒤에서, 의문의 인물은 고개를 돌리며 조용히 웃고 있었다. '이제 시작이야…'",
+						caption:
+							"교무실 문이 갑자기 열리며, 그들의 앞에 나타난 것은 의문의 인물이었다. 세 친구는 순간적으로 긴장감을 느꼈다. 그 인물은 머리에 모자를 눌러쓰고, 얼굴은 그늘에 가려져 있어 정체를 알아볼 수 없었다. '누구세요?' 준원이 조심스럽게 물었다. 그러나 그 인물은 대답 대신 교무실 안으로 한 걸음 더 들어왔다. 우주는 그 인물의 행동이 더욱 의심스러워졌다. '너는 그 안경을 찾고 있는 거니?' 그 인물이 말했다. 그 목소리는 낮고 음산하게 울려 퍼졌다. 효민은 그 목소리에 섬뜩한 기분이 들었다. '당신이 선생님을 알고 있나요?' 그녀가 물었다. 인물은 잠시 침묵한 후, '안경은 중요한 열쇠야. 그걸 통해 너희가 진실에 다가갈 수 있을 거야.'라고 말했다. 준원은 흥분과 두려움이 뒤섞인 감정을 느끼며, '당신은 누구죠? 선생님은 어디에 있습니까?'라고 다시 물었다. 그러나 그 인물은 대답하지 않고, 교무실의 한쪽 벽을 가리켰다. '그곳에 가면, 너희가 원하는 것을 찾을 수 있을 거야.' 세 친구는 서로의 눈을 바라보며, 그 인물이 가리킨 곳에 대한 호기심과 두려움을 느꼈다. '가보자.' 준원이 결단을 내리며 말했다. 그들은 조심스럽게 그 방향으로 발걸음을 옮겼다. 교무실의 분위기는 더욱 무겁게 느껴졌고, 그들은 선생님의 행방과 이 인물의 정체에 대한 의문으로 가득 차 있었다. '이 모든 것이 연결되어 있는 걸까?' 우주가 중얼거렸다. 그들은 곧 그 벽에 숨겨진 비밀을 밝혀내야만 했다. 벽에 가까워질수록, 준원의 심장은 점점 더 빠르게 뛰기 시작했다. 그들은 교무실의 한쪽 벽에 다다랐고, 그곳에는 이상한 기호들이 새겨져 있었다. '이 기호들이 아까 편지에 적혀 있었던 것과 비슷해.' 효민이 말했다. 그녀는 안경을 들여다보며 기호들을 다시 살펴보았다. '안경의 렌즈에 비친 빛을 따라가라… 이 기호들이 그 빛과 관련이 있을지도 몰라.' 준원이 말했다. 그 순간, 우주가 벽에 손을 대자, 갑자기 벽이 우르르 소리를 내며 움직이기 시작했다. '뭐야?!' 효민이 소리쳤다. 벽이 열리자, 그곳에서 희미한 빛이 새어 나왔다. '이곳이 비밀의 장소인가?' 준원이 두려움과 호기심이 뒤섞인 목소리로 말했다. 그들은 서로의 손을 꼭 잡고, 그 빛을 향해 한 발짝 내딛었다. 그러나 그들의 뒤에서, 의문의 인물은 고개를 돌리며 조용히 웃고 있었다. '이제 시작이야…'",
 					},
 					{
 						pageOrder: 4,
 						imageUrl: "",
-						caption: "세 친구는 손을 꼭 잡고 비밀의 장소로 한 발짝 내딛었다. 그곳은 어둠 속에서 희미하게 빛나는 물체들이 가득한 방이었다. 벽에는 기묘한 기호들이 새겨져 있었고, 바닥은 차가운 돌로 되어 있었다. 우주는 조심스럽게 한 발을 내디뎠고, 그의 발끝이 닿는 순간, 방 안의 빛이 더욱 강해지기 시작했다. '이곳이 정말 선생님과 관련이 있을까?' 준원이 불안한 목소리로 말했다. 효민은 주위를 살펴보며, '이 기호들이 선생님이 남긴 단서인 것 같아. 우리가 이걸 해석해야 해.'라고 말했다. 그녀는 벽에 새겨진 기호들을 한참 바라보았다. 그 기호들은 서로 연결되어 있는 듯 보였고, 특정한 패턴을 이루고 있었다. '안경의 렌즈에 비친 빛을 따라가라...'라는 문구가 떠올랐다. 그 순간, 준원은 안경을 꺼내 렌즈를 통해 방 안의 빛을 살펴보았다. '이 빛이 기호와 연결되어 있는 것 같아!' 그는 흥분하며 말했다. '효민, 우주! 이 기호들을 조합하면 뭔가를 알 수 있을 것 같아!' 세 친구는 서로의 눈빛을 교환하며, 벽에 새겨진 기호들을 해석하기 위해 머리를 맞대기 시작했다. 그러나 그때, 방의 한쪽 구석에서 이상한 소리가 들려왔다. 세 친구는 동시에 고개를 돌렸다. 그곳에는 또 다른 그림자가 나타나고 있었다. '너희들이 이곳에 오리라고는 생각하지 못했어.' 그 그림자는 낮고 음산한 목소리로 말했다. 준원은 심장이 쿵쾅거리는 것을 느끼며, '당신은 누구죠? 선생님을 알고 있나요?'라고 물었다. 그림자는 미소를 지으며 대답했다. '그건 너희가 알아내야 할 일이지. 하지만 조심해. 이곳은 너희가 생각하는 곳이 아니야.' 그 말에 세 친구는 공포에 휩싸였다. 그들은 이 미스터리를 풀기 위해 더 깊이 들어가야만 했다.",
+						caption:
+							"세 친구는 손을 꼭 잡고 비밀의 장소로 한 발짝 내딛었다. 그곳은 어둠 속에서 희미하게 빛나는 물체들이 가득한 방이었다. 벽에는 기묘한 기호들이 새겨져 있었고, 바닥은 차가운 돌로 되어 있었다. 우주는 조심스럽게 한 발을 내디뎠고, 그의 발끝이 닿는 순간, 방 안의 빛이 더욱 강해지기 시작했다. '이곳이 정말 선생님과 관련이 있을까?' 준원이 불안한 목소리로 말했다. 효민은 주위를 살펴보며, '이 기호들이 선생님이 남긴 단서인 것 같아. 우리가 이걸 해석해야 해.'라고 말했다. 그녀는 벽에 새겨진 기호들을 한참 바라보았다. 그 기호들은 서로 연결되어 있는 듯 보였고, 특정한 패턴을 이루고 있었다. '안경의 렌즈에 비친 빛을 따라가라...'라는 문구가 떠올랐다. 그 순간, 준원은 안경을 꺼내 렌즈를 통해 방 안의 빛을 살펴보았다. '이 빛이 기호와 연결되어 있는 것 같아!' 그는 흥분하며 말했다. '효민, 우주! 이 기호들을 조합하면 뭔가를 알 수 있을 것 같아!' 세 친구는 서로의 눈빛을 교환하며, 벽에 새겨진 기호들을 해석하기 위해 머리를 맞대기 시작했다. 그러나 그때, 방의 한쪽 구석에서 이상한 소리가 들려왔다. 세 친구는 동시에 고개를 돌렸다. 그곳에는 또 다른 그림자가 나타나고 있었다. '너희들이 이곳에 오리라고는 생각하지 못했어.' 그 그림자는 낮고 음산한 목소리로 말했다. 준원은 심장이 쿵쾅거리는 것을 느끼며, '당신은 누구죠? 선생님을 알고 있나요?'라고 물었다. 그림자는 미소를 지으며 대답했다. '그건 너희가 알아내야 할 일이지. 하지만 조심해. 이곳은 너희가 생각하는 곳이 아니야.' 그 말에 세 친구는 공포에 휩싸였다. 그들은 이 미스터리를 풀기 위해 더 깊이 들어가야만 했다.",
 					},
 					{
 						pageOrder: 5,
 						imageUrl: "",
-						caption: "세 친구는 서로의 눈빛을 확인하며 벽에 새겨진 기호들을 해석하기 위해 머리를 맞대기 시작했다. 그들이 집중하는 가운데, 방의 한쪽 구석에서 들려온 이상한 소리는 점점 더 가까워지는 듯 했다. 준원은 불안한 마음을 안고 기호들을 살펴보았다. '이 기호들은 서로 연결되어 있어. 아마도 이걸 통해 선생님이 남긴 메시지를 찾을 수 있을 거야.' 효민은 기호의 패턴을 손가락으로 따라가며 말했다. '여기서 중요한 건 이 기호들이 어떤 뜻을 가지느냐야.' 그때, 우주가 벽에 새겨진 기호 중 하나를 가리키며 말했다. '이 기호는 우리가 자주 가는 운동장에 있는 나무와 비슷해.' 준원은 그 말을 듣고 깜짝 놀랐다. '맞아! 그 나무 아래에는 항상 비밀이 숨겨져 있었잖아. 선생님이 그곳과 관련이 있을지도 몰라.' 세 친구는 흥분과 두려움이 교차하는 감정을 느끼며, 그 기호와 운동장 나무의 연결고리를 생각했다. 그러나 방 안의 긴장감이 더욱 고조되며, 그들의 뒤에서 느껴지는 그림자의 존재가 그들에게 불안감을 안겼다. '우리가 이 기호들을 해석하면, 선생님이 사라진 이유를 알 수 있을지도 몰라.' 효민이 다시 말했다. 그때, 갑자기 방 안의 빛이 눈부시게 밝아지며, 그들이 바라보던 기호들이 희미하게 흔들리기 시작했다. '이건 분명히 뭔가 중요한 신호야!' 준원이 외쳤다. 세 친구는 다시 기호에 집중하며, 그 안에 숨겨진 진실을 찾기 위해 더욱 열심히 머리를 맞댄다. 그 순간, 이상한 소리가 다시 들려오고, 방 안의 공기가 차갑게 변하기 시작했다. '우리가 뭔가 잘못하고 있는 건 아닐까?' 우주가 불안한 목소리로 말했다. '아니야, 우리는 반드시 이 미스터리를 풀어야 해. 선생님을 찾기 위해서라도!' 준원이 결단하며 말했다. 그들은 다시 기호에 집중했지만, 그때 그들의 뒤에서 또 다른 그림자가 나타났다. '이제 너희의 선택이 시작되었군.' 그 음산한 목소리에 세 친구는 다시 한번 긴장감을 느꼈다.",
+						caption:
+							"세 친구는 서로의 눈빛을 확인하며 벽에 새겨진 기호들을 해석하기 위해 머리를 맞대기 시작했다. 그들이 집중하는 가운데, 방의 한쪽 구석에서 들려온 이상한 소리는 점점 더 가까워지는 듯 했다. 준원은 불안한 마음을 안고 기호들을 살펴보았다. '이 기호들은 서로 연결되어 있어. 아마도 이걸 통해 선생님이 남긴 메시지를 찾을 수 있을 거야.' 효민은 기호의 패턴을 손가락으로 따라가며 말했다. '여기서 중요한 건 이 기호들이 어떤 뜻을 가지느냐야.' 그때, 우주가 벽에 새겨진 기호 중 하나를 가리키며 말했다. '이 기호는 우리가 자주 가는 운동장에 있는 나무와 비슷해.' 준원은 그 말을 듣고 깜짝 놀랐다. '맞아! 그 나무 아래에는 항상 비밀이 숨겨져 있었잖아. 선생님이 그곳과 관련이 있을지도 몰라.' 세 친구는 흥분과 두려움이 교차하는 감정을 느끼며, 그 기호와 운동장 나무의 연결고리를 생각했다. 그러나 방 안의 긴장감이 더욱 고조되며, 그들의 뒤에서 느껴지는 그림자의 존재가 그들에게 불안감을 안겼다. '우리가 이 기호들을 해석하면, 선생님이 사라진 이유를 알 수 있을지도 몰라.' 효민이 다시 말했다. 그때, 갑자기 방 안의 빛이 눈부시게 밝아지며, 그들이 바라보던 기호들이 희미하게 흔들리기 시작했다. '이건 분명히 뭔가 중요한 신호야!' 준원이 외쳤다. 세 친구는 다시 기호에 집중하며, 그 안에 숨겨진 진실을 찾기 위해 더욱 열심히 머리를 맞댄다. 그 순간, 이상한 소리가 다시 들려오고, 방 안의 공기가 차갑게 변하기 시작했다. '우리가 뭔가 잘못하고 있는 건 아닐까?' 우주가 불안한 목소리로 말했다. '아니야, 우리는 반드시 이 미스터리를 풀어야 해. 선생님을 찾기 위해서라도!' 준원이 결단하며 말했다. 그들은 다시 기호에 집중했지만, 그때 그들의 뒤에서 또 다른 그림자가 나타났다. '이제 너희의 선택이 시작되었군.' 그 음산한 목소리에 세 친구는 다시 한번 긴장감을 느꼈다.",
 					},
 					{
 						pageOrder: 6,
 						imageUrl: "",
-						caption: "준원, 효민, 우주 세 친구는 어둠 속에서 느껴지는 긴장감에 휩싸여 있었다. 방 안의 기호들이 더욱 불길하게 흔들리며 그들의 시선을 끌었다. 준원이 먼저 입을 열었다. '이 기호들, 분명히 뭔가 중요한 의미가 있을 거야. 우리가 집중해야 해.' 효민은 벽에 새겨진 기호 중 하나를 가리키며 말했다. '이건 분명히 나무와 관련이 있어. 운동장에 있는 그 나무!' 우주는 두 손으로 머리를 감싸며 고민에 빠졌다. '그 나무 아래에서 뭔가를 찾을 수 있을까? 하지만 어떻게?' 그때, 방의 한쪽 구석에서 다시금 이상한 소리가 들려왔다. 세 친구는 동시에 고개를 돌렸다. 그곳에는 어둡고 음산한 그림자가 서 있었다. '너희들이 진실을 찾고 싶다면, 나무 아래에 가봐야 해.' 그 그림자는 낮고 음산한 목소리로 말했다. 준원은 두려움과 호기심이 뒤섞인 채로 물었다. '당신은 누구죠? 선생님을 알고 있나요?' 그림자는 미소를 지으며 대답했다. '그건 너희가 알아내야 할 일이야. 하지만 조심해, 그곳은 너희가 생각하는 것과는 다를 거야.' 세 친구는 그 말을 듣고 불안함을 느끼며 서로의 눈빛을 확인했다. '이제 우리가 해야 할 일은 그 나무 아래에 가는 거야,' 효민이 결단을 내렸다. '그곳에서 우리가 필요한 단서를 찾을 수 있을 거야.' 우주는 고개를 끄덕이며 말했다. '하지만 조심해야 해. 그 그림자가 계속 따라올지도 몰라.' 세 친구는 서로의 손을 꼭 잡고 방을 빠져나갔다. 그들의 마음속에는 선생님을 찾겠다는 결심과 함께 숨겨진 진실에 대한 두려움이 공존하고 있었다. 학교 정원으로 향하는 길에 나서며, 그들은 길을 따라가며 속으로 여러 가지 상상을 했다. '정원에 도착하면 뭘 찾아야 할까?' 준원이 물었다. '아마도 나무 아래에 어떤 비밀이 있을 거야,' 효민이 대답했다. 우주가 불안한 목소리로 덧붙였다. '혹시 우리가 예상하지 못한 일이 생길지도 몰라.' 그들은 정원에 가까워지며 점점 더 긴장한 마음을 감추지 못했다. 그리고 그 순간, 그들의 발 아래에서 뭔가 반짝이는 것이 보였다.",
+						caption:
+							"준원, 효민, 우주 세 친구는 어둠 속에서 느껴지는 긴장감에 휩싸여 있었다. 방 안의 기호들이 더욱 불길하게 흔들리며 그들의 시선을 끌었다. 준원이 먼저 입을 열었다. '이 기호들, 분명히 뭔가 중요한 의미가 있을 거야. 우리가 집중해야 해.' 효민은 벽에 새겨진 기호 중 하나를 가리키며 말했다. '이건 분명히 나무와 관련이 있어. 운동장에 있는 그 나무!' 우주는 두 손으로 머리를 감싸며 고민에 빠졌다. '그 나무 아래에서 뭔가를 찾을 수 있을까? 하지만 어떻게?' 그때, 방의 한쪽 구석에서 다시금 이상한 소리가 들려왔다. 세 친구는 동시에 고개를 돌렸다. 그곳에는 어둡고 음산한 그림자가 서 있었다. '너희들이 진실을 찾고 싶다면, 나무 아래에 가봐야 해.' 그 그림자는 낮고 음산한 목소리로 말했다. 준원은 두려움과 호기심이 뒤섞인 채로 물었다. '당신은 누구죠? 선생님을 알고 있나요?' 그림자는 미소를 지으며 대답했다. '그건 너희가 알아내야 할 일이야. 하지만 조심해, 그곳은 너희가 생각하는 것과는 다를 거야.' 세 친구는 그 말을 듣고 불안함을 느끼며 서로의 눈빛을 확인했다. '이제 우리가 해야 할 일은 그 나무 아래에 가는 거야,' 효민이 결단을 내렸다. '그곳에서 우리가 필요한 단서를 찾을 수 있을 거야.' 우주는 고개를 끄덕이며 말했다. '하지만 조심해야 해. 그 그림자가 계속 따라올지도 몰라.' 세 친구는 서로의 손을 꼭 잡고 방을 빠져나갔다. 그들의 마음속에는 선생님을 찾겠다는 결심과 함께 숨겨진 진실에 대한 두려움이 공존하고 있었다. 학교 정원으로 향하는 길에 나서며, 그들은 길을 따라가며 속으로 여러 가지 상상을 했다. '정원에 도착하면 뭘 찾아야 할까?' 준원이 물었다. '아마도 나무 아래에 어떤 비밀이 있을 거야,' 효민이 대답했다. 우주가 불안한 목소리로 덧붙였다. '혹시 우리가 예상하지 못한 일이 생길지도 몰라.' 그들은 정원에 가까워지며 점점 더 긴장한 마음을 감추지 못했다. 그리고 그 순간, 그들의 발 아래에서 뭔가 반짝이는 것이 보였다.",
 					},
 					{
 						pageOrder: 7,
 						imageUrl: "",
-						caption: "정원에 도착한 세 친구는 나무 아래에서 반짝이는 물체를 발견했다. 준원이 가까이 다가가자, 그 물체는 선생님의 안경과 닮은 형체였다. '이건 분명히 선생님의 안경일 거야!' 효민이 신중하게 말했다. 그러나 그 순간, 우주가 불안한 목소리로 외쳤다. '조심해! 누군가 우리를 지켜보고 있을지도 몰라!' 세 친구는 주위를 둘러보았지만, 아무런 모습도 보이지 않았다. 그들은 서로의 눈빛을 교환하며 불안한 마음을 다잡았다. 준원이 안경을 조심스럽게 손에 쥐자, 갑자기 공기가 더욱 차가워지고, 나무의 가지가 흔들리기 시작했다. '이건 분명히 어떤 메시지일 거야,' 준원이 말했다. '우리가 이 안경을 통해 선생님이 남긴 단서를 찾을 수 있을지도 몰라.' 그러나 그들의 뒤에서 느껴지는 압박감이 점점 더 강해졌다. '우리가 정말로 이걸 해야 할까?' 우주가 망설이며 말했다. '우리는 반드시 선생님을 찾아야 해. 이 안경이 단서가 될 거야!' 효민이 단호하게 대답했다. 그들은 다시 안경을 바라보며, 그 안에 숨겨진 진실을 찾기 위해 더욱 깊이 파고들기로 결심했다. '이 안경이 어떤 비밀을 품고 있는지 알아내자,' 준원이 말했다. 그들은 다시 한 번 마음을 다잡고, 이 미스터리를 풀기 위한 여정에 나섰다. 그러나 그들의 앞에 나타날 새로운 위험이 무엇인지, 세 친구는 전혀 알지 못했다. 안경을 손에 쥐고, 그들은 나무의 그늘 속으로 한 발짝 더 나아갔다. 그 순간, 바람이 세차게 불어 나뭇잎들이 소리를 내며 흔들리기 시작했다. '여기서 무언가를 느껴야 해,' 효민이 긴장한 목소리로 말했다. '우리가 선생님을 찾기 위해선 이 안경이 필요한 것 같아.' 준원은 안경을 천천히 펼쳤다. 그 안경의 렌즈는 빛을 받아 반짝이며, 마치 세상을 다르게 보여주는 듯했다. '이걸 통해 선생님이 남긴 메시지를 찾을 수 있을 거야,' 준원이 믿음을 가지고 말했다. 그러나 그들의 마음속에는 두려움이 가득 차 있었다. '우리가 잘못하면 큰일 날지도 몰라,' 우주가 걱정스러운 눈빛으로 말했다. '하지만 우리가 포기하면 선생님을 영영 잃게 될 거야,' 효민이 단호하게 대답했다. 세 친구는 서로의 손을 꼭 잡고, 다시 한 번 나무 아래로 다가갔다. 그 순간, 그들의 눈앞에 신비로운 빛이 나타나며, 안경 속에서 무엇인가 흐릿하게 비추기 시작했다. '이건... 선생님?' 준원이 놀란 목소리로 말했다. '우리가 찾고 있는 단서가 될지도 몰라!' 그러나 그들을 감싸고 있는 긴장감은 더욱 짙어졌다. '이제 우리가 무엇을 해야 할지 알 것 같아,' 효민이 결단을 내리며 말했다. '이 안경이 우리에게 필요한 모든 답을 줄 거야.' 세 친구는 다시 한 번 깊은 숨을 쉬고, 그 안경의 비밀을 파헤치기 위해 나무 아래로 들어가기로 결심했다. 그들이 앞으로 나아갈수록, 숨겨진 진실과 마주할 준비가 되어 있었다. 그러나 그들의 여정은 이제 시작일 뿐, 앞에 놓인 위험은 그들이 상상하는 것보다 훨씬 더 큰 것이었다.",
+						caption:
+							"정원에 도착한 세 친구는 나무 아래에서 반짝이는 물체를 발견했다. 준원이 가까이 다가가자, 그 물체는 선생님의 안경과 닮은 형체였다. '이건 분명히 선생님의 안경일 거야!' 효민이 신중하게 말했다. 그러나 그 순간, 우주가 불안한 목소리로 외쳤다. '조심해! 누군가 우리를 지켜보고 있을지도 몰라!' 세 친구는 주위를 둘러보았지만, 아무런 모습도 보이지 않았다. 그들은 서로의 눈빛을 교환하며 불안한 마음을 다잡았다. 준원이 안경을 조심스럽게 손에 쥐자, 갑자기 공기가 더욱 차가워지고, 나무의 가지가 흔들리기 시작했다. '이건 분명히 어떤 메시지일 거야,' 준원이 말했다. '우리가 이 안경을 통해 선생님이 남긴 단서를 찾을 수 있을지도 몰라.' 그러나 그들의 뒤에서 느껴지는 압박감이 점점 더 강해졌다. '우리가 정말로 이걸 해야 할까?' 우주가 망설이며 말했다. '우리는 반드시 선생님을 찾아야 해. 이 안경이 단서가 될 거야!' 효민이 단호하게 대답했다. 그들은 다시 안경을 바라보며, 그 안에 숨겨진 진실을 찾기 위해 더욱 깊이 파고들기로 결심했다. '이 안경이 어떤 비밀을 품고 있는지 알아내자,' 준원이 말했다. 그들은 다시 한 번 마음을 다잡고, 이 미스터리를 풀기 위한 여정에 나섰다. 그러나 그들의 앞에 나타날 새로운 위험이 무엇인지, 세 친구는 전혀 알지 못했다. 안경을 손에 쥐고, 그들은 나무의 그늘 속으로 한 발짝 더 나아갔다. 그 순간, 바람이 세차게 불어 나뭇잎들이 소리를 내며 흔들리기 시작했다. '여기서 무언가를 느껴야 해,' 효민이 긴장한 목소리로 말했다. '우리가 선생님을 찾기 위해선 이 안경이 필요한 것 같아.' 준원은 안경을 천천히 펼쳤다. 그 안경의 렌즈는 빛을 받아 반짝이며, 마치 세상을 다르게 보여주는 듯했다. '이걸 통해 선생님이 남긴 메시지를 찾을 수 있을 거야,' 준원이 믿음을 가지고 말했다. 그러나 그들의 마음속에는 두려움이 가득 차 있었다. '우리가 잘못하면 큰일 날지도 몰라,' 우주가 걱정스러운 눈빛으로 말했다. '하지만 우리가 포기하면 선생님을 영영 잃게 될 거야,' 효민이 단호하게 대답했다. 세 친구는 서로의 손을 꼭 잡고, 다시 한 번 나무 아래로 다가갔다. 그 순간, 그들의 눈앞에 신비로운 빛이 나타나며, 안경 속에서 무엇인가 흐릿하게 비추기 시작했다. '이건... 선생님?' 준원이 놀란 목소리로 말했다. '우리가 찾고 있는 단서가 될지도 몰라!' 그러나 그들을 감싸고 있는 긴장감은 더욱 짙어졌다. '이제 우리가 무엇을 해야 할지 알 것 같아,' 효민이 결단을 내리며 말했다. '이 안경이 우리에게 필요한 모든 답을 줄 거야.' 세 친구는 다시 한 번 깊은 숨을 쉬고, 그 안경의 비밀을 파헤치기 위해 나무 아래로 들어가기로 결심했다. 그들이 앞으로 나아갈수록, 숨겨진 진실과 마주할 준비가 되어 있었다. 그러나 그들의 여정은 이제 시작일 뿐, 앞에 놓인 위험은 그들이 상상하는 것보다 훨씬 더 큰 것이었다.",
 					},
 					{
 						pageOrder: 8,
 						imageUrl: "",
-						caption: "준원은 안경을 조심스럽게 손에 쥐고, 그 렌즈가 반짝이는 빛을 바라보았다. '이건 정말 선생님이 남긴 메시지일지도 몰라. 우리가 이걸 통해 뭔가를 알게 될 거야,'라고 준원이 말했다. 효민은 긴장한 목소리로 덧붙였다. '하지만 이게 정말 안전한 걸까? 우리가 잘못된 길로 가고 있는 건 아닐까?' 우주는 두려운 마음을 감추지 못한 채 주위를 살폈다. '우리가 포기하면 선생님을 잃게 될지도 몰라. 이 안경이 단서가 될 거라고 믿어야 해,'라고 준원이 단호하게 대답했다. 세 친구는 한 마음으로 나무 아래에서 더 깊이 조사하기로 결심했다. 그들이 안경을 통해 보이는 신비로운 빛은 점점 더 강해지며, 그들 앞에 숨겨진 비밀의 문이 열리는 듯했다. '여기서 뭔가를 느껴야 해,' 효민이 다시 말했다. '이 안경이 우리에게 필요한 모든 답을 줄 거야.' 그들은 서로의 손을 꼭 잡고, 한 발짝 더 나아갔다. 그러나 그 순간, 그들 뒤에서 느껴지는 압박감이 더욱 강해졌다. '뭔가 이상해,' 우주가 불안한 목소리로 말했다. 그들의 긴장은 더욱 고조되었고, 안경에서 비추어진 빛은 갑자기 강렬하게 변하며 그들을 감싸기 시작했다. '이건 단순한 안경이 아니야. 뭔가 더 큰 힘이 있는 것 같아,' 준원이 말했다. 세 친구는 그 빛 속에서 선생님의 목소리를 듣는 듯한 기분이 들었지만, 그와 동시에 미지의 위협이 다가오는 것을 느꼈다. '이제 우리가 무엇을 해야 할지 알 것 같아,' 효민이 결단을 내리며 말했다. 그들은 서로를 바라보며 결의를 다졌다. '선생님을 찾기 위해선 이 안경이 필요해. 이제 진실을 찾아 나서야 해.' 그들은 다시 한 번 깊은 숨을 쉬며, 안경의 비밀을 파헤치기 위해 나무 아래로 들어가기로 결심했다. 그러나 그들의 앞에 놓인 위험은 그들이 상상하는 것보다 훨씬 더 큰 것이었다. 세 친구는 두려움과 호기심이 뒤섞인 마음으로, 이제 막 시작된 모험에 한 발짝 더 나아가고 있었다.",
+						caption:
+							"준원은 안경을 조심스럽게 손에 쥐고, 그 렌즈가 반짝이는 빛을 바라보았다. '이건 정말 선생님이 남긴 메시지일지도 몰라. 우리가 이걸 통해 뭔가를 알게 될 거야,'라고 준원이 말했다. 효민은 긴장한 목소리로 덧붙였다. '하지만 이게 정말 안전한 걸까? 우리가 잘못된 길로 가고 있는 건 아닐까?' 우주는 두려운 마음을 감추지 못한 채 주위를 살폈다. '우리가 포기하면 선생님을 잃게 될지도 몰라. 이 안경이 단서가 될 거라고 믿어야 해,'라고 준원이 단호하게 대답했다. 세 친구는 한 마음으로 나무 아래에서 더 깊이 조사하기로 결심했다. 그들이 안경을 통해 보이는 신비로운 빛은 점점 더 강해지며, 그들 앞에 숨겨진 비밀의 문이 열리는 듯했다. '여기서 뭔가를 느껴야 해,' 효민이 다시 말했다. '이 안경이 우리에게 필요한 모든 답을 줄 거야.' 그들은 서로의 손을 꼭 잡고, 한 발짝 더 나아갔다. 그러나 그 순간, 그들 뒤에서 느껴지는 압박감이 더욱 강해졌다. '뭔가 이상해,' 우주가 불안한 목소리로 말했다. 그들의 긴장은 더욱 고조되었고, 안경에서 비추어진 빛은 갑자기 강렬하게 변하며 그들을 감싸기 시작했다. '이건 단순한 안경이 아니야. 뭔가 더 큰 힘이 있는 것 같아,' 준원이 말했다. 세 친구는 그 빛 속에서 선생님의 목소리를 듣는 듯한 기분이 들었지만, 그와 동시에 미지의 위협이 다가오는 것을 느꼈다. '이제 우리가 무엇을 해야 할지 알 것 같아,' 효민이 결단을 내리며 말했다. 그들은 서로를 바라보며 결의를 다졌다. '선생님을 찾기 위해선 이 안경이 필요해. 이제 진실을 찾아 나서야 해.' 그들은 다시 한 번 깊은 숨을 쉬며, 안경의 비밀을 파헤치기 위해 나무 아래로 들어가기로 결심했다. 그러나 그들의 앞에 놓인 위험은 그들이 상상하는 것보다 훨씬 더 큰 것이었다. 세 친구는 두려움과 호기심이 뒤섞인 마음으로, 이제 막 시작된 모험에 한 발짝 더 나아가고 있었다.",
 					},
 					{
 						pageOrder: 9,
 						imageUrl: "",
-						caption: "세 친구는 나무 아래에서 발견한 안경이 선생님과 연결된 어떤 비밀을 품고 있을 것이라는 확신을 가지게 되었다. 준원이 안경을 조심스레 손에 쥐고 렌즈를 통해 비춰지는 신비로운 빛을 바라보았다. '이 안경이 선생님이 남긴 메시지를 전달하는 열쇠일지도 몰라,'라고 그는 말했다. 효민은 여전히 불안한 마음을 감추지 못한 채 주위를 살폈다. '하지만 이게 정말 안전한 걸까? 우리가 잘못된 길로 가고 있는 건 아닐까?' 우주는 두려운 마음을 감추지 못한 채 주위를 살폈다. '우리가 포기하면 선생님을 잃게 될지도 몰라. 이 안경이 단서가 될 거라고 믿어야 해,' 준원이 단호하게 대답했다. 세 친구는 서로의 손을 꼭 잡고, 한 발짝 더 나아갔다. 안경에서 비추어진 빛은 점점 더 강해지며 그들 앞에 숨겨진 비밀의 문이 열리는 듯했다. '여기서 뭔가를 느껴야 해,' 효민이 다시 말했다. '이 안경이 우리에게 필요한 모든 답을 줄 거야.' 그들은 다시 한 번 깊은 숨을 쉬며, 안경의 비밀을 파헤치기 위해 나무 아래로 들어가기로 결심했다. 그러나 그들의 앞에 놓인 위험은 그들이 상상하는 것보다 훨씬 더 큰 것이었다. 갑자기, 나무 사이로 바람이 세차게 불어오고, 그들이 느끼던 압박감이 더욱 강해졌다. '뭔가 이상해,' 우주가 불안한 목소리로 말했다. 그 순간, 안경 속에서 흐릿하게 비추이던 이미지가 더욱 선명해지며, 마치 선생님의 얼굴이 나타나는 듯했다. '이건... 선생님?' 준원이 놀란 목소리로 외쳤다. '우리가 찾고 있는 단서가 될지도 몰라!' 그러나 그들을 감싸고 있는 긴장감은 더욱 짙어졌다. 이제 그들은 진실을 향해 한 발짝 더 나아가야 했다.",
+						caption:
+							"세 친구는 나무 아래에서 발견한 안경이 선생님과 연결된 어떤 비밀을 품고 있을 것이라는 확신을 가지게 되었다. 준원이 안경을 조심스레 손에 쥐고 렌즈를 통해 비춰지는 신비로운 빛을 바라보았다. '이 안경이 선생님이 남긴 메시지를 전달하는 열쇠일지도 몰라,'라고 그는 말했다. 효민은 여전히 불안한 마음을 감추지 못한 채 주위를 살폈다. '하지만 이게 정말 안전한 걸까? 우리가 잘못된 길로 가고 있는 건 아닐까?' 우주는 두려운 마음을 감추지 못한 채 주위를 살폈다. '우리가 포기하면 선생님을 잃게 될지도 몰라. 이 안경이 단서가 될 거라고 믿어야 해,' 준원이 단호하게 대답했다. 세 친구는 서로의 손을 꼭 잡고, 한 발짝 더 나아갔다. 안경에서 비추어진 빛은 점점 더 강해지며 그들 앞에 숨겨진 비밀의 문이 열리는 듯했다. '여기서 뭔가를 느껴야 해,' 효민이 다시 말했다. '이 안경이 우리에게 필요한 모든 답을 줄 거야.' 그들은 다시 한 번 깊은 숨을 쉬며, 안경의 비밀을 파헤치기 위해 나무 아래로 들어가기로 결심했다. 그러나 그들의 앞에 놓인 위험은 그들이 상상하는 것보다 훨씬 더 큰 것이었다. 갑자기, 나무 사이로 바람이 세차게 불어오고, 그들이 느끼던 압박감이 더욱 강해졌다. '뭔가 이상해,' 우주가 불안한 목소리로 말했다. 그 순간, 안경 속에서 흐릿하게 비추이던 이미지가 더욱 선명해지며, 마치 선생님의 얼굴이 나타나는 듯했다. '이건... 선생님?' 준원이 놀란 목소리로 외쳤다. '우리가 찾고 있는 단서가 될지도 몰라!' 그러나 그들을 감싸고 있는 긴장감은 더욱 짙어졌다. 이제 그들은 진실을 향해 한 발짝 더 나아가야 했다.",
 					},
 					{
 						pageOrder: 10,
 						imageUrl: "",
-						caption: "준원은 안경의 렌즈에서 비춰진 신비로운 이미지에 매료되었다. '이건 분명히 선생님이 남긴 메시지야. 우리가 이걸 통해 뭔가를 알아낼 수 있을 거야,'라고 단호하게 말했다. 효민은 여전히 두려움이 가득한 눈빛으로 주위를 살폈다. '그런데 이게 정말 안전한 걸까? 우리가 잘못된 길로 가고 있는 건 아닐지 걱정이 돼.' 우주는 불안한 목소리로 말했다. '우리가 포기하면 선생님을 잃게 될지 몰라. 이 안경이 단서가 될 거라고 믿어야 해.' 세 친구는 서로의 손을 꼭 잡고, 한 발짝 더 나아가기로 결심했다. 그 순간, 안경에서 비추어진 빛이 더욱 강렬해지며 그들 앞에 숨겨진 비밀의 문이 열리는 듯 했다. '여기서 뭔가를 느껴야 해,' 효민이 다시 말했다. '이 안경이 우리에게 필요한 모든 답을 줄 거야.' 그들은 깊은 숨을 쉬며, 안경의 비밀을 파헤치기 위해 나무 아래로 들어가기로 결심했다. 그러나 그 순간, 나무 사이로 바람이 세차게 불어오고, 그들이 느끼던 압박감이 더욱 강해졌다. '뭔가 이상해,' 우주가 불안한 목소리로 말했다. 그 순간, 안경 속에서 흐릿하게 비추이던 이미지가 더욱 선명해지며, 마치 선생님의 얼굴이 나타나는 듯했다. '이건... 선생님?' 준원이 놀란 목소리로 외쳤다. '우리가 찾고 있는 단서가 될지도 몰라!' 그러나 그들을 감싸고 있는 긴장감은 더욱 짙어졌다. '이 안경은 단순한 물건이 아니야. 뭔가 더 큰 힘이 있는 것 같아,' 준원이 말했다. 그들은 서로를 바라보며 결의를 다졌다. '이제 진실을 찾아 나서야 해.' 그러나 그들의 모험은 이제 시작에 불과했다. 그들 앞에 놓인 위험은 상상 이상으로 다가오고 있었다. '이제 다음 단서를 찾아야 해,' 효민이 말했다. 그들은 다시 한 번 결심하며, 안경의 신비를 풀기 위해 학교 곳곳을 탐험하기로 했다. 그러나 무엇이 그들을 기다리고 있을지, 그들은 전혀 알지 못했다.",
+						caption:
+							"준원은 안경의 렌즈에서 비춰진 신비로운 이미지에 매료되었다. '이건 분명히 선생님이 남긴 메시지야. 우리가 이걸 통해 뭔가를 알아낼 수 있을 거야,'라고 단호하게 말했다. 효민은 여전히 두려움이 가득한 눈빛으로 주위를 살폈다. '그런데 이게 정말 안전한 걸까? 우리가 잘못된 길로 가고 있는 건 아닐지 걱정이 돼.' 우주는 불안한 목소리로 말했다. '우리가 포기하면 선생님을 잃게 될지 몰라. 이 안경이 단서가 될 거라고 믿어야 해.' 세 친구는 서로의 손을 꼭 잡고, 한 발짝 더 나아가기로 결심했다. 그 순간, 안경에서 비추어진 빛이 더욱 강렬해지며 그들 앞에 숨겨진 비밀의 문이 열리는 듯 했다. '여기서 뭔가를 느껴야 해,' 효민이 다시 말했다. '이 안경이 우리에게 필요한 모든 답을 줄 거야.' 그들은 깊은 숨을 쉬며, 안경의 비밀을 파헤치기 위해 나무 아래로 들어가기로 결심했다. 그러나 그 순간, 나무 사이로 바람이 세차게 불어오고, 그들이 느끼던 압박감이 더욱 강해졌다. '뭔가 이상해,' 우주가 불안한 목소리로 말했다. 그 순간, 안경 속에서 흐릿하게 비추이던 이미지가 더욱 선명해지며, 마치 선생님의 얼굴이 나타나는 듯했다. '이건... 선생님?' 준원이 놀란 목소리로 외쳤다. '우리가 찾고 있는 단서가 될지도 몰라!' 그러나 그들을 감싸고 있는 긴장감은 더욱 짙어졌다. '이 안경은 단순한 물건이 아니야. 뭔가 더 큰 힘이 있는 것 같아,' 준원이 말했다. 그들은 서로를 바라보며 결의를 다졌다. '이제 진실을 찾아 나서야 해.' 그러나 그들의 모험은 이제 시작에 불과했다. 그들 앞에 놓인 위험은 상상 이상으로 다가오고 있었다. '이제 다음 단서를 찾아야 해,' 효민이 말했다. 그들은 다시 한 번 결심하며, 안경의 신비를 풀기 위해 학교 곳곳을 탐험하기로 했다. 그러나 무엇이 그들을 기다리고 있을지, 그들은 전혀 알지 못했다.",
 					},
 					{
 						pageOrder: 11,
 						imageUrl: "",
-						caption: "준원, 효민, 우주는 서로의 손을 꼭 잡고, 선생님의 안경을 통해 펼쳐질 미스터리의 세계에 발을 내딛었다. 안경에서 비추어진 신비로운 빛이 그들 앞에 길을 열어주는 듯했다. '이제 시작이야,' 준원이 다짐하듯 말했다. 효민은 여전히 불안한 마음을 감추지 못했지만, 친구들의 결의에 힘을 얻었다. 우주는 두려움을 떨쳐내고, 안경 속 선생님의 얼굴이 더욱 선명해지는 것을 바라보며 용기를 내었다. '선생님이 우리에게 뭔가를 전하려는 것 같아. 우리가 이 단서를 풀면 선생님이 돌아오실 거야.' 그들은 교실로 향하며 학교의 구석구석을 탐험하기 시작했다. 각자 여러 가지 아이디어를 내며 단서를 해석했다. '이 안경이 우리가 가야 할 방향을 알려주고 있어,' 준원이 말했다. 그렇게 세 친구는 단서를 찾아 학교를 탐험하며, 선생님이 남긴 메시지를 해석하기 위해 고군분투했다. 그 과정에서 그들은 서로의 마음을 더욱 깊이 이해하게 되었고, 미스터리에 대한 호기심이 점점 커져갔다. 그러나 그들이 찾고 있는 진실이 과연 무엇일지, 그들은 알지 못했다. 갑자기, 교실의 한 구석에서 이상한 소리가 들려왔다. '이게 뭔가 이상해,' 효민이 말했다. 세 친구는 긴장한 채 소리의 방향으로 다가갔다. 그 순간, 안경이 더욱 강렬한 빛을 발하며, 그들에게 새로운 단서가 나타날 것 같은 예감을 불러일으켰다. '이 안경이 우리를 이끌고 있어,' 우주가 말했다. 이제 그들은 진실에 한 발짝 더 가까워지고 있었다. 그들은 소리의 근원으로 다가가며, 한편으론 두려움과 기대가 뒤섞인 감정을 느꼈다. '이건 선생님과 관련된 것 같아,' 준원이 속삭였다. 그들이 소리의 근원에 도착했을 때, 그 앞에는 오래된 책장이 놓여 있었다. 책장 사이로 흐릿한 빛이 새어나오고 있었다. '이건 우리가 찾던 단서일지도 몰라!' 효민이 외쳤다. 세 친구는 서로를 바라보며 결단을 내렸다. '이 책장을 열어보자,' 우주가 말했다. 그 순간, 준원이 책장을 열자, 그 안에서 한 장의 노란 편지가 떨어졌다. '이건 선생님의 편지야,' 준원이 말했다. 친구들이 편지를 펼치자, 그 안에는 선생님이 사라진 이유와 관련된 단서가 적혀 있었다. 그들은 이 편지를 통해 선생님과 다시 만날 수 있는 길을 찾을 수 있을 것이라는 희망을 품었다. 그러나 그들 앞에 놓인 위험은 상상 이상으로 다가오고 있었다. '이제 다음 단서를 찾아야 해,' 효민이 말했다. 그들은 다시 한 번 결심하며, 안경의 신비를 풀기 위해 학교 곳곳을 탐험하기로 했다. 그러나 무엇이 그들을 기다리고 있을지, 그들은 전혀 알지 못했다.",
+						caption:
+							"준원, 효민, 우주는 서로의 손을 꼭 잡고, 선생님의 안경을 통해 펼쳐질 미스터리의 세계에 발을 내딛었다. 안경에서 비추어진 신비로운 빛이 그들 앞에 길을 열어주는 듯했다. '이제 시작이야,' 준원이 다짐하듯 말했다. 효민은 여전히 불안한 마음을 감추지 못했지만, 친구들의 결의에 힘을 얻었다. 우주는 두려움을 떨쳐내고, 안경 속 선생님의 얼굴이 더욱 선명해지는 것을 바라보며 용기를 내었다. '선생님이 우리에게 뭔가를 전하려는 것 같아. 우리가 이 단서를 풀면 선생님이 돌아오실 거야.' 그들은 교실로 향하며 학교의 구석구석을 탐험하기 시작했다. 각자 여러 가지 아이디어를 내며 단서를 해석했다. '이 안경이 우리가 가야 할 방향을 알려주고 있어,' 준원이 말했다. 그렇게 세 친구는 단서를 찾아 학교를 탐험하며, 선생님이 남긴 메시지를 해석하기 위해 고군분투했다. 그 과정에서 그들은 서로의 마음을 더욱 깊이 이해하게 되었고, 미스터리에 대한 호기심이 점점 커져갔다. 그러나 그들이 찾고 있는 진실이 과연 무엇일지, 그들은 알지 못했다. 갑자기, 교실의 한 구석에서 이상한 소리가 들려왔다. '이게 뭔가 이상해,' 효민이 말했다. 세 친구는 긴장한 채 소리의 방향으로 다가갔다. 그 순간, 안경이 더욱 강렬한 빛을 발하며, 그들에게 새로운 단서가 나타날 것 같은 예감을 불러일으켰다. '이 안경이 우리를 이끌고 있어,' 우주가 말했다. 이제 그들은 진실에 한 발짝 더 가까워지고 있었다. 그들은 소리의 근원으로 다가가며, 한편으론 두려움과 기대가 뒤섞인 감정을 느꼈다. '이건 선생님과 관련된 것 같아,' 준원이 속삭였다. 그들이 소리의 근원에 도착했을 때, 그 앞에는 오래된 책장이 놓여 있었다. 책장 사이로 흐릿한 빛이 새어나오고 있었다. '이건 우리가 찾던 단서일지도 몰라!' 효민이 외쳤다. 세 친구는 서로를 바라보며 결단을 내렸다. '이 책장을 열어보자,' 우주가 말했다. 그 순간, 준원이 책장을 열자, 그 안에서 한 장의 노란 편지가 떨어졌다. '이건 선생님의 편지야,' 준원이 말했다. 친구들이 편지를 펼치자, 그 안에는 선생님이 사라진 이유와 관련된 단서가 적혀 있었다. 그들은 이 편지를 통해 선생님과 다시 만날 수 있는 길을 찾을 수 있을 것이라는 희망을 품었다. 그러나 그들 앞에 놓인 위험은 상상 이상으로 다가오고 있었다. '이제 다음 단서를 찾아야 해,' 효민이 말했다. 그들은 다시 한 번 결심하며, 안경의 신비를 풀기 위해 학교 곳곳을 탐험하기로 했다. 그러나 무엇이 그들을 기다리고 있을지, 그들은 전혀 알지 못했다.",
 					},
 					{
 						pageOrder: 12,
 						imageUrl: "",
-						caption: "준원, 효민, 우주는 노란 편지를 바닥에 펼쳐놓고, 한 글자 한 글자 읽어내려갔다. 편지에는 선생님이 사라진 이유와 그를 찾기 위한 단서가 적혀 있었다. '이곳은 내가 숨겨놓은 비밀의 장소야. 너희가 이 편지를 찾았다면, 이제 진실을 찾아야 해. 하지만 조심해야 해. 그곳에는 위험이 도사리고 있어.' 편지를 읽으며 세 친구는 서로의 눈을 바라보았다. '이건 우리가 가야 할 길이야,' 준원이 결단을 내리듯 말했다. '그럼 그곳은 어디일까?' 효민이 물었다. 우주는 생각에 잠긴 듯 눈을 감았다. '아마도 우리가 선생님과 함께했던 그 숲속이 아닐까?' 친구들은 고개를 끄덕이며 동의했다. '그곳에 가면 단서가 더 있을 거야,' 준원이 말했다. 세 친구는 서로의 손을 다시 잡고, 결심을 다졌다. 그들은 한 발짝 앞으로 나아가며, 선생님의 안경이 비춰준 길을 따라 가기로 했다. 그 순간, 안경에서 뿜어져 나오는 빛이 더욱 강렬해지며, 그들을 이끌어주는 듯했다. '이걸로 선생님을 찾을 수 있을 거야,' 우주가 말했다. 그러나 그들은 아직도 그 길에 숨겨진 위험을 알지 못했다. 그들이 숲속으로 향하는 동안, 바람이 세차게 불어오며 나뭇가지들이 흔들렸다. '무언가가 우리를 지켜보고 있는 것 같아,' 효민이 불안한 목소리로 말했다. 그 순간, 안경이 다시 빛을 발하며, 그들 앞에 새로운 시야가 열리는 듯했다. '이제 진실을 마주할 시간이야,' 준원이 다짐하며 숲속으로 발을 내디뎠다. 숲속은 어둡고 음산했다. 나무들은 서로 엉켜 있어 마치 그들이 지켜보는 듯한 기분이 들었다. '여기서 뭔가를 찾아야 해,' 효민이 말했다. 그들은 안경의 빛을 따라 조심스럽게 나아갔다. 갑자기, 한쪽에서 이상한 소리가 들려왔다. '저기, 무언가 있어!' 우주가 소리쳤다. 그들은 소리의 방향으로 다가가며 긴장한 채 숨을 죽였다. 그리고 그곳에서 오래된 나무로 만든 작은 오두막을 발견했다. '이곳이 선생님이 말한 비밀의 장소일까?' 준원이 물었다. 효민은 두려움에 떨며 고개를 끄덕였다. '우리, 들어가보자.' 세 친구는 서로의 손을 꼭 잡고 오두막으로 향했다. 문을 열자, 내부는 어둡고 먼지가 쌓여 있었다. 그러나 벽에는 이상한 기호와 그림들이 그려져 있었다. '이건... 선생님이 남긴 단서일지도 몰라!' 효민이 외쳤다. 그들은 기호를 해석하기 위해 집중하기 시작했다. '이 기호들이 우리를 다음 단서로 이끌어줄 거야,' 준원이 말했다. 그러나 그 순간, 오두막의 문이 덜컹거리며 닫혔다. '뭐야? 왜 닫히지?' 우주가 놀라며 외쳤다. 그들은 서로를 바라보며 두려움에 휩싸였다. 이제 그들은 선생님을 찾기 위해 더 큰 위험을 마주해야 했다. '우리가 함께라면 이겨낼 수 있어,' 준원이 말했다. '선생님이 우리를 믿고 기다리고 계셔.' 그들은 다시 결심을 다지고, 안경의 빛을 따라 기호를 해석하기 시작했다. 그 과정에서 서로의 마음을 더욱 깊이 이해하게 되었고, 미스터리에 대한 호기심이 점점 커져갔다. 그러나 그들이 찾고 있는 진실이 과연 무엇일지, 그들은 알지 못했다.",
+						caption:
+							"준원, 효민, 우주는 노란 편지를 바닥에 펼쳐놓고, 한 글자 한 글자 읽어내려갔다. 편지에는 선생님이 사라진 이유와 그를 찾기 위한 단서가 적혀 있었다. '이곳은 내가 숨겨놓은 비밀의 장소야. 너희가 이 편지를 찾았다면, 이제 진실을 찾아야 해. 하지만 조심해야 해. 그곳에는 위험이 도사리고 있어.' 편지를 읽으며 세 친구는 서로의 눈을 바라보았다. '이건 우리가 가야 할 길이야,' 준원이 결단을 내리듯 말했다. '그럼 그곳은 어디일까?' 효민이 물었다. 우주는 생각에 잠긴 듯 눈을 감았다. '아마도 우리가 선생님과 함께했던 그 숲속이 아닐까?' 친구들은 고개를 끄덕이며 동의했다. '그곳에 가면 단서가 더 있을 거야,' 준원이 말했다. 세 친구는 서로의 손을 다시 잡고, 결심을 다졌다. 그들은 한 발짝 앞으로 나아가며, 선생님의 안경이 비춰준 길을 따라 가기로 했다. 그 순간, 안경에서 뿜어져 나오는 빛이 더욱 강렬해지며, 그들을 이끌어주는 듯했다. '이걸로 선생님을 찾을 수 있을 거야,' 우주가 말했다. 그러나 그들은 아직도 그 길에 숨겨진 위험을 알지 못했다. 그들이 숲속으로 향하는 동안, 바람이 세차게 불어오며 나뭇가지들이 흔들렸다. '무언가가 우리를 지켜보고 있는 것 같아,' 효민이 불안한 목소리로 말했다. 그 순간, 안경이 다시 빛을 발하며, 그들 앞에 새로운 시야가 열리는 듯했다. '이제 진실을 마주할 시간이야,' 준원이 다짐하며 숲속으로 발을 내디뎠다. 숲속은 어둡고 음산했다. 나무들은 서로 엉켜 있어 마치 그들이 지켜보는 듯한 기분이 들었다. '여기서 뭔가를 찾아야 해,' 효민이 말했다. 그들은 안경의 빛을 따라 조심스럽게 나아갔다. 갑자기, 한쪽에서 이상한 소리가 들려왔다. '저기, 무언가 있어!' 우주가 소리쳤다. 그들은 소리의 방향으로 다가가며 긴장한 채 숨을 죽였다. 그리고 그곳에서 오래된 나무로 만든 작은 오두막을 발견했다. '이곳이 선생님이 말한 비밀의 장소일까?' 준원이 물었다. 효민은 두려움에 떨며 고개를 끄덕였다. '우리, 들어가보자.' 세 친구는 서로의 손을 꼭 잡고 오두막으로 향했다. 문을 열자, 내부는 어둡고 먼지가 쌓여 있었다. 그러나 벽에는 이상한 기호와 그림들이 그려져 있었다. '이건... 선생님이 남긴 단서일지도 몰라!' 효민이 외쳤다. 그들은 기호를 해석하기 위해 집중하기 시작했다. '이 기호들이 우리를 다음 단서로 이끌어줄 거야,' 준원이 말했다. 그러나 그 순간, 오두막의 문이 덜컹거리며 닫혔다. '뭐야? 왜 닫히지?' 우주가 놀라며 외쳤다. 그들은 서로를 바라보며 두려움에 휩싸였다. 이제 그들은 선생님을 찾기 위해 더 큰 위험을 마주해야 했다. '우리가 함께라면 이겨낼 수 있어,' 준원이 말했다. '선생님이 우리를 믿고 기다리고 계셔.' 그들은 다시 결심을 다지고, 안경의 빛을 따라 기호를 해석하기 시작했다. 그 과정에서 서로의 마음을 더욱 깊이 이해하게 되었고, 미스터리에 대한 호기심이 점점 커져갔다. 그러나 그들이 찾고 있는 진실이 과연 무엇일지, 그들은 알지 못했다.",
 					},
 					{
 						pageOrder: 13,
 						imageUrl: "",
-						caption: "준원, 효민, 우주는 오두막 안에서 선생님이 남긴 기호를 해석하기 위해 집중하고 있었다. 벽에 그려진 기호들은 서로 얽혀 있었고, 그들 앞에 놓인 단서들이 무엇을 의미하는지 알 수 없었다. '여기, 이 기호는 아마도 방향을 나타내는 것 같아,' 준원이 말했다. 효민은 눈을 가늘게 뜨고 기호를 살펴보았다. '그러니까, 이 기호를 따라가면 우리가 다음 단서를 찾을 수 있다는 거야?' 우주가 물었다. 준원은 고개를 끄덕이며, '그렇지. 하지만 조심해야 해. 우리가 생각하는 것보다 더 큰 위험이 도사리고 있을지도 몰라.' 세 친구는 각자 기호를 해석하기 위해 조심스럽게 접근했다. 그 순간, 문이 덜컹거리며 닫힌 것에 대한 두려움이 다시 마음속에 스멀스멀 올라왔다. '이곳에서 나오지 못하면 어떻게 할 거야?' 효민이 불안한 목소리로 물었다. 준원은 친구를 안심시키려 애썼지만, 그의 마음속에도 불안이 자리 잡고 있었다. '우리는 함께 있으니까 괜찮아. 그리고 선생님을 찾기 위해서는 이 기호를 풀어야 해.' 그렇게 그들은 다시 기호에 집중하기 시작했다. 시간이 흐르고, 그들이 기호를 해석하는 동안, 갑자기 어둠 속에서 이상한 소리가 들려왔다. '저기, 또 소리가 나고 있어!' 우주가 소리쳤다. 세 친구는 서로를 바라보며 긴장한 채 소리의 방향으로 시선을 돌렸다. 그리고 그 순간, 벽에 그려진 기호 중 하나가 불빛을 발하기 시작했다. '이건 우리가 해석한 기호와 관련이 있을 거야!' 준원이 외쳤다. 그들은 그 기호를 따라가며 새로운 단서를 찾기 위한 결단을 내렸다. 그러나 그들이 마주할 진실이 어떤 것인지, 그들은 전혀 알지 못했다.",
+						caption:
+							"준원, 효민, 우주는 오두막 안에서 선생님이 남긴 기호를 해석하기 위해 집중하고 있었다. 벽에 그려진 기호들은 서로 얽혀 있었고, 그들 앞에 놓인 단서들이 무엇을 의미하는지 알 수 없었다. '여기, 이 기호는 아마도 방향을 나타내는 것 같아,' 준원이 말했다. 효민은 눈을 가늘게 뜨고 기호를 살펴보았다. '그러니까, 이 기호를 따라가면 우리가 다음 단서를 찾을 수 있다는 거야?' 우주가 물었다. 준원은 고개를 끄덕이며, '그렇지. 하지만 조심해야 해. 우리가 생각하는 것보다 더 큰 위험이 도사리고 있을지도 몰라.' 세 친구는 각자 기호를 해석하기 위해 조심스럽게 접근했다. 그 순간, 문이 덜컹거리며 닫힌 것에 대한 두려움이 다시 마음속에 스멀스멀 올라왔다. '이곳에서 나오지 못하면 어떻게 할 거야?' 효민이 불안한 목소리로 물었다. 준원은 친구를 안심시키려 애썼지만, 그의 마음속에도 불안이 자리 잡고 있었다. '우리는 함께 있으니까 괜찮아. 그리고 선생님을 찾기 위해서는 이 기호를 풀어야 해.' 그렇게 그들은 다시 기호에 집중하기 시작했다. 시간이 흐르고, 그들이 기호를 해석하는 동안, 갑자기 어둠 속에서 이상한 소리가 들려왔다. '저기, 또 소리가 나고 있어!' 우주가 소리쳤다. 세 친구는 서로를 바라보며 긴장한 채 소리의 방향으로 시선을 돌렸다. 그리고 그 순간, 벽에 그려진 기호 중 하나가 불빛을 발하기 시작했다. '이건 우리가 해석한 기호와 관련이 있을 거야!' 준원이 외쳤다. 그들은 그 기호를 따라가며 새로운 단서를 찾기 위한 결단을 내렸다. 그러나 그들이 마주할 진실이 어떤 것인지, 그들은 전혀 알지 못했다.",
 					},
 					{
 						pageOrder: 14,
 						imageUrl: "",
-						caption: "준원은 벽에 그려진 기호가 불빛을 발하는 것을 보고, 그 기호가 자신들이 해석한 것과 어떤 연관이 있을지 궁금해졌다. '이 기호를 따라가면 분명히 다음 단서를 찾을 수 있어,' 준원이 말했다. 효민은 여전히 두려운 표정을 지으며, '하지만 이곳에서 나갈 길이 없으면 어떻게 하지?'라고 반문했다. 준원은 고개를 저으며, '우리가 함께라면 어떤 어려움도 극복할 수 있어. 선생님이 우리를 믿고 기다리고 계실 거야,'라고 힘주어 말했다. 세 친구는 서로의 손을 꼭 잡고, 불빛을 따라 다가갔다. 그들이 기호에 가까워질수록, 불빛은 점점 더 밝아졌고, 그들은 마치 어떤 힘에 이끌리듯 기호를 향해 나아갔다. 기호가 더욱 강한 빛을 발하며, 벽에 그려진 그림들이 살아 움직이는 듯한 착각을 일으켰다. '이건... 마치 선생님이 우리에게 메시지를 전하는 것 같아,' 우주가 감탄하며 말했다. 하지만 그들의 마음속에 불안감이 스멀스멀 올라왔다. '우리가 해석한 대로 가면 정말로 선생님을 찾을 수 있을까?' 효민이 조심스럽게 물었다. 준원은 자신감 있게 고개를 끄덕이며, '우리가 믿고 나아가면 반드시 길이 열릴 거야,'라고 대답했다. 그렇게 그들은 기호를 따라 한 걸음 한 걸음 나아갔다. 그러나 그들이 한 발짝 한 발짝 내딛을 때마다, 오두막의 분위기는 더욱 음산해졌고, 주변의 어둠은 그들을 더욱 압박하는 듯했다. 그들 앞에는 또 다른 미스터리가 기다리고 있는 듯했다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 불빛이 인도하는 대로 깊이 들어가기로 결심했다.\n\n기호는 그들의 시선을 사로잡으며, 마치 그들만을 위한 길을 보여주고 있는 듯했다. 준원은 불빛이 비추는 길을 따라가며, '여기서 무엇을 발견할 수 있을까?'라는 생각에 가슴이 두근거렸다. 효민은 뒤에서 조용히 그들을 지켜보며, '이게 정말 선생님과 관련된 것일까?'라는 의구심이 들었다. 우주 또한 불안한 마음을 감추지 못하고, '아무리 그래도 이건 너무 이상해,'라고 중얼거렸다. 그 순간, 기호 중 하나가 더욱 밝게 빛나며, 벽에서 이상한 음성이 흘러나왔다. '이곳에 오신 것을 환영합니다.' 세 친구는 서로를 바라보며 놀라움을 감추지 못했다. '이건... 선생님의 목소리야!' 효민이 외쳤다. 그러나 그들은 동시에 느낀 불안감이 더욱 커졌다. '이제 선택의 시간이야,'라는 목소리가 이어졌다. '진실을 원한다면, 그 기호를 따라가야 해.' 준원과 친구들은 서로의 눈빛을 바라보며, 결단을 내렸다. '우리는 선생님을 찾아야 해,' 준원이 힘주어 말했다. 그들은 불빛이 비추는 길을 따라, 미지의 세계로 발을 내딛었다. 그들이 마주할 진실이 어떤 것인지, 그들은 전혀 알지 못했다.",
+						caption:
+							"준원은 벽에 그려진 기호가 불빛을 발하는 것을 보고, 그 기호가 자신들이 해석한 것과 어떤 연관이 있을지 궁금해졌다. '이 기호를 따라가면 분명히 다음 단서를 찾을 수 있어,' 준원이 말했다. 효민은 여전히 두려운 표정을 지으며, '하지만 이곳에서 나갈 길이 없으면 어떻게 하지?'라고 반문했다. 준원은 고개를 저으며, '우리가 함께라면 어떤 어려움도 극복할 수 있어. 선생님이 우리를 믿고 기다리고 계실 거야,'라고 힘주어 말했다. 세 친구는 서로의 손을 꼭 잡고, 불빛을 따라 다가갔다. 그들이 기호에 가까워질수록, 불빛은 점점 더 밝아졌고, 그들은 마치 어떤 힘에 이끌리듯 기호를 향해 나아갔다. 기호가 더욱 강한 빛을 발하며, 벽에 그려진 그림들이 살아 움직이는 듯한 착각을 일으켰다. '이건... 마치 선생님이 우리에게 메시지를 전하는 것 같아,' 우주가 감탄하며 말했다. 하지만 그들의 마음속에 불안감이 스멀스멀 올라왔다. '우리가 해석한 대로 가면 정말로 선생님을 찾을 수 있을까?' 효민이 조심스럽게 물었다. 준원은 자신감 있게 고개를 끄덕이며, '우리가 믿고 나아가면 반드시 길이 열릴 거야,'라고 대답했다. 그렇게 그들은 기호를 따라 한 걸음 한 걸음 나아갔다. 그러나 그들이 한 발짝 한 발짝 내딛을 때마다, 오두막의 분위기는 더욱 음산해졌고, 주변의 어둠은 그들을 더욱 압박하는 듯했다. 그들 앞에는 또 다른 미스터리가 기다리고 있는 듯했다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 불빛이 인도하는 대로 깊이 들어가기로 결심했다.\n\n기호는 그들의 시선을 사로잡으며, 마치 그들만을 위한 길을 보여주고 있는 듯했다. 준원은 불빛이 비추는 길을 따라가며, '여기서 무엇을 발견할 수 있을까?'라는 생각에 가슴이 두근거렸다. 효민은 뒤에서 조용히 그들을 지켜보며, '이게 정말 선생님과 관련된 것일까?'라는 의구심이 들었다. 우주 또한 불안한 마음을 감추지 못하고, '아무리 그래도 이건 너무 이상해,'라고 중얼거렸다. 그 순간, 기호 중 하나가 더욱 밝게 빛나며, 벽에서 이상한 음성이 흘러나왔다. '이곳에 오신 것을 환영합니다.' 세 친구는 서로를 바라보며 놀라움을 감추지 못했다. '이건... 선생님의 목소리야!' 효민이 외쳤다. 그러나 그들은 동시에 느낀 불안감이 더욱 커졌다. '이제 선택의 시간이야,'라는 목소리가 이어졌다. '진실을 원한다면, 그 기호를 따라가야 해.' 준원과 친구들은 서로의 눈빛을 바라보며, 결단을 내렸다. '우리는 선생님을 찾아야 해,' 준원이 힘주어 말했다. 그들은 불빛이 비추는 길을 따라, 미지의 세계로 발을 내딛었다. 그들이 마주할 진실이 어떤 것인지, 그들은 전혀 알지 못했다.",
 					},
 					{
 						pageOrder: 15,
 						imageUrl: "",
-						caption: "준원은 불빛이 비추는 길을 따라가며 떨리는 마음을 진정시키려 애썼다. '이곳에 오신 것을 환영합니다.'라는 목소리는 그에게 다가오는 불안한 기운을 더욱 부각시켰다. '선생님이 정말 이곳에 계신 걸까?' 효민의 목소리가 떨렸다. 우주는 두려움과 호기심이 교차하는 눈빛으로 벽을 바라보았다. 그 벽에는 그들이 해석해낸 기호들이 계속해서 빛나고 있었고, 마치 그 기호들이 그들의 선택에 반응하는 듯했다. '우리가 이 기호를 따라가면 정말 선생님을 만날 수 있을까?' 효민이 다시 물었다. 준원은 고개를 끄덕이며, '우리가 믿고 나아가야 해. 선생님은 우리를 기다리고 계실 거야,'라고 대답했다. 그들은 불빛이 더 강해지는 방향으로 한 걸음 더 나아갔다. 그 순간, 벽에서 흘러나온 목소리가 다시 그들을 감싸 안았다. '진실을 원한다면, 선택하라. 선택은 당신의 것이다.' 세 친구는 서로를 바라보며 긴장한 표정을 지었다. 이 선택이 무엇을 의미하는지, 그들은 전혀 알지 못했다. 준원이 기호를 가리키며 말했다. '이 기호가 우리가 선택할 수 있는 길을 보여주는 것 같아. 하나씩 따라가 보자.' 그들은 조심스럽게 기호를 따라가며, 각자의 마음속에 자리 잡은 두려움을 이겨내려 했다. 기호를 따라가면서 그들은 점점 더 깊은 어둠 속으로 들어가고 있었다. '우리가 선택한 길이 정말 맞는 길인가?'라는 의구심이 그들의 마음속을 스쳤다. 그러나 그들은 선생님을 찾기 위해 포기할 수 없었다. 그들은 서로의 손을 꼭 잡고, 불빛으로 인도된 길을 따라가기로 결심했다. 불빛이 그들의 앞을 비추며, 새로운 단서들이 그들을 기다리고 있었다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
+						caption:
+							"준원은 불빛이 비추는 길을 따라가며 떨리는 마음을 진정시키려 애썼다. '이곳에 오신 것을 환영합니다.'라는 목소리는 그에게 다가오는 불안한 기운을 더욱 부각시켰다. '선생님이 정말 이곳에 계신 걸까?' 효민의 목소리가 떨렸다. 우주는 두려움과 호기심이 교차하는 눈빛으로 벽을 바라보았다. 그 벽에는 그들이 해석해낸 기호들이 계속해서 빛나고 있었고, 마치 그 기호들이 그들의 선택에 반응하는 듯했다. '우리가 이 기호를 따라가면 정말 선생님을 만날 수 있을까?' 효민이 다시 물었다. 준원은 고개를 끄덕이며, '우리가 믿고 나아가야 해. 선생님은 우리를 기다리고 계실 거야,'라고 대답했다. 그들은 불빛이 더 강해지는 방향으로 한 걸음 더 나아갔다. 그 순간, 벽에서 흘러나온 목소리가 다시 그들을 감싸 안았다. '진실을 원한다면, 선택하라. 선택은 당신의 것이다.' 세 친구는 서로를 바라보며 긴장한 표정을 지었다. 이 선택이 무엇을 의미하는지, 그들은 전혀 알지 못했다. 준원이 기호를 가리키며 말했다. '이 기호가 우리가 선택할 수 있는 길을 보여주는 것 같아. 하나씩 따라가 보자.' 그들은 조심스럽게 기호를 따라가며, 각자의 마음속에 자리 잡은 두려움을 이겨내려 했다. 기호를 따라가면서 그들은 점점 더 깊은 어둠 속으로 들어가고 있었다. '우리가 선택한 길이 정말 맞는 길인가?'라는 의구심이 그들의 마음속을 스쳤다. 그러나 그들은 선생님을 찾기 위해 포기할 수 없었다. 그들은 서로의 손을 꼭 잡고, 불빛으로 인도된 길을 따라가기로 결심했다. 불빛이 그들의 앞을 비추며, 새로운 단서들이 그들을 기다리고 있었다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
 					},
 					{
 						pageOrder: 16,
 						imageUrl: "",
-						caption: "준원은 기호를 따라가며 점점 더 깊은 어둠 속으로 들어가고 있었다. 불빛이 비추는 길은 그들의 마음 속 두려움과 기대를 동시에 자아냈다. '이곳에 오신 것을 환영합니다.'라는 목소리가 여전히 그들의 귀에 맴돌았고, 그 목소리의 주인인 선생님이 과연 이곳에 있을 것인지에 대한 의문이 그들을 괴롭혔다. 효민은 두려운 마음을 애써 숨기며, '정말 이 기호가 선생님과 연결되어 있는 걸까?'라고 속삭였다. 우주가 대답했다. '우리가 믿고 나아가야 해. 선생님도 우리를 믿고 기다리고 계실 거야.' 그들은 다시 한 번 서로의 손을 꼭 잡았다. 기호가 더욱 밝아지면서, 그 앞에 새로운 문이 나타났다. 문은 삐걱거리며 열렸고, 그 안에서 차가운 바람이 불어왔다. '여기서 뭔가를 발견할 수 있을까?' 준원이 중얼거렸다. 그 순간, 문을 지나자마자 그들은 또 다른 방에 들어섰고, 방 한쪽 구석에는 오래된 책상이 놓여 있었다. 책상 위에는 먼지가 쌓인 여러 권의 책들이 놓여 있었고, 그 중 한 권이 유독 빛나는 듯했다. 준원은 그 책으로 다가가 손을 내밀었다. '이 책이 선생님과 관련된 뭔가를 알려줄지도 몰라.' 하지만 효민은 불안한 마음을 감추지 못하고, '조심하자. 이곳은 위험할지도 몰라.'라고 경고했다. 준원은 고개를 끄덕이며 책을 열었다. 그 순간, 방 안의 공기가 갑자기 차가워지고, 이상한 기운이 감돌기 시작했다. 우주는 두려움에 떨며, '이건 뭔가 잘못됐다!'라고 외쳤다. 책의 페이지가 스스로 넘겨지며, 그 안에 숨겨진 글자들이 드러났다. '진실을 원한다면, 선택하라.'라는 문구가 선명하게 나타났다. 준원은 눈을 크게 뜨고, '이건 아까 그 목소리와 똑같아!'라고 말했다. 효민은 더욱 긴장한 목소리로, '우리가 선택해야 하는 건가? 어떤 선택을 말하는 거지?'라고 물었다. 그들은 서로를 바라보며 고민에 빠졌다. 이 선택이 그들의 운명을 좌우할 것이라는 불안감이 그들의 마음을 짓눌렀다. 준원은 다시 책을 들여다보았다. '이 선택이 우리에게 선생님을 찾는 열쇠가 될지도 몰라.' 그러나 그들은 선생님이 어떤 상황에 처해 있는지, 그 선택이 어떤 결과를 초래할지 전혀 알지 못했다. 우주는 입술을 깨물며, '우리가 선택하지 않으면 선생님은 영원히 잊혀질지도 몰라.'라고 말했다. 그들은 각자 마음속에 자리 잡은 두려움을 이겨내려 했다. 불빛이 그들을 비추며, 새로운 단서들이 그들을 기다리고 있었다. 그들은 서로의 손을 더욱 단단히 잡고, 선택의 순간을 맞이하기 위해 준비했다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
+						caption:
+							"준원은 기호를 따라가며 점점 더 깊은 어둠 속으로 들어가고 있었다. 불빛이 비추는 길은 그들의 마음 속 두려움과 기대를 동시에 자아냈다. '이곳에 오신 것을 환영합니다.'라는 목소리가 여전히 그들의 귀에 맴돌았고, 그 목소리의 주인인 선생님이 과연 이곳에 있을 것인지에 대한 의문이 그들을 괴롭혔다. 효민은 두려운 마음을 애써 숨기며, '정말 이 기호가 선생님과 연결되어 있는 걸까?'라고 속삭였다. 우주가 대답했다. '우리가 믿고 나아가야 해. 선생님도 우리를 믿고 기다리고 계실 거야.' 그들은 다시 한 번 서로의 손을 꼭 잡았다. 기호가 더욱 밝아지면서, 그 앞에 새로운 문이 나타났다. 문은 삐걱거리며 열렸고, 그 안에서 차가운 바람이 불어왔다. '여기서 뭔가를 발견할 수 있을까?' 준원이 중얼거렸다. 그 순간, 문을 지나자마자 그들은 또 다른 방에 들어섰고, 방 한쪽 구석에는 오래된 책상이 놓여 있었다. 책상 위에는 먼지가 쌓인 여러 권의 책들이 놓여 있었고, 그 중 한 권이 유독 빛나는 듯했다. 준원은 그 책으로 다가가 손을 내밀었다. '이 책이 선생님과 관련된 뭔가를 알려줄지도 몰라.' 하지만 효민은 불안한 마음을 감추지 못하고, '조심하자. 이곳은 위험할지도 몰라.'라고 경고했다. 준원은 고개를 끄덕이며 책을 열었다. 그 순간, 방 안의 공기가 갑자기 차가워지고, 이상한 기운이 감돌기 시작했다. 우주는 두려움에 떨며, '이건 뭔가 잘못됐다!'라고 외쳤다. 책의 페이지가 스스로 넘겨지며, 그 안에 숨겨진 글자들이 드러났다. '진실을 원한다면, 선택하라.'라는 문구가 선명하게 나타났다. 준원은 눈을 크게 뜨고, '이건 아까 그 목소리와 똑같아!'라고 말했다. 효민은 더욱 긴장한 목소리로, '우리가 선택해야 하는 건가? 어떤 선택을 말하는 거지?'라고 물었다. 그들은 서로를 바라보며 고민에 빠졌다. 이 선택이 그들의 운명을 좌우할 것이라는 불안감이 그들의 마음을 짓눌렀다. 준원은 다시 책을 들여다보았다. '이 선택이 우리에게 선생님을 찾는 열쇠가 될지도 몰라.' 그러나 그들은 선생님이 어떤 상황에 처해 있는지, 그 선택이 어떤 결과를 초래할지 전혀 알지 못했다. 우주는 입술을 깨물며, '우리가 선택하지 않으면 선생님은 영원히 잊혀질지도 몰라.'라고 말했다. 그들은 각자 마음속에 자리 잡은 두려움을 이겨내려 했다. 불빛이 그들을 비추며, 새로운 단서들이 그들을 기다리고 있었다. 그들은 서로의 손을 더욱 단단히 잡고, 선택의 순간을 맞이하기 위해 준비했다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
 					},
 					{
 						pageOrder: 17,
 						imageUrl: "",
-						caption: "준원은 책의 페이지를 넘기며, 그 안에 담긴 불가사의한 글자들을 주의 깊게 살펴보았다. '진실을 원한다면, 선택하라.'라는 문구는 그들의 마음속에 깊은 의문을 불러일으켰다. '우리가 어떤 선택을 해야 할까?' 효민은 불안한 목소리로 물었다. 준원은 책을 가리키며, '이 선택이 우리가 선생님을 찾는 열쇠일 수 있어. 하지만 어떤 선택이 맞는지 알 수 없어.'라며 머리를 감싸 쥐었다. 우주는 두려움과 호기심이 뒤섞인 표정으로, '이 선택이 우리의 운명을 바꿀지도 몰라. 하지만 선택하지 않으면 선생님을 잃을 수도 있어.'라고 말했다. 그들은 서로의 손을 더욱 단단히 잡고, 선택의 순간을 맞이하기 위해 마음을 다잡았다. 방 안의 공기가 더욱 차가워지고 이상한 기운이 감돌자, 준원은 심장이 쿵쿵 뛰는 것을 느꼈다. '이건 분명히 뭔가 잘못된 거야!' 우주가 외쳤다. 준원은 책의 다음 페이지를 주의 깊게 바라보며, '이제 진실을 마주할 시간인가 봐,'라고 속으로 다짐했다. 하지만 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지에 대한 불안감은 그들을 더욱 압박했다. 그 순간, 책에서 또 다른 문구가 나타났다. '당신의 선택이 진실을 이끌어낼 것이다.' 친구들은 서로를 바라보며, 선택의 순간을 맞이하기 위해 준비했다. '이 기호가 우리가 선택할 수 있는 길을 보여주는 것 같아. 하나씩 따라가 보자.' 준원의 말에 친구들은 고개를 끄덕이며, 다시 그 길로 나아가기로 결심했다. 그들은 불빛이 비추는 길을 따라가며, 선생님을 찾기 위한 마지막 노력을 기울였다.\n\n길은 점점 좁아지고, 그들의 발걸음은 더욱 조심스러워졌다. 우주가 앞서 나가며, '이 기호는 우리를 어디로 인도하는 걸까?'라고 중얼거렸다. 준원은 '어쩌면 선생님이 남긴 메시지일지도 몰라. 이 기호는 우리가 나아가야 할 길을 가리키고 있어.'라고 대답했다. 효민은 두려움에 떨며, '그런데 만약 우리가 잘못된 선택을 하면 어떻게 하지?'라고 물었다. 준원은 그녀의 손을 꼭 잡으며, '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야.'라고 말했다. 그들의 마음속에는 선생님을 찾고 싶다는 간절한 소망이 가득했다.\n\n마침내, 그들은 기호의 끝에 다다랐다. 그곳에는 또 다른 문이 있었다. 문은 낡고 부서져 있었지만, 그 안에서는 희미한 빛이 새어나오고 있었다. 준원은 문을 밀어보았다. 삐걱거리며 열리는 문 안에서 차가운 바람이 불어왔다. '이곳이 선생님이 있는 곳일까?' 효민이 물었다. 준원은 고개를 끄덕이며, '우리가 선택한 길이 맞는지 확인해보자.'라고 말했다. 그들은 서로의 손을 더욱 단단히 잡고 문 안으로 들어갔다. 그 순간, 방 안의 공기가 다시 한 번 차가워지며, 그들은 자신들이 선택한 길의 진실을 마주하게 될 것임을 느꼈다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
+						caption:
+							"준원은 책의 페이지를 넘기며, 그 안에 담긴 불가사의한 글자들을 주의 깊게 살펴보았다. '진실을 원한다면, 선택하라.'라는 문구는 그들의 마음속에 깊은 의문을 불러일으켰다. '우리가 어떤 선택을 해야 할까?' 효민은 불안한 목소리로 물었다. 준원은 책을 가리키며, '이 선택이 우리가 선생님을 찾는 열쇠일 수 있어. 하지만 어떤 선택이 맞는지 알 수 없어.'라며 머리를 감싸 쥐었다. 우주는 두려움과 호기심이 뒤섞인 표정으로, '이 선택이 우리의 운명을 바꿀지도 몰라. 하지만 선택하지 않으면 선생님을 잃을 수도 있어.'라고 말했다. 그들은 서로의 손을 더욱 단단히 잡고, 선택의 순간을 맞이하기 위해 마음을 다잡았다. 방 안의 공기가 더욱 차가워지고 이상한 기운이 감돌자, 준원은 심장이 쿵쿵 뛰는 것을 느꼈다. '이건 분명히 뭔가 잘못된 거야!' 우주가 외쳤다. 준원은 책의 다음 페이지를 주의 깊게 바라보며, '이제 진실을 마주할 시간인가 봐,'라고 속으로 다짐했다. 하지만 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지에 대한 불안감은 그들을 더욱 압박했다. 그 순간, 책에서 또 다른 문구가 나타났다. '당신의 선택이 진실을 이끌어낼 것이다.' 친구들은 서로를 바라보며, 선택의 순간을 맞이하기 위해 준비했다. '이 기호가 우리가 선택할 수 있는 길을 보여주는 것 같아. 하나씩 따라가 보자.' 준원의 말에 친구들은 고개를 끄덕이며, 다시 그 길로 나아가기로 결심했다. 그들은 불빛이 비추는 길을 따라가며, 선생님을 찾기 위한 마지막 노력을 기울였다.\n\n길은 점점 좁아지고, 그들의 발걸음은 더욱 조심스러워졌다. 우주가 앞서 나가며, '이 기호는 우리를 어디로 인도하는 걸까?'라고 중얼거렸다. 준원은 '어쩌면 선생님이 남긴 메시지일지도 몰라. 이 기호는 우리가 나아가야 할 길을 가리키고 있어.'라고 대답했다. 효민은 두려움에 떨며, '그런데 만약 우리가 잘못된 선택을 하면 어떻게 하지?'라고 물었다. 준원은 그녀의 손을 꼭 잡으며, '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야.'라고 말했다. 그들의 마음속에는 선생님을 찾고 싶다는 간절한 소망이 가득했다.\n\n마침내, 그들은 기호의 끝에 다다랐다. 그곳에는 또 다른 문이 있었다. 문은 낡고 부서져 있었지만, 그 안에서는 희미한 빛이 새어나오고 있었다. 준원은 문을 밀어보았다. 삐걱거리며 열리는 문 안에서 차가운 바람이 불어왔다. '이곳이 선생님이 있는 곳일까?' 효민이 물었다. 준원은 고개를 끄덕이며, '우리가 선택한 길이 맞는지 확인해보자.'라고 말했다. 그들은 서로의 손을 더욱 단단히 잡고 문 안으로 들어갔다. 그 순간, 방 안의 공기가 다시 한 번 차가워지며, 그들은 자신들이 선택한 길의 진실을 마주하게 될 것임을 느꼈다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
 					},
 					{
 						pageOrder: 18,
 						imageUrl: "",
-						caption: "방 안으로 들어간 준원, 효민, 우주는 차가운 공기에 한층 더 긴장한 상태였다. 문이 닫히자, 그들은 서로를 바라보며 숨을 죽였다. 그들의 앞에는 오래된 책상이 하나 놓여 있었고, 그 위에는 다양한 책들이 무질서하게 쌓여 있었다. 그러나 그 중 한 권이 유독 빛나는 듯했다. 준원이 그 책으로 다가가자, 효민은 불안한 눈빛으로 그를 바라보았다. '조심해, 준원!' 그녀의 목소리는 떨림으로 가득 차 있었다. 하지만 준원은 '이 책이 우리가 찾고 있는 단서일 수 있어.'라고 말하며 손을 내밀었다. 책을 열자마자, 페이지가 스스로 넘겨지며 한 문구가 그들의 눈앞에 나타났다. '진실을 원한다면, 선택하라.' 이 문구는 그들의 마음속에 깊은 의문을 불러일으켰고, 우주는 두려움과 호기심이 뒤섞인 표정으로 '우리가 어떤 선택을 해야 할까?'라고 물었다. 준원은 책을 가리키며, '이 선택이 우리가 선생님을 찾는 열쇠일 수 있어. 하지만 어떤 선택이 맞는지 알 수 없어.'라며 머리를 감싸 쥐었다. 그 순간, 방 안의 공기가 더욱 차가워지고, 이상한 기운이 감돌기 시작했다. 우주는 입술을 깨물며, '우리가 선택하지 않으면 선생님은 영원히 잊혀질지도 몰라.'라고 말했다. 친구들은 서로의 손을 더욱 단단히 잡고, 선택의 순간을 맞이하기 위해 마음을 다잡았다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그러나 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.\n\n준원이 책을 열고 한 문장을 더 읽자, 그 문장이 마치 살아있는 듯 그의 목소리로 속삭였다. '당신의 선택이 진실을 이끌어낼 것이다.' 친구들은 서로를 바라보았다. 이 말이 그들에게 어떤 선택을 강요하는 것인지, 그들은 알 수 없었다. 준원은 그 문구의 의미를 곱씹었다. '이 기호가 우리가 선택할 수 있는 길을 보여주는 것 같아. 하나씩 따라가 보자.' 그의 말에 친구들은 고개를 끄덕이며, 다시 그 길로 나아가기로 결심했다. 그들은 불빛이 비추는 길을 따라가며, 선생님을 찾기 위한 마지막 노력을 기울였다.\n\n길은 점점 좁아지고, 그들의 발걸음은 더욱 조심스러워졌다. 우주가 앞서 나가며, '이 기호는 우리를 어디로 인도하는 걸까?'라고 중얼거렸다. 준원은 '어쩌면 선생님이 남긴 메시지일지도 몰라. 이 기호는 우리가 나아가야 할 길을 가리키고 있어.'라고 대답했다. 효민은 두려움에 떨며, '그런데 만약 우리가 잘못된 선택을 하면 어떻게 하지?'라고 물었다. 준원은 그녀의 손을 꼭 잡으며, '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야.'라고 말했다. 그들의 마음속에는 선생님을 찾고 싶다는 간절한 소망이 가득했다.\n\n마침내, 그들은 기호의 끝에 다다랐다. 그곳에는 또 다른 문이 있었다. 문은 낡고 부서져 있었지만, 그 안에서는 희미한 빛이 새어나오고 있었다. 준원은 문을 밀어보았다. 삐걱거리며 열리는 문 안에서 차가운 바람이 불어왔다. '이곳이 선생님이 있는 곳일까?' 효민이 물었다. 준원은 고개를 끄덕이며, '우리가 선택한 길이 맞는지 확인해보자.'라고 말했다. 그들은 서로의 손을 더욱 단단히 잡고 문 안으로 들어갔다. 그 순간, 방 안의 공기가 다시 한 번 차가워지며, 그들은 자신들이 선택한 길의 진실을 마주하게 될 것임을 느꼈다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
+						caption:
+							"방 안으로 들어간 준원, 효민, 우주는 차가운 공기에 한층 더 긴장한 상태였다. 문이 닫히자, 그들은 서로를 바라보며 숨을 죽였다. 그들의 앞에는 오래된 책상이 하나 놓여 있었고, 그 위에는 다양한 책들이 무질서하게 쌓여 있었다. 그러나 그 중 한 권이 유독 빛나는 듯했다. 준원이 그 책으로 다가가자, 효민은 불안한 눈빛으로 그를 바라보았다. '조심해, 준원!' 그녀의 목소리는 떨림으로 가득 차 있었다. 하지만 준원은 '이 책이 우리가 찾고 있는 단서일 수 있어.'라고 말하며 손을 내밀었다. 책을 열자마자, 페이지가 스스로 넘겨지며 한 문구가 그들의 눈앞에 나타났다. '진실을 원한다면, 선택하라.' 이 문구는 그들의 마음속에 깊은 의문을 불러일으켰고, 우주는 두려움과 호기심이 뒤섞인 표정으로 '우리가 어떤 선택을 해야 할까?'라고 물었다. 준원은 책을 가리키며, '이 선택이 우리가 선생님을 찾는 열쇠일 수 있어. 하지만 어떤 선택이 맞는지 알 수 없어.'라며 머리를 감싸 쥐었다. 그 순간, 방 안의 공기가 더욱 차가워지고, 이상한 기운이 감돌기 시작했다. 우주는 입술을 깨물며, '우리가 선택하지 않으면 선생님은 영원히 잊혀질지도 몰라.'라고 말했다. 친구들은 서로의 손을 더욱 단단히 잡고, 선택의 순간을 맞이하기 위해 마음을 다잡았다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그러나 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.\n\n준원이 책을 열고 한 문장을 더 읽자, 그 문장이 마치 살아있는 듯 그의 목소리로 속삭였다. '당신의 선택이 진실을 이끌어낼 것이다.' 친구들은 서로를 바라보았다. 이 말이 그들에게 어떤 선택을 강요하는 것인지, 그들은 알 수 없었다. 준원은 그 문구의 의미를 곱씹었다. '이 기호가 우리가 선택할 수 있는 길을 보여주는 것 같아. 하나씩 따라가 보자.' 그의 말에 친구들은 고개를 끄덕이며, 다시 그 길로 나아가기로 결심했다. 그들은 불빛이 비추는 길을 따라가며, 선생님을 찾기 위한 마지막 노력을 기울였다.\n\n길은 점점 좁아지고, 그들의 발걸음은 더욱 조심스러워졌다. 우주가 앞서 나가며, '이 기호는 우리를 어디로 인도하는 걸까?'라고 중얼거렸다. 준원은 '어쩌면 선생님이 남긴 메시지일지도 몰라. 이 기호는 우리가 나아가야 할 길을 가리키고 있어.'라고 대답했다. 효민은 두려움에 떨며, '그런데 만약 우리가 잘못된 선택을 하면 어떻게 하지?'라고 물었다. 준원은 그녀의 손을 꼭 잡으며, '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야.'라고 말했다. 그들의 마음속에는 선생님을 찾고 싶다는 간절한 소망이 가득했다.\n\n마침내, 그들은 기호의 끝에 다다랐다. 그곳에는 또 다른 문이 있었다. 문은 낡고 부서져 있었지만, 그 안에서는 희미한 빛이 새어나오고 있었다. 준원은 문을 밀어보았다. 삐걱거리며 열리는 문 안에서 차가운 바람이 불어왔다. '이곳이 선생님이 있는 곳일까?' 효민이 물었다. 준원은 고개를 끄덕이며, '우리가 선택한 길이 맞는지 확인해보자.'라고 말했다. 그들은 서로의 손을 더욱 단단히 잡고 문 안으로 들어갔다. 그 순간, 방 안의 공기가 다시 한 번 차가워지며, 그들은 자신들이 선택한 길의 진실을 마주하게 될 것임을 느꼈다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
 					},
 					{
 						pageOrder: 19,
 						imageUrl: "",
-						caption: "문 안으로 들어간 준원, 효민, 우주는 차가운 공기에 한층 더 긴장한 상태였다. 그들은 서로를 바라보며 숨을 죽였다. 방 안은 어둡고 음산한 기운이 감돌고 있었다. 오래된 책상이 하나 놓여 있었고, 책상 위에는 무질서하게 쌓인 여러 권의 책들이 있었다. 그 중 한 권이 유독 빛나는 듯했다. 준원이 그 책으로 다가가자, 효민은 불안한 눈빛으로 그를 바라보았다. '조심해, 준원!' 그녀의 목소리는 떨림으로 가득 차 있었다. 그러나 준원은 '이 책이 우리가 찾고 있는 단서일 수 있어.'라고 말하며 손을 내밀었다. 책을 열자마자, 페이지가 스스로 넘겨지며 한 문구가 그들의 눈앞에 나타났다. '진실을 원한다면, 선택하라.' 이 문구는 그들의 마음속에 깊은 의문을 불러일으켰고, 우주는 두려움과 호기심이 뒤섞인 표정으로 '우리가 어떤 선택을 해야 할까?'라고 물었다. 준원은 책을 가리키며, '이 선택이 우리가 선생님을 찾는 열쇠일 수 있어. 하지만 어떤 선택이 맞는지 알 수 없어.'라며 머리를 감싸 쥐었다. 방 안의 공기가 더욱 차가워지고, 이상한 기운이 감돌기 시작했다. 우주는 입술을 깨물며, '우리가 선택하지 않으면 선생님은 영원히 잊혀질지도 몰라.'라고 말했다. 친구들은 서로의 손을 더욱 단단히 잡고, 선택의 순간을 맞이하기 위해 마음을 다잡았다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그러나 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.\n\n준원이 책을 열고 한 문장을 더 읽자, 그 문장이 마치 살아있는 듯 그의 목소리로 속삭였다. '당신의 선택이 진실을 이끌어낼 것이다.' 친구들은 서로를 바라보았다. 이 말이 그들에게 어떤 선택을 강요하는 것인지, 그들은 알 수 없었다. 준원은 그 문구의 의미를 곱씹었다. '이 기호가 우리가 선택할 수 있는 길을 보여주는 것 같아. 하나씩 따라가 보자.' 그의 말에 친구들은 고개를 끄덕이며, 다시 그 길로 나아가기로 결심했다. 그들은 불빛이 비추는 길을 따라가며, 선생님을 찾기 위한 마지막 노력을 기울였다.\n\n길은 점점 좁아지고, 그들의 발걸음은 더욱 조심스러워졌다. 우주가 앞서 나가며, '이 기호는 우리를 어디로 인도하는 걸까?'라고 중얼거렸다. 준원은 '어쩌면 선생님이 남긴 메시지일지도 몰라. 이 기호는 우리가 나아가야 할 길을 가리키고 있어.'라고 대답했다. 효민은 두려움에 떨며, '그런데 만약 우리가 잘못된 선택을 하면 어떻게 하지?'라고 물었다. 준원은 그녀의 손을 꼭 잡으며, '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야.'라고 말했다. 그들의 마음속에는 선생님을 찾고 싶다는 간절한 소망이 가득했다.\n\n마침내, 그들은 기호의 끝에 다다랐다. 그곳에는 또 다른 문이 있었다. 문은 낡고 부서져 있었지만, 그 안에서는 희미한 빛이 새어나오고 있었다. 준원은 문을 밀어보았다. 삐걱거리며 열리는 문 안에서 차가운 바람이 불어왔다. '이곳이 선생님이 있는 곳일까?' 효민이 물었다. 준원은 고개를 끄덕이며, '우리가 선택한 길이 맞는지 확인해보자.'라고 말했다. 그들은 서로의 손을 더욱 단단히 잡고 문 안으로 들어갔다. 그 순간, 방 안의 공기가 다시 한 번 차가워지며, 그들은 자신들이 선택한 길의 진실을 마주하게 될 것임을 느꼈다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
+						caption:
+							"문 안으로 들어간 준원, 효민, 우주는 차가운 공기에 한층 더 긴장한 상태였다. 그들은 서로를 바라보며 숨을 죽였다. 방 안은 어둡고 음산한 기운이 감돌고 있었다. 오래된 책상이 하나 놓여 있었고, 책상 위에는 무질서하게 쌓인 여러 권의 책들이 있었다. 그 중 한 권이 유독 빛나는 듯했다. 준원이 그 책으로 다가가자, 효민은 불안한 눈빛으로 그를 바라보았다. '조심해, 준원!' 그녀의 목소리는 떨림으로 가득 차 있었다. 그러나 준원은 '이 책이 우리가 찾고 있는 단서일 수 있어.'라고 말하며 손을 내밀었다. 책을 열자마자, 페이지가 스스로 넘겨지며 한 문구가 그들의 눈앞에 나타났다. '진실을 원한다면, 선택하라.' 이 문구는 그들의 마음속에 깊은 의문을 불러일으켰고, 우주는 두려움과 호기심이 뒤섞인 표정으로 '우리가 어떤 선택을 해야 할까?'라고 물었다. 준원은 책을 가리키며, '이 선택이 우리가 선생님을 찾는 열쇠일 수 있어. 하지만 어떤 선택이 맞는지 알 수 없어.'라며 머리를 감싸 쥐었다. 방 안의 공기가 더욱 차가워지고, 이상한 기운이 감돌기 시작했다. 우주는 입술을 깨물며, '우리가 선택하지 않으면 선생님은 영원히 잊혀질지도 몰라.'라고 말했다. 친구들은 서로의 손을 더욱 단단히 잡고, 선택의 순간을 맞이하기 위해 마음을 다잡았다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그러나 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.\n\n준원이 책을 열고 한 문장을 더 읽자, 그 문장이 마치 살아있는 듯 그의 목소리로 속삭였다. '당신의 선택이 진실을 이끌어낼 것이다.' 친구들은 서로를 바라보았다. 이 말이 그들에게 어떤 선택을 강요하는 것인지, 그들은 알 수 없었다. 준원은 그 문구의 의미를 곱씹었다. '이 기호가 우리가 선택할 수 있는 길을 보여주는 것 같아. 하나씩 따라가 보자.' 그의 말에 친구들은 고개를 끄덕이며, 다시 그 길로 나아가기로 결심했다. 그들은 불빛이 비추는 길을 따라가며, 선생님을 찾기 위한 마지막 노력을 기울였다.\n\n길은 점점 좁아지고, 그들의 발걸음은 더욱 조심스러워졌다. 우주가 앞서 나가며, '이 기호는 우리를 어디로 인도하는 걸까?'라고 중얼거렸다. 준원은 '어쩌면 선생님이 남긴 메시지일지도 몰라. 이 기호는 우리가 나아가야 할 길을 가리키고 있어.'라고 대답했다. 효민은 두려움에 떨며, '그런데 만약 우리가 잘못된 선택을 하면 어떻게 하지?'라고 물었다. 준원은 그녀의 손을 꼭 잡으며, '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야.'라고 말했다. 그들의 마음속에는 선생님을 찾고 싶다는 간절한 소망이 가득했다.\n\n마침내, 그들은 기호의 끝에 다다랐다. 그곳에는 또 다른 문이 있었다. 문은 낡고 부서져 있었지만, 그 안에서는 희미한 빛이 새어나오고 있었다. 준원은 문을 밀어보았다. 삐걱거리며 열리는 문 안에서 차가운 바람이 불어왔다. '이곳이 선생님이 있는 곳일까?' 효민이 물었다. 준원은 고개를 끄덕이며, '우리가 선택한 길이 맞는지 확인해보자.'라고 말했다. 그들은 서로의 손을 더욱 단단히 잡고 문 안으로 들어갔다. 그 순간, 방 안의 공기가 다시 한 번 차가워지며, 그들은 자신들이 선택한 길의 진실을 마주하게 될 것임을 느꼈다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
 					},
 					{
 						pageOrder: 20,
 						imageUrl: "",
-						caption: "문을 열고 들어간 준원, 효민, 우주는 눈앞에 펼쳐진 광경에 숨을 죽였다. 그곳은 어둠과 빛이 교차하는 신비로운 공간이었다. 방 중앙에는 고풍스러운 의자와 함께, 오래된 책장이 세워져 있었다. 책장은 먼지에 덮여 있었지만, 그 안에서 발산되는 희미한 빛이 그들을 끌어당겼다. 준원이 한 발짝 앞으로 나가며 '여기서 무언가를 찾을 수 있을 거야'라고 중얼거렸다. 그의 목소리는 떨리며, 방 안의 정적을 깨뜨렸다. 효민은 두려움에 떨며 '여기서 뭘 찾아야 하는 거지?'라고 물었다. 우주는 긴장한 표정으로 주위를 살폈다. '그 책장에 무언가 있을지도 몰라. 선생님이 남긴 단서가.' 준원이 말했다. 그들은 조심스럽게 책장으로 다가갔다. 우주는 책장 위에 놓인 먼지 쌓인 책을 집어 들었다. '이 책은... 선생님이 좋아하던 책 중 하나야.' 우주의 말에 준원과 효민은 서로를 바라보았다. '그럼 이 책이 선생님과 관련이 있을지도 몰라.' 준원이 말했다. 효민은 그 책을 펼쳐보았다. 그 순간, 책의 페이지가 스스로 넘겨지며 다시 한번 '진실을 원한다면, 선택하라'는 문구가 나타났다. 그들은 다시 긴장한 기색을 보였다. '이 문구가 계속해서 우리에게 선택을 요구하는 것 같아.' 효민이 말했다. 준원은 '이제 선택의 순간이야. 우리가 어떤 선택을 하느냐에 따라 선생님을 찾을 수 있을지, 아니면 영원히 잊혀질지도 몰라.'라고 단호하게 말했다. 그들의 마음속에는 불안과 기대가 뒤섞였다. 우주는 '그럼 이제 어떤 선택을 해야 할까?'라며 물었다. 준원은 깊은 숨을 내쉬며 '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야. 이 책이 우리를 이끌어줄 거야.'라고 말했다. 그들은 서로의 손을 꼭 잡고, 다음 페이지로 넘어가기 위한 결정을 내리기로 했다.",
+						caption:
+							"문을 열고 들어간 준원, 효민, 우주는 눈앞에 펼쳐진 광경에 숨을 죽였다. 그곳은 어둠과 빛이 교차하는 신비로운 공간이었다. 방 중앙에는 고풍스러운 의자와 함께, 오래된 책장이 세워져 있었다. 책장은 먼지에 덮여 있었지만, 그 안에서 발산되는 희미한 빛이 그들을 끌어당겼다. 준원이 한 발짝 앞으로 나가며 '여기서 무언가를 찾을 수 있을 거야'라고 중얼거렸다. 그의 목소리는 떨리며, 방 안의 정적을 깨뜨렸다. 효민은 두려움에 떨며 '여기서 뭘 찾아야 하는 거지?'라고 물었다. 우주는 긴장한 표정으로 주위를 살폈다. '그 책장에 무언가 있을지도 몰라. 선생님이 남긴 단서가.' 준원이 말했다. 그들은 조심스럽게 책장으로 다가갔다. 우주는 책장 위에 놓인 먼지 쌓인 책을 집어 들었다. '이 책은... 선생님이 좋아하던 책 중 하나야.' 우주의 말에 준원과 효민은 서로를 바라보았다. '그럼 이 책이 선생님과 관련이 있을지도 몰라.' 준원이 말했다. 효민은 그 책을 펼쳐보았다. 그 순간, 책의 페이지가 스스로 넘겨지며 다시 한번 '진실을 원한다면, 선택하라'는 문구가 나타났다. 그들은 다시 긴장한 기색을 보였다. '이 문구가 계속해서 우리에게 선택을 요구하는 것 같아.' 효민이 말했다. 준원은 '이제 선택의 순간이야. 우리가 어떤 선택을 하느냐에 따라 선생님을 찾을 수 있을지, 아니면 영원히 잊혀질지도 몰라.'라고 단호하게 말했다. 그들의 마음속에는 불안과 기대가 뒤섞였다. 우주는 '그럼 이제 어떤 선택을 해야 할까?'라며 물었다. 준원은 깊은 숨을 내쉬며 '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야. 이 책이 우리를 이끌어줄 거야.'라고 말했다. 그들은 서로의 손을 꼭 잡고, 다음 페이지로 넘어가기 위한 결정을 내리기로 했다.",
 					},
 					{
 						pageOrder: 21,
 						imageUrl: "",
-						caption: "준원이 책을 열고 한 문장을 더 읽자, 그 문장이 마치 살아있는 듯 그의 목소리로 속삭였다. '당신의 선택이 진실을 이끌어낼 것이다.' 친구들은 서로를 바라보았다. 이 말이 그들에게 어떤 선택을 강요하는 것인지, 그들은 알 수 없었다. 준원은 그 문구의 의미를 곱씹었다. '이 기호가 우리가 선택할 수 있는 길을 보여주는 것 같아. 하나씩 따라가 보자.' 그의 말에 친구들은 고개를 끄덕이며, 다시 그 길로 나아가기로 결심했다. 그들은 불빛이 비추는 길을 따라가며, 선생님을 찾기 위한 마지막 노력을 기울였다. 길은 점점 좁아지고, 그들의 발걸음은 더욱 조심스러워졌다. 우주가 앞서 나가며, '이 기호는 우리를 어디로 인도하는 걸까?'라고 중얼거렸다. 준원은 '어쩌면 선생님이 남긴 메시지일지도 몰라. 이 기호는 우리가 나아가야 할 길을 가리키고 있어.'라고 대답했다. 효민은 두려움에 떨며, '그런데 만약 우리가 잘못된 선택을 하면 어떻게 하지?'라고 물었다. 준원은 그녀의 손을 꼭 잡으며, '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야.'라고 말했다. 그들의 마음속에는 선생님을 찾고 싶다는 간절한 소망이 가득했다. 마침내, 그들은 기호의 끝에 다다랐다. 그곳에는 또 다른 문이 있었다. 문은 낡고 부서져 있었지만, 그 안에서는 희미한 빛이 새어나오고 있었다. 준원은 문을 밀어보았다. 삐걱거리며 열리는 문 안에서 차가운 바람이 불어왔다. '이곳이 선생님이 있는 곳일까?' 효민이 물었다. 준원은 고개를 끄덕이며, '우리가 선택한 길이 맞는지 확인해보자.'라고 말했다. 그들은 서로의 손을 더욱 단단히 잡고 문 안으로 들어갔다. 그 순간, 방 안의 공기가 다시 한 번 차가워지며, 그들은 자신들이 선택한 길의 진실을 마주하게 될 것임을 느꼈다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
+						caption:
+							"준원이 책을 열고 한 문장을 더 읽자, 그 문장이 마치 살아있는 듯 그의 목소리로 속삭였다. '당신의 선택이 진실을 이끌어낼 것이다.' 친구들은 서로를 바라보았다. 이 말이 그들에게 어떤 선택을 강요하는 것인지, 그들은 알 수 없었다. 준원은 그 문구의 의미를 곱씹었다. '이 기호가 우리가 선택할 수 있는 길을 보여주는 것 같아. 하나씩 따라가 보자.' 그의 말에 친구들은 고개를 끄덕이며, 다시 그 길로 나아가기로 결심했다. 그들은 불빛이 비추는 길을 따라가며, 선생님을 찾기 위한 마지막 노력을 기울였다. 길은 점점 좁아지고, 그들의 발걸음은 더욱 조심스러워졌다. 우주가 앞서 나가며, '이 기호는 우리를 어디로 인도하는 걸까?'라고 중얼거렸다. 준원은 '어쩌면 선생님이 남긴 메시지일지도 몰라. 이 기호는 우리가 나아가야 할 길을 가리키고 있어.'라고 대답했다. 효민은 두려움에 떨며, '그런데 만약 우리가 잘못된 선택을 하면 어떻게 하지?'라고 물었다. 준원은 그녀의 손을 꼭 잡으며, '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야.'라고 말했다. 그들의 마음속에는 선생님을 찾고 싶다는 간절한 소망이 가득했다. 마침내, 그들은 기호의 끝에 다다랐다. 그곳에는 또 다른 문이 있었다. 문은 낡고 부서져 있었지만, 그 안에서는 희미한 빛이 새어나오고 있었다. 준원은 문을 밀어보았다. 삐걱거리며 열리는 문 안에서 차가운 바람이 불어왔다. '이곳이 선생님이 있는 곳일까?' 효민이 물었다. 준원은 고개를 끄덕이며, '우리가 선택한 길이 맞는지 확인해보자.'라고 말했다. 그들은 서로의 손을 더욱 단단히 잡고 문 안으로 들어갔다. 그 순간, 방 안의 공기가 다시 한 번 차가워지며, 그들은 자신들이 선택한 길의 진실을 마주하게 될 것임을 느꼈다. '이제 진실을 마주할 시간인가 봐,' 준원이 속으로 다짐하며, 그들은 깊이 들어가기로 결심했다. 그들이 마주할 진실이 어떤 것인지, 그리고 선생님이 그곳에 있는지, 그들은 아직 알지 못했다.",
 					},
 					{
 						pageOrder: 22,
 						imageUrl: "",
-						caption: "문을 열고 들어간 그들은 차가운 바람과 함께 마주한 신비로운 방 안에서 더욱 긴장했다. 방 중앙에는 고풍스러운 의자와 함께, 오래된 책장이 세워져 있었고, 그 안에서 발산되는 희미한 빛이 그들을 끌어당겼다. 준원이 한 발짝 앞으로 나가며 '여기서 무언가를 찾을 수 있을 거야'라고 중얼거렸다. 효민은 두려움에 떨며 '여기서 뭘 찾아야 하는 거지?'라고 물었다. 우주는 긴장한 표정으로 주위를 살폈다. '그 책장에 무언가 있을지도 몰라. 선생님이 남긴 단서가.' 준원이 말했다. 그들은 조심스럽게 책장으로 다가갔다. 우주는 책장 위에 놓인 먼지 쌓인 책을 집어 들었다. '이 책은... 선생님이 좋아하던 책 중 하나야.' 그의 말에 준원과 효민은 서로를 바라보았다. '그럼 이 책이 선생님과 관련이 있을지도 몰라.' 준원이 말했다. 효민은 그 책을 펼쳐보았다. 그 순간, 책의 페이지가 스스로 넘겨지며 다시 한번 '진실을 원한다면, 선택하라'는 문구가 나타났다. 그들은 다시 긴장한 기색을 보였다. '이 문구가 계속해서 우리에게 선택을 요구하는 것 같아.' 효민이 말했다. 준원은 '이제 선택의 순간이야. 우리가 어떤 선택을 하느냐에 따라 선생님을 찾을 수 있을지, 아니면 영원히 잊혀질지도 몰라.'라고 단호하게 말했다. 그들의 마음속에는 불안과 기대가 뒤섞였다. 우주는 '그럼 이제 어떤 선택을 해야 할까?'라며 물었다. 준원은 깊은 숨을 내쉬며 '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야. 이 책이 우리를 이끌어줄 거야.'라고 말했다. 그들은 서로의 손을 꼭 잡고, 다음 페이지로 넘어가기 위한 결정을 내리기로 했다. 그리고 그 순간, 책이 발산하는 빛이 더욱 밝아지며 방 안을 가득 채웠다. 그들은 더 이상 미룰 수 없는 선택의 순간에 다다랐다.",
+						caption:
+							"문을 열고 들어간 그들은 차가운 바람과 함께 마주한 신비로운 방 안에서 더욱 긴장했다. 방 중앙에는 고풍스러운 의자와 함께, 오래된 책장이 세워져 있었고, 그 안에서 발산되는 희미한 빛이 그들을 끌어당겼다. 준원이 한 발짝 앞으로 나가며 '여기서 무언가를 찾을 수 있을 거야'라고 중얼거렸다. 효민은 두려움에 떨며 '여기서 뭘 찾아야 하는 거지?'라고 물었다. 우주는 긴장한 표정으로 주위를 살폈다. '그 책장에 무언가 있을지도 몰라. 선생님이 남긴 단서가.' 준원이 말했다. 그들은 조심스럽게 책장으로 다가갔다. 우주는 책장 위에 놓인 먼지 쌓인 책을 집어 들었다. '이 책은... 선생님이 좋아하던 책 중 하나야.' 그의 말에 준원과 효민은 서로를 바라보았다. '그럼 이 책이 선생님과 관련이 있을지도 몰라.' 준원이 말했다. 효민은 그 책을 펼쳐보았다. 그 순간, 책의 페이지가 스스로 넘겨지며 다시 한번 '진실을 원한다면, 선택하라'는 문구가 나타났다. 그들은 다시 긴장한 기색을 보였다. '이 문구가 계속해서 우리에게 선택을 요구하는 것 같아.' 효민이 말했다. 준원은 '이제 선택의 순간이야. 우리가 어떤 선택을 하느냐에 따라 선생님을 찾을 수 있을지, 아니면 영원히 잊혀질지도 몰라.'라고 단호하게 말했다. 그들의 마음속에는 불안과 기대가 뒤섞였다. 우주는 '그럼 이제 어떤 선택을 해야 할까?'라며 물었다. 준원은 깊은 숨을 내쉬며 '우리가 함께라면 어떤 선택이든 이겨낼 수 있을 거야. 이 책이 우리를 이끌어줄 거야.'라고 말했다. 그들은 서로의 손을 꼭 잡고, 다음 페이지로 넘어가기 위한 결정을 내리기로 했다. 그리고 그 순간, 책이 발산하는 빛이 더욱 밝아지며 방 안을 가득 채웠다. 그들은 더 이상 미룰 수 없는 선택의 순간에 다다랐다.",
 					},
 					{
 						pageOrder: 23,
 						imageUrl: "",
-						caption: "준원은 책이 발산하는 빛에 이끌려 한 발짝 더 나아갔다. '이제 선택의 순간이야,' 그는 친구들에게 말했다. 효민은 불안한 눈빛으로 그를 바라보았다. '무슨 선택을 해야 하는 거지?' 준원은 고민에 빠진 듯한 표정으로 책장을 다시 살폈다. 책의 페이지마다 적힌 문구들이 그들의 마음속에 긴장감을 불러일으켰다. '우리가 진실을 원한다면, 선택하라.' 이 문구가 반복될수록 그들의 불안은 커져만 갔다. '이제까지 우리는 선생님을 찾기 위해 많은 것을 겪어왔어. 하지만 이 선택이 정말 우리를 선생님에게 인도할까?' 우주가 중얼거렸다. 준원은 친구들의 손을 다시 잡으며, '우리가 함께라면 어떤 선택이든 이겨낼 수 있어. 이 책이 우리를 이끌어줄 거야.'라고 힘주어 말했다. 그 말에 효민은 고개를 끄덕였다. 그러나 그들의 마음속에는 여전히 두려움이 자리하고 있었다. '선생님이 왜 사라졌는지, 이 모든 것이 어떻게 연결되는지 알고 싶어.' 효민이 속삭였다. 준원은 '그렇다면 우리가 선택해야 할 길을 찾아야 해,'라고 대답하며 책의 페이지를 넘기기로 결심했다. 그 순간, 빛이 더욱 밝아지며 방 안의 공기가 더욱 차가워졌다. '이제 선택할 시간인가 봐,' 준원이 속으로 다짐하며, 책의 다음 페이지를 펼치기 시작했다.\n\n페이지가 넘어가자, 그들은 새로운 문구를 발견했다. '진실은 숨겨진 곳에 있다. 그러나 그곳에 가기 위해서는 용기가 필요하다.' 준원은 그 문구를 읽고 가슴이 두근거렸다. '용기...' 효민은 중얼거렸다. '우리가 정말 용기를 내야 하는 걸까?' 우주는 두려운 마음을 감추지 못하며 쳐다보았다. '우리가 선생님을 찾기 위해서는 반드시 용기를 내야 해. 비록 두렵지만, 우리는 이미 이 길을 걸어왔어.' 준원이 힘주어 말했다.\n\n그들은 서로의 눈을 바라보며 결심했다. '선생님을 찾기 위해서라면, 어떤 선택이든 하자.' 효민이 다짐하듯 말했다. 그들은 다시 책장으로 다가갔고, 책의 페이지를 넘기며 숨겨진 진실을 향해 나아갈 준비를 했다. 그 순간, 책에서 나오는 빛이 그들의 얼굴을 비추며 마치 그들을 응원하는 듯했다. '이제 시작이야,' 준원이 말했다. '진실을 향해 함께 나아가자.' 그들은 손을 맞잡고, 앞으로 나아가기로 결심했다. 그들의 마음속에는 불안과 기대가 뒤섞인 채로, 다음 페이지에서 기다리고 있는 진실을 향한 여정이 시작되었다.",
+						caption:
+							"준원은 책이 발산하는 빛에 이끌려 한 발짝 더 나아갔다. '이제 선택의 순간이야,' 그는 친구들에게 말했다. 효민은 불안한 눈빛으로 그를 바라보았다. '무슨 선택을 해야 하는 거지?' 준원은 고민에 빠진 듯한 표정으로 책장을 다시 살폈다. 책의 페이지마다 적힌 문구들이 그들의 마음속에 긴장감을 불러일으켰다. '우리가 진실을 원한다면, 선택하라.' 이 문구가 반복될수록 그들의 불안은 커져만 갔다. '이제까지 우리는 선생님을 찾기 위해 많은 것을 겪어왔어. 하지만 이 선택이 정말 우리를 선생님에게 인도할까?' 우주가 중얼거렸다. 준원은 친구들의 손을 다시 잡으며, '우리가 함께라면 어떤 선택이든 이겨낼 수 있어. 이 책이 우리를 이끌어줄 거야.'라고 힘주어 말했다. 그 말에 효민은 고개를 끄덕였다. 그러나 그들의 마음속에는 여전히 두려움이 자리하고 있었다. '선생님이 왜 사라졌는지, 이 모든 것이 어떻게 연결되는지 알고 싶어.' 효민이 속삭였다. 준원은 '그렇다면 우리가 선택해야 할 길을 찾아야 해,'라고 대답하며 책의 페이지를 넘기기로 결심했다. 그 순간, 빛이 더욱 밝아지며 방 안의 공기가 더욱 차가워졌다. '이제 선택할 시간인가 봐,' 준원이 속으로 다짐하며, 책의 다음 페이지를 펼치기 시작했다.\n\n페이지가 넘어가자, 그들은 새로운 문구를 발견했다. '진실은 숨겨진 곳에 있다. 그러나 그곳에 가기 위해서는 용기가 필요하다.' 준원은 그 문구를 읽고 가슴이 두근거렸다. '용기...' 효민은 중얼거렸다. '우리가 정말 용기를 내야 하는 걸까?' 우주는 두려운 마음을 감추지 못하며 쳐다보았다. '우리가 선생님을 찾기 위해서는 반드시 용기를 내야 해. 비록 두렵지만, 우리는 이미 이 길을 걸어왔어.' 준원이 힘주어 말했다.\n\n그들은 서로의 눈을 바라보며 결심했다. '선생님을 찾기 위해서라면, 어떤 선택이든 하자.' 효민이 다짐하듯 말했다. 그들은 다시 책장으로 다가갔고, 책의 페이지를 넘기며 숨겨진 진실을 향해 나아갈 준비를 했다. 그 순간, 책에서 나오는 빛이 그들의 얼굴을 비추며 마치 그들을 응원하는 듯했다. '이제 시작이야,' 준원이 말했다. '진실을 향해 함께 나아가자.' 그들은 손을 맞잡고, 앞으로 나아가기로 결심했다. 그들의 마음속에는 불안과 기대가 뒤섞인 채로, 다음 페이지에서 기다리고 있는 진실을 향한 여정이 시작되었다.",
 					},
 					{
 						pageOrder: 24,
 						imageUrl: "",
-						caption: "준원은 친구들과 함께 책의 페이지를 넘기며 숨겨진 진실을 향한 여정을 시작하기로 결심했다. 그들의 앞에 펼쳐진 문구는 '진실은 숨겨진 곳에 있다. 그러나 그곳에 가기 위해서는 용기가 필요하다'라는 것이었다. 이 문구는 마치 그들의 마음속 깊은 곳에 있는 두려움을 건드리는 듯했다. 준원은 이 문구를 되새기며 마음속에 불안한 감정과 함께 결단을 내렸다. '선생님을 찾기 위해서는 반드시 용기를 내야 해. 비록 두렵지만, 우리는 이미 이 길을 걸어왔어.' 그는 친구들에게 힘주어 말했다. 효민은 고개를 끄덕이며 '우리가 함께라면 어떤 선택이든 할 수 있어.'라고 다짐했다. 우주는 여전히 두려운 마음을 감추지 못했지만, 친구들의 결의를 보며 마음을 다잡으려 했다. '선생님이 왜 사라졌는지, 이 모든 것이 어떻게 연결되는지 알고 싶어.' 효민의 속삭임에 준원은 다시 한번 결심을 다졌다. 그들은 서로의 손을 꼭 잡고, 다음 페이지를 넘기기 위해 준비했다. 그 순간, 책에서 나오는 빛이 더욱 밝아지며 방 안을 가득 채웠고, 그들은 마치 그 빛이 자신들을 응원하는 듯한 기분을 느꼈다. '이제 시작이야,' 준원이 말했다. '진실을 향해 함께 나아가자.' 그들은 한 걸음 나아가며, 다음 페이지에서 어떤 진실이 기다리고 있을지 기대와 불안이 뒤섞인 채로 앞으로 나아갔다. \n\n페이지가 넘어가자, 그들은 새로운 문구를 발견했다. '진실은 숨겨진 곳에 있다. 그러나 그곳에 가기 위해서는 용기가 필요하다.' 이 문구는 그들에게 다시 한번 용기를 주는 말이었다. 준원은 그 문구를 읽고 가슴이 두근거렸다. '용기...' 효민은 중얼거렸다. '우리가 정말 용기를 내야 하는 걸까?' 우주는 두려운 마음을 감추지 못하며 쳐다보았다. '우리가 선생님을 찾기 위해서는 반드시 용기를 내야 해. 비록 두렵지만, 우리는 이미 이 길을 걸어왔어.' 준원이 힘주어 말했다. \n\n그들은 서로의 눈을 바라보며 결심했다. '선생님을 찾기 위해서라면, 어떤 선택이든 하자.' 효민이 다짐하듯 말했다. 그들은 다시 책장으로 다가갔고, 책의 페이지를 넘기며 숨겨진 진실을 향해 나아갈 준비를 했다. 그 순간, 책에서 나오는 빛이 그들의 얼굴을 비추며 마치 그들을 응원하는 듯했다. '이제 시작이야,' 준원이 말했다. '진실을 향해 함께 나아가자.' 그들은 손을 맞잡고, 앞으로 나아가기로 결심했다. 그들의 마음속에는 불안과 기대가 뒤섞인 채로, 다음 페이지에서 기다리고 있는 진실을 향한 여정이 시작되었다.",
+						caption:
+							"준원은 친구들과 함께 책의 페이지를 넘기며 숨겨진 진실을 향한 여정을 시작하기로 결심했다. 그들의 앞에 펼쳐진 문구는 '진실은 숨겨진 곳에 있다. 그러나 그곳에 가기 위해서는 용기가 필요하다'라는 것이었다. 이 문구는 마치 그들의 마음속 깊은 곳에 있는 두려움을 건드리는 듯했다. 준원은 이 문구를 되새기며 마음속에 불안한 감정과 함께 결단을 내렸다. '선생님을 찾기 위해서는 반드시 용기를 내야 해. 비록 두렵지만, 우리는 이미 이 길을 걸어왔어.' 그는 친구들에게 힘주어 말했다. 효민은 고개를 끄덕이며 '우리가 함께라면 어떤 선택이든 할 수 있어.'라고 다짐했다. 우주는 여전히 두려운 마음을 감추지 못했지만, 친구들의 결의를 보며 마음을 다잡으려 했다. '선생님이 왜 사라졌는지, 이 모든 것이 어떻게 연결되는지 알고 싶어.' 효민의 속삭임에 준원은 다시 한번 결심을 다졌다. 그들은 서로의 손을 꼭 잡고, 다음 페이지를 넘기기 위해 준비했다. 그 순간, 책에서 나오는 빛이 더욱 밝아지며 방 안을 가득 채웠고, 그들은 마치 그 빛이 자신들을 응원하는 듯한 기분을 느꼈다. '이제 시작이야,' 준원이 말했다. '진실을 향해 함께 나아가자.' 그들은 한 걸음 나아가며, 다음 페이지에서 어떤 진실이 기다리고 있을지 기대와 불안이 뒤섞인 채로 앞으로 나아갔다. \n\n페이지가 넘어가자, 그들은 새로운 문구를 발견했다. '진실은 숨겨진 곳에 있다. 그러나 그곳에 가기 위해서는 용기가 필요하다.' 이 문구는 그들에게 다시 한번 용기를 주는 말이었다. 준원은 그 문구를 읽고 가슴이 두근거렸다. '용기...' 효민은 중얼거렸다. '우리가 정말 용기를 내야 하는 걸까?' 우주는 두려운 마음을 감추지 못하며 쳐다보았다. '우리가 선생님을 찾기 위해서는 반드시 용기를 내야 해. 비록 두렵지만, 우리는 이미 이 길을 걸어왔어.' 준원이 힘주어 말했다. \n\n그들은 서로의 눈을 바라보며 결심했다. '선생님을 찾기 위해서라면, 어떤 선택이든 하자.' 효민이 다짐하듯 말했다. 그들은 다시 책장으로 다가갔고, 책의 페이지를 넘기며 숨겨진 진실을 향해 나아갈 준비를 했다. 그 순간, 책에서 나오는 빛이 그들의 얼굴을 비추며 마치 그들을 응원하는 듯했다. '이제 시작이야,' 준원이 말했다. '진실을 향해 함께 나아가자.' 그들은 손을 맞잡고, 앞으로 나아가기로 결심했다. 그들의 마음속에는 불안과 기대가 뒤섞인 채로, 다음 페이지에서 기다리고 있는 진실을 향한 여정이 시작되었다.",
 					},
 				],
 			},
 		},
 	});
 
-	console.log("✅ 시드 완료: 3개의 기본 샘플 프로젝트가 생성되었습니다.");
-	console.log("✅ 기본 테스트 계정: " + DEFAULT_TEST_USER_EMAIL + " / " + DEFAULT_TEST_USER_PASSWORD);
+	await prisma.post.create({
+		data: {
+			userId: testUser.id,
+			projectId: novelProject.id,
+			projectType: "NOVEL",
+			description: null,
+		},
+	});
+
+	console.log(
+		"✅ 시드 완료: 만화·소설 커뮤니티 포스트 2개가 생성되었습니다.",
+	);
+	console.log(
+		"✅ 기본 테스트 계정: " +
+			DEFAULT_TEST_USER_EMAIL +
+			" / " +
+			DEFAULT_TEST_USER_PASSWORD,
+	);
 }
 
 main()

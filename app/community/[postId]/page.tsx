@@ -72,14 +72,18 @@ function CommentItem({
 	const [showReplyForm, setShowReplyForm] = useState(false);
 	const [replyText, setReplyText] = useState("");
 	const [submitting, setSubmitting] = useState(false);
+	const submittingRef = useRef(false);
 
 	async function handleReply() {
 		if (!replyText.trim()) return;
+		if (submittingRef.current) return;
+		submittingRef.current = true;
 		setSubmitting(true);
 		await onReplySubmit(replyText.trim(), comment.id);
 		setReplyText("");
 		setShowReplyForm(false);
 		setSubmitting(false);
+		submittingRef.current = false;
 	}
 
 	return (
@@ -190,6 +194,7 @@ export default function PostDetailPage() {
 	const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 	const [newComment, setNewComment] = useState("");
 	const [submittingComment, setSubmittingComment] = useState(false);
+	const submittingCommentRef = useRef(false);
 	const [deleting, setDeleting] = useState(false);
 
 	useEffect(() => {
@@ -254,10 +259,12 @@ export default function PostDetailPage() {
 
 	async function handleCommentSubmit() {
 		if (!newComment.trim()) return;
+		if (submittingCommentRef.current) return;
 		if (!currentUserId) {
 			router.push(`/login?next=/community/${postId}`);
 			return;
 		}
+		submittingCommentRef.current = true;
 		setSubmittingComment(true);
 		const res = await fetch(`/api/community/${postId}/comments`, {
 			method: "POST",
@@ -266,6 +273,7 @@ export default function PostDetailPage() {
 		});
 		const data = await res.json();
 		setSubmittingComment(false);
+		submittingCommentRef.current = false;
 		if (!data.success) return;
 		setComments((prev) => [...prev, { ...data.data, replies: [] }]);
 		setNewComment("");

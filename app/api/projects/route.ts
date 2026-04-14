@@ -121,10 +121,7 @@ async function syncProjectsFromSweetbookForUser(userId: string): Promise<void> {
 			}
 
 			const existing = await prisma.project.findFirst({
-				where: {
-					bookUid,
-					OR: [{ userId }, { isDefault: true }],
-				},
+				where: { bookUid, userId },
 				select: { id: true },
 			});
 			if (existing) {
@@ -342,18 +339,11 @@ export async function GET(req: NextRequest) {
 	await syncProjectsFromSweetbookForUser(user.id);
 
 	const projects = await prisma.project.findMany({
-		where: { OR: [{ userId: user.id }, { isDefault: true }] },
+		where: { userId: user.id },
 		include: { pages: { orderBy: { pageOrder: "asc" } } },
-		orderBy: [{ isDefault: "asc" }, { updatedAt: "desc" }],
+		orderBy: { updatedAt: "desc" },
 	});
-	// 중복 제거 (동일 id)
-	const seen = new Set<string>();
-	const deduped = projects.filter((p) => {
-		if (seen.has(p.id)) return false;
-		seen.add(p.id);
-		return true;
-	});
-	return NextResponse.json({ success: true, data: deduped });
+	return NextResponse.json({ success: true, data: projects });
 }
 
 // POST /api/projects — 새 프로젝트 생성 (+ Sweetbook book 생성 시도)
