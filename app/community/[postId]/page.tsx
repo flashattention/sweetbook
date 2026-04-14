@@ -27,14 +27,11 @@ type PostDetail = {
 	projectType: string;
 	createdAt: string;
 	user: { id: string; name: string | null };
-	project: {
-		title: string;
-		coverImageUrl: string | null;
-		genre: string | null;
-		synopsis: string | null;
-		comicStyle: string | null;
-		pages: Page[];
-	} | null;
+	title: string | null;
+	coverImageUrl: string | null;
+	genre: string | null;
+	synopsis: string | null;
+	pagesSnapshot: Page[] | null;
 	_count: { likes: number; comments: number };
 	likedByMe: boolean;
 };
@@ -390,7 +387,7 @@ export default function PostDetailPage() {
 		label: post.projectType,
 		color: "bg-gray-100 text-gray-700",
 	};
-	const pages = post.project?.pages ?? [];
+	const pages = post.pagesSnapshot ?? [];
 
 	return (
 		<div className="min-h-screen bg-zinc-950 text-white">
@@ -428,15 +425,15 @@ export default function PostDetailPage() {
 						>
 							{type.label}
 						</span>
-						{post.project?.genre && (
+						{post.genre && (
 							<span className="text-xs px-3 py-1 rounded-full bg-white/[0.07] text-white/50">
-								{post.project.genre}
+								{post.genre}
 							</span>
 						)}
 					</div>
 
 					<h1 className="text-2xl font-bold text-white mb-3">
-						{post.project?.title ?? "(작품 삭제됨)"}
+						{post.title ?? "(제목 없음)"}
 					</h1>
 
 					<div className="flex items-center gap-2 mb-5 text-sm text-white/40">
@@ -462,13 +459,13 @@ export default function PostDetailPage() {
 						</div>
 					)}
 
-					{post.project?.synopsis && (
+					{post.synopsis && (
 						<div className="mb-5">
 							<p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-2">
 								줄거리
 							</p>
 							<p className="text-white/50 text-sm leading-relaxed whitespace-pre-wrap">
-								{post.project.synopsis}
+								{post.synopsis}
 							</p>
 						</div>
 					)}

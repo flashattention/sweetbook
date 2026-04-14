@@ -101,6 +101,13 @@ model Post {
   description   String?
   projectType   String   // COMIC | NOVEL
 
+  // Snapshot fields — copied from Project at share time so content survives project deletion
+  title         String?
+  coverImageUrl String?
+  genre         String?
+  synopsis      String?
+  pagesSnapshot Json?    // [{pageOrder, imageUrl, caption}]
+
   likes         PostLike[]
   comments      Comment[]
 

@@ -11,12 +11,16 @@ type PostItem = {
 	projectType: string;
 	createdAt: string;
 	user: { id: string; name: string | null };
-	project: {
-		title: string;
-		coverImageUrl: string | null;
-		genre: string | null;
-		_count: { pages: number };
-	} | null;
+	title: string | null;
+	coverImageUrl: string | null;
+	genre: string | null;
+	pagesSnapshot:
+		| {
+				pageOrder: number;
+				imageUrl: string | null;
+				caption: string | null;
+		  }[]
+		| null;
 	_count: { likes: number; comments: number };
 	likedByMe: boolean;
 };
@@ -52,10 +56,10 @@ function PostCard({
 		>
 			{/* 커버 이미지 */}
 			<div className="relative w-full aspect-[3/4] bg-gradient-to-br from-zinc-800 to-zinc-900 overflow-hidden">
-				{post.project?.coverImageUrl ? (
+				{post.coverImageUrl ? (
 					<Image
-						src={post.project.coverImageUrl}
-						alt={post.project.title ?? ""}
+						src={post.coverImageUrl}
+						alt={post.title ?? ""}
 						fill
 						className="object-cover group-hover:scale-105 transition-transform duration-300"
 						sizes="(max-width: 768px) 50vw, 33vw"
@@ -77,7 +81,7 @@ function PostCard({
 			{/* 정보 */}
 			<div className="p-4 flex flex-col gap-2 flex-1">
 				<h3 className="font-bold text-white line-clamp-1 group-hover:text-violet-300 transition-colors">
-					{post.project?.title ?? "(작품 삭제됨)"}
+					{post.title ?? "(제목 없음)"}
 				</h3>
 				{post.description && (
 					<p className="text-zinc-400 text-sm line-clamp-2">
@@ -245,7 +249,7 @@ export default function CommunityPage() {
 		const sharedProjectIds = new Set<string>(
 			(communityData.data ?? [])
 				.filter((p: PostItem) => p.user.id === currentUser?.id)
-				.map((p: PostItem) => p.project?.title), // title이 아니라 projectId를 써야함
+				.map((p: PostItem) => p.title), // 이미 공유된 게시글 제목 목록
 		);
 
 		// 공유 가능한 프로젝트: 로그인 유저 소유, PUBLISHED, COMIC/NOVEL

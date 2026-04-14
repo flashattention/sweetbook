@@ -16,11 +16,9 @@ export async function GET(req: NextRequest) {
 		? {
 				OR: [
 					{
-						project: {
-							title: {
-								contains: q,
-								mode: "insensitive" as const,
-							},
+						title: {
+							contains: q,
+							mode: "insensitive" as const,
 						},
 					},
 					{
@@ -48,15 +46,11 @@ export async function GET(req: NextRequest) {
 			description: true,
 			projectType: true,
 			createdAt: true,
+			title: true,
+			coverImageUrl: true,
+			genre: true,
+			pagesSnapshot: true,
 			user: { select: { id: true, name: true } },
-			project: {
-				select: {
-					title: true,
-					coverImageUrl: true,
-					genre: true,
-					_count: { select: { pages: true } },
-				},
-			},
 			_count: { select: { likes: true, comments: true } },
 			...(user
 				? {
@@ -109,7 +103,18 @@ export async function POST(req: NextRequest) {
 
 	const project = await prisma.project.findFirst({
 		where: { id: projectId, userId: user.id, status: "PUBLISHED" },
-		select: { id: true, projectType: true },
+		select: {
+			id: true,
+			projectType: true,
+			title: true,
+			coverImageUrl: true,
+			genre: true,
+			synopsis: true,
+			pages: {
+				orderBy: { pageOrder: "asc" },
+				select: { pageOrder: true, imageUrl: true, caption: true },
+			},
+		},
 	});
 	if (!project) {
 		return NextResponse.json(
@@ -147,6 +152,11 @@ export async function POST(req: NextRequest) {
 			projectId,
 			projectType: project.projectType,
 			description: sanitizedDescription || null,
+			title: project.title,
+			coverImageUrl: project.coverImageUrl ?? null,
+			genre: project.genre ?? null,
+			synopsis: project.synopsis ?? null,
+			pagesSnapshot: project.pages,
 		},
 		select: { id: true },
 	});

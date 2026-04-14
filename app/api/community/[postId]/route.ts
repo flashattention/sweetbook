@@ -16,25 +16,12 @@ export async function GET(
 			description: true,
 			projectType: true,
 			createdAt: true,
+			title: true,
+			coverImageUrl: true,
+			genre: true,
+			synopsis: true,
+			pagesSnapshot: true,
 			user: { select: { id: true, name: true } },
-			project: {
-				select: {
-					title: true,
-					coverImageUrl: true,
-					genre: true,
-					synopsis: true,
-					comicStyle: true,
-					pages: {
-						orderBy: { pageOrder: "asc" },
-						select: {
-							id: true,
-							pageOrder: true,
-							imageUrl: true,
-							caption: true,
-						},
-					},
-				},
-			},
 			_count: { select: { likes: true, comments: true } },
 			...(user
 				? {
