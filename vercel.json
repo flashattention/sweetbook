@@ -1,3 +1,11 @@
 {
-	"regions": ["hnd1"]
+	"regions": ["hnd1"],
+	"functions": {
+		"app/api/projects/[id]/generate/route.ts": {
+			"maxDuration": 300
+		},
+		"app/api/ai/generate-book/route.ts": {
+			"maxDuration": 300
+		}
+	}
 }

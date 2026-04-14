@@ -36,6 +36,19 @@ export interface GenerateBookInput {
 	comicStyle?: ComicStyle;
 }
 
+export interface NovelOutline {
+	tagline: string;
+	synopsis: string;
+	characterProfiles: string[];
+	chapters: Array<{ title: string; summary: string }>;
+	pageBlueprints: Array<{
+		pageOrder: number;
+		beat: string;
+		emotion: string;
+		keyDetail: string;
+	}>;
+}
+
 export interface GenerateBookOutput {
 	tagline: string;
 	synopsis: string;
@@ -49,6 +62,8 @@ export interface GenerateBookOutput {
 		shotDirection?: string;
 	}>;
 	actualUsage: { inputTokens: number; outputTokens: number };
+	/** resume 경로에서 생성된 신규 페이지만 포함 (기존 pages와 병합 필요). undefined 이면 전체 pages와 동일. */
+	newPagesOnly?: boolean;
 }
 
 export class MissingOpenAIKeyError extends Error {
@@ -217,11 +232,22 @@ export async function generateBookPlan(
 	input: GenerateBookInput,
 	options?: {
 		storyModel?: StoryModel;
+		/**
+		 * 페이지 집필 완료 콜백. resume 시 page를 즉시 DB에 저장하려면 활용.
+		 * page 인자: 방금 생성된 페이지 ({pageOrder, caption}).
+		 */
 		onNovelPageDone?: (
 			doneCount: number,
 			totalCount: number,
 			usage: { inputTokens: number; outputTokens: number },
+			page?: { pageOrder: number; caption: string },
 		) => Promise<void> | void;
+		/** 이미 생성된 아웃라인이 있을 경우 outline API 호출을 건너뜀 (resume 전용). */
+		existingOutline?: NovelOutline;
+		/** 이미 저장된 페이지 수. 이 index부터 집필을 재개함 (0-based, resume 전용). */
+		resumeFromPageIndex?: number;
+		/** 재개 시 이전 페이지 문맥으로 쓸 기존 저장 페이지 목록 (resume 전용). */
+		existingPages?: Array<{ pageOrder: number; caption: string }>;
 	},
 ): Promise<GenerateBookOutput> {
 	const client = getOpenAIClient();
@@ -261,74 +287,133 @@ export async function generateBookPlan(
 	};
 
 	if (input.bookKind === "NOVEL") {
-		const outlinePrompt = [
-			"너는 장편 아동/청소년 소설 기획 에디터다.",
-			"반드시 JSON만 출력하라.",
-			`제목: ${input.title}`,
-			`등장인물: ${input.characters}`,
-			`장르: ${input.genre}`,
-			`요청 내용: ${input.description}`,
-			`총 페이지 수: ${input.pageCount}`,
-			"출력 키는 tagline, synopsis, characterProfiles, chapters, pageBlueprints를 사용하라.",
-			"chapters는 [{title, summary}] 배열.",
-			"pageBlueprints는 페이지 수와 동일한 길이의 배열로 [{pageOrder, beat, emotion, keyDetail}] 형식.",
-			"pageBlueprints는 페이지 간 사건이 반드시 이어지도록 설계하라.",
-			"각 beat는 1~2문장으로 간결하게 작성하라.",
-		].join("\n");
+		// ── 아웃라인 (outline + blueprint) ──────────────────────────────────────
+		let tagline: string;
+		let synopsis: string;
+		let characterProfiles: string[];
+		let chapters: Array<{ title: string; summary: string }>;
+		let pageBlueprints: Array<{
+			pageOrder: number;
+			beat: string;
+			emotion: string;
+			keyDetail: string;
+		}>;
 
-		const outline = await callJsonObject({
-			prompt: outlinePrompt,
-			temperature: 0.65,
-		});
+		if (options?.existingOutline) {
+			// resume 경로: API 호출 생략
+			const o = options.existingOutline;
+			tagline = o.tagline;
+			synopsis = o.synopsis;
+			characterProfiles = o.characterProfiles;
+			chapters = o.chapters;
+			pageBlueprints = Array.from({ length: input.pageCount }).map(
+				(_, idx) => {
+					const bp = o.pageBlueprints[idx];
+					return (
+						bp ?? {
+							pageOrder: idx + 1,
+							beat: `${idx + 1}페이지 사건`,
+							emotion: "",
+							keyDetail: "",
+						}
+					);
+				},
+			);
+		} else {
+			const outlinePrompt = [
+				"너는 장편 아동/청소년 소설 기획 에디터다.",
+				"반드시 JSON만 출력하라.",
+				`제목: ${input.title}`,
+				`등장인물: ${input.characters}`,
+				`장르: ${input.genre}`,
+				`요청 내용: ${input.description}`,
+				`총 페이지 수: ${input.pageCount}`,
+				"출력 키는 tagline, synopsis, characterProfiles, chapters, pageBlueprints를 사용하라.",
+				"chapters는 [{title, summary}] 배열.",
+				"pageBlueprints는 페이지 수와 동일한 길이의 배열로 [{pageOrder, beat, emotion, keyDetail}] 형식.",
+				"pageBlueprints는 페이지 간 사건이 반드시 이어지도록 설계하라.",
+				"각 beat는 1~2문장으로 간결하게 작성하라.",
+			].join("\n");
 
-		const tagline = String(outline.tagline || input.title);
-		const synopsis = String(outline.synopsis || input.description);
-		const characterProfiles = Array.isArray(outline.characterProfiles)
-			? outline.characterProfiles
-					.map((v) => String(v || ""))
-					.filter(Boolean)
-			: [];
-		const chapters = Array.isArray(outline.chapters)
-			? outline.chapters.map((c, i) => {
-					const item = c as { title?: unknown; summary?: unknown };
+			const outline = await callJsonObject({
+				prompt: outlinePrompt,
+				temperature: 0.65,
+			});
+
+			tagline = String(outline.tagline || input.title);
+			synopsis = String(outline.synopsis || input.description);
+			characterProfiles = Array.isArray(outline.characterProfiles)
+				? outline.characterProfiles
+						.map((v) => String(v || ""))
+						.filter(Boolean)
+				: [];
+			chapters = Array.isArray(outline.chapters)
+				? outline.chapters.map((c, i) => {
+						const item = c as {
+							title?: unknown;
+							summary?: unknown;
+						};
+						return {
+							title: String(item.title || `${i + 1}장`),
+							summary: String(item.summary || ""),
+						};
+					})
+				: [];
+			const rawBlueprints = Array.isArray(outline.pageBlueprints)
+				? outline.pageBlueprints
+				: [];
+			pageBlueprints = Array.from({ length: input.pageCount }).map(
+				(_, idx) => {
+					const candidate = rawBlueprints[idx] as
+						| {
+								beat?: unknown;
+								emotion?: unknown;
+								keyDetail?: unknown;
+						  }
+						| undefined;
 					return {
-						title: String(item.title || `${i + 1}장`),
-						summary: String(item.summary || ""),
+						pageOrder: idx + 1,
+						beat: String(
+							candidate?.beat || `${idx + 1}페이지 사건`,
+						),
+						emotion: String(candidate?.emotion || ""),
+						keyDetail: String(candidate?.keyDetail || ""),
 					};
-				})
-			: [];
-		const rawBlueprints = Array.isArray(outline.pageBlueprints)
-			? outline.pageBlueprints
-			: [];
-		const pageBlueprints = Array.from({ length: input.pageCount }).map(
-			(_, idx) => {
-				const candidate = rawBlueprints[idx] as
-					| {
-							beat?: unknown;
-							emotion?: unknown;
-							keyDetail?: unknown;
-					  }
-					| undefined;
-				return {
-					pageOrder: idx + 1,
-					beat: String(candidate?.beat || `${idx + 1}페이지 사건`),
-					emotion: String(candidate?.emotion || ""),
-					keyDetail: String(candidate?.keyDetail || ""),
-				};
-			},
+				},
+			);
+		}
+
+		const resumeFromPageIndex = Math.max(
+			0,
+			Math.min(input.pageCount - 1, options?.resumeFromPageIndex ?? 0),
 		);
 
-		await options?.onNovelPageDone?.(0, input.pageCount, {
-			inputTokens: usageCounter.inputTokens,
-			outputTokens: usageCounter.outputTokens,
-		});
+		// 기존 저장된 페이지로 pages 배열을 seed (이전 페이지 문맥 제공)
+		const pages: Array<{ pageOrder: number; caption: string }> =
+			options?.existingPages
+				? [...options.existingPages].sort(
+						(a, b) => a.pageOrder - b.pageOrder,
+					)
+				: [];
 
-		const pages: Array<{ pageOrder: number; caption: string }> = [];
-		for (let idx = 0; idx < input.pageCount; idx++) {
+		if (!options?.existingOutline) {
+			// 최초 생성: 아웃라인 완료 시점을 progress 0 으로 알림
+			await options?.onNovelPageDone?.(0, input.pageCount, {
+				inputTokens: usageCounter.inputTokens,
+				outputTokens: usageCounter.outputTokens,
+			});
+		}
+
+		for (let idx = resumeFromPageIndex; idx < input.pageCount; idx++) {
 			const pageOrder = idx + 1;
 			const blueprint = pageBlueprints[idx];
-			const prevPageText = pages[idx - 1]?.caption || "";
-			const prevPrevPageText = pages[idx - 2]?.caption || "";
+			// pages 배열에서 직전 2페이지 텍스트 탐색 (seed된 기존 페이지 포함)
+			const prevPage = pages.find((p) => p.pageOrder === pageOrder - 1);
+			const prevPrevPage = pages.find(
+				(p) => p.pageOrder === pageOrder - 2,
+			);
+			const prevPageText = prevPage?.caption || "";
+			const prevPrevPageText = prevPrevPage?.caption || "";
 
 			const chapterHint =
 				chapters.length > 0
@@ -427,19 +512,30 @@ export async function generateBookPlan(
 				}
 			}
 
-			pages.push({ pageOrder, caption: pageCaption });
-			await options?.onNovelPageDone?.(pages.length, input.pageCount, {
-				inputTokens: usageCounter.inputTokens,
-				outputTokens: usageCounter.outputTokens,
-			});
+			const newPage = { pageOrder, caption: pageCaption };
+			pages.push(newPage);
+			const writtenCount =
+				pages.length - (options?.existingPages?.length ?? 0);
+			await options?.onNovelPageDone?.(
+				(options?.resumeFromPageIndex ?? 0) + writtenCount,
+				input.pageCount,
+				{
+					inputTokens: usageCounter.inputTokens,
+					outputTokens: usageCounter.outputTokens,
+				},
+				newPage,
+			);
 		}
 
+		const existingCount = options?.existingPages?.length ?? 0;
 		return {
 			tagline,
 			synopsis,
 			characterProfiles,
 			chapters,
-			pages,
+			// resume 경로면 새로 생성한 페이지만 반환 (route에서 DB pages와 병합)
+			pages: existingCount > 0 ? pages.slice(existingCount) : pages,
+			newPagesOnly: existingCount > 0,
 			actualUsage: {
 				inputTokens: usageCounter.inputTokens,
 				outputTokens: usageCounter.outputTokens,

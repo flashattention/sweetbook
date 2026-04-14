@@ -43,6 +43,8 @@ export default function ProfileClient() {
 		type: "ok" | "err";
 		text: string;
 	} | null>(null);
+	const [adminCode, setAdminCode] = useState("");
+	const [adminCodeVisible, setAdminCodeVisible] = useState(false);
 
 	// 프로필 편집
 	const [name, setName] = useState("");
@@ -98,7 +100,10 @@ export default function ProfileClient() {
 			const res = await fetch("/api/credits", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ packageId: pkgId }),
+				body: JSON.stringify({
+					packageId: pkgId,
+					adminPassword: adminCode || undefined,
+				}),
 			});
 			const json = await res.json();
 			if (!res.ok || !json.success)
@@ -447,23 +452,37 @@ export default function ProfileClient() {
 										: pkg.label}
 								</span>
 								<span className="text-zinc-400 text-xs">
-									{pkg.priceKrw.toLocaleString()}원
+									{adminCode
+										? "무료 충전"
+										: `${pkg.priceKrw.toLocaleString()}원`}
 								</span>
 							</button>
 						))}
 					</div>
 
-					{chargeMsg && (
-						<p
-							className={`mb-4 text-sm px-3 py-2 rounded-lg ${
-								chargeMsg.type === "ok"
-									? "text-green-300 bg-green-900/20 border border-green-800/30"
-									: "text-red-400 bg-red-900/20 border border-red-800/30"
-							}`}
+					{/* 관리자 코드 입력 */}
+					<div className="mb-4">
+						<button
+							type="button"
+							onClick={() => {
+								setAdminCodeVisible((v) => !v);
+								if (adminCodeVisible) setAdminCode("");
+							}}
+							className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
 						>
-							{chargeMsg.text}
-						</p>
-					)}
+							{adminCodeVisible ? "코드 숨기기" : "관리자 코드"}
+						</button>
+						{adminCodeVisible && (
+							<input
+								type="password"
+								value={adminCode}
+								onChange={(e) => setAdminCode(e.target.value)}
+								placeholder="관리자 코드 입력"
+								className="mt-2 w-full bg-zinc-800 border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500/50"
+								autoComplete="off"
+							/>
+						)}
+					</div>
 
 					{creditTxns.length > 0 && (
 						<div>

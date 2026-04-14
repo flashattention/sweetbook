@@ -68,6 +68,22 @@ function normalizeProgress(value: number | null | undefined) {
 	return Math.max(0, Math.min(100, value));
 }
 
+/** 클라이언트 측 stuck 판단 임계값 (서버 STUCK_THRESHOLD_MS와 동일) */
+const STUCK_THRESHOLD_CLIENT_MS = 5 * 60 * 1000;
+
+const ACTIVE_CLIENT_STAGES = [
+	"PLANNING",
+	"WRITING",
+	"SAVING",
+	"PUBLISHING",
+	"IMAGING",
+];
+
+function isActiveClientStage(stage: string | null | undefined): boolean {
+	if (!stage) return false;
+	return ACTIVE_CLIENT_STAGES.some((s) => stage.startsWith(s));
+}
+
 export default function CreateProgressPage() {
 	const params = useParams<{ projectId: string }>();
 	const projectId = params?.projectId;
@@ -78,8 +94,11 @@ export default function CreateProgressPage() {
 	const [starting, setStarting] = useState(false);
 	const [quotaBlocked, setQuotaBlocked] = useState(false);
 	const [retryPending, setRetryPending] = useState(false);
+	const [stuckDetected, setStuckDetected] = useState(false);
 	const startedRef = useRef(false);
 	const quotaAlertedRef = useRef(false);
+	const lastStageRef = useRef<string | null | undefined>(undefined);
+	const lastStageTimeRef = useRef<number>(0);
 
 	function isQuotaError(text?: string | null) {
 		const message = String(text || "").toLowerCase();
@@ -146,6 +165,21 @@ export default function CreateProgressPage() {
 				if (stopped) return;
 				setProject(json.data);
 				setError("");
+
+				// stuck 감지: 활성 스테이지가 5분 이상 변경 없으면 서버 함수가
+				// 강제 종료된 것으로 판단하고 자동 재개 트리거
+				const stage = json.data.generationStage;
+				if (stage !== lastStageRef.current) {
+					lastStageRef.current = stage;
+					lastStageTimeRef.current = Date.now();
+				} else if (
+					isActiveClientStage(stage) &&
+					lastStageTimeRef.current > 0 &&
+					Date.now() - lastStageTimeRef.current >
+						STUCK_THRESHOLD_CLIENT_MS
+				) {
+					setStuckDetected(true);
+				}
 			} catch (err) {
 				if (stopped) return;
 				setError(
@@ -236,8 +270,58 @@ export default function CreateProgressPage() {
 		}
 	}, [project, router]);
 
+	// stuck 감지 시 자동으로 /generate 콜 (resume 경로)
+	useEffect(() => {
+		if (!stuckDetected || !projectId || starting || quotaBlocked) return;
+
+		startedRef.current = false;
+		setStuckDetected(false);
+		setStarting(true);
+		setError("");
+
+		const body = {
+			storyModel: searchParams.get("storyModel") || undefined,
+			imageModel: searchParams.get("imageModel") || undefined,
+		};
+		fetch(`/api/projects/${projectId}/generate`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+		})
+			.then(async (res) => {
+				const json = (await res.json()) as ProjectResponse;
+				if (!res.ok || !json.success) {
+					if (
+						json.errorCode === "OPENAI_QUOTA_EXCEEDED" ||
+						isQuotaError(json.error)
+					) {
+						handleQuotaBlockedWarning(json.error);
+						return;
+					}
+					setError(json.error || "재개 요청에 실패했습니다.");
+				}
+			})
+			.catch((err: unknown) => {
+				if (err instanceof Error && isQuotaError(err.message)) {
+					handleQuotaBlockedWarning(err.message);
+					return;
+				}
+				setError(
+					err instanceof Error
+						? err.message
+						: "생성 재개 중 오류가 발생했습니다.",
+				);
+			})
+			.finally(() => setStarting(false));
+	}, [stuckDetected, projectId, starting, quotaBlocked, searchParams]);
+
 	const progress = normalizeProgress(project?.generationProgress);
 	const isFailed = project?.generationStage === "FAILED";
+	const isStuck =
+		stuckDetected ||
+		(starting &&
+			!isFailed &&
+			isActiveClientStage(project?.generationStage));
 
 	return (
 		<div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
@@ -349,6 +433,12 @@ export default function CreateProgressPage() {
 					</p>
 				) : null}
 
+				{isStuck && !isFailed && (
+					<div className="rounded-lg border border-amber-800/30 bg-amber-900/20 text-amber-400 text-sm p-3">
+						생성이 일시 중단됩니다. 자동으로 재개하는 중입니다...
+					</div>
+				)}
+
 				{(error || project?.generationError) && (
 					<div className="rounded-lg border border-red-800/30 bg-red-900/20 text-red-400 text-sm p-3 space-y-3">
 						<p className="font-semibold">
@@ -404,11 +494,12 @@ export default function CreateProgressPage() {
 					<p>
 						⚠️{" "}
 						<span className="text-zinc-400">
-							브라우저 또는 탭을 완전히 닫아도 생성이 중단되지
-							않습니다.
-						</span>{" "}
-						홈으로 돌아오면 진행 중인 작품 카드를 확인할 수
-						있습니다.
+							redeploy 등으로 서버 함수가 중단되면{" "}
+							<span className="text-amber-400">
+								5분 후 자동으로 진행상황을 이어서 재개합니다.
+							</span>{" "}
+							소설은 왜료 중단된 페이지부터 이어서 직필됩니다.
+						</span>
 					</p>
 				</div>
 			</div>

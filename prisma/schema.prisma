@@ -17,10 +17,12 @@ model Project {
   title           String
   storyCharacters String?
   requestedPageCount Int?
-  generationStage String?
-  generationProgress Int?
-  generationError String?
-  generationCostUsd Float?
+  generationStage    String?
+  generationProgress  Int?
+  generationError     String?
+  generationCostUsd   Float?
+  // Novel 생성 중단 시 재개를 위한 임시 아웃라인 캐시 (JSON). 완료 시 null로 비워짐.
+  generationMetadata  String?
   projectType String  @default("PHOTOBOOK")
   genre       String?
   synopsis    String?
@@ -176,6 +178,7 @@ model Page {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([projectId, pageOrder])
   @@index([projectId])
 }
 
