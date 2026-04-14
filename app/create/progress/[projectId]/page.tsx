@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
@@ -382,12 +381,15 @@ export default function CreateProgressPage() {
 				)}
 
 				<div className="text-center pt-2">
-					<Link
-						href="/"
+					<button
+						onClick={() => {
+							router.push("/");
+							router.refresh();
+						}}
 						className="text-sm text-violet-400 hover:underline"
 					>
 						홈으로
-					</Link>
+					</button>
 				</div>
 			</div>
 		</div>
