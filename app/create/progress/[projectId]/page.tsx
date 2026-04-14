@@ -391,6 +391,26 @@ export default function CreateProgressPage() {
 						홈으로
 					</button>
 				</div>
+
+				{/* 안내 문구 */}
+				<div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 space-y-1.5 text-xs text-zinc-500 leading-relaxed">
+					<p>
+						💡{" "}
+						<span className="text-zinc-400">
+							이 페이지를 나가거나 다른 탭으로 이동해도 생성은
+							서버에서 계속 진행됩니다.
+						</span>
+					</p>
+					<p>
+						⚠️{" "}
+						<span className="text-zinc-400">
+							브라우저 또는 탭을 완전히 닫아도 생성이 중단되지
+							않습니다.
+						</span>{" "}
+						홈으로 돌아오면 진행 중인 작품 카드를 확인할 수
+						있습니다.
+					</p>
+				</div>
 			</div>
 		</div>
 	);
