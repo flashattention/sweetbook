@@ -42,25 +42,23 @@ export const STORY_MODEL_OPTIONS: Array<{
 	{ value: "gpt-4.1", label: "GPT-4.1", badge: "최신 최고품질" },
 ];
 
+// dall-e-2 / dall-e-3 / dall-e-3-hd는 한글 텍스트 렌더링 불가 → 옵션에서 제외
 export const IMAGE_MODEL_OPTIONS: Array<{
 	value: ImageModel;
 	label: string;
 	badge?: string;
 	supportsRefImages?: boolean;
 }> = [
-	{ value: "dall-e-2", label: "DALL-E 2", badge: "가성비" },
-	{ value: "dall-e-3", label: "DALL-E 3", badge: "균형" },
-	{ value: "dall-e-3-hd", label: "DALL-E 3 HD", badge: "고품질" },
 	{
 		value: "gpt-image-1",
 		label: "GPT Image 1",
-		badge: "최고품질",
+		badge: "표준",
 		supportsRefImages: true,
 	},
 	{
 		value: "gpt-image-1-hd",
 		label: "GPT Image 1 HD",
-		badge: "최고품질 HD",
+		badge: "고품질",
 		supportsRefImages: true,
 	},
 ];
