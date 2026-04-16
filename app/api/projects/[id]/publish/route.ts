@@ -1851,7 +1851,7 @@ export async function POST(
 			const book = (await client.books.create({
 				bookSpecUid,
 				title: project.title,
-				creationType: "NORMAL",
+				creationType: "EBOOK_SYNC",
 			})) as { bookUid?: string };
 
 			const nextBookUid = book.bookUid || null;

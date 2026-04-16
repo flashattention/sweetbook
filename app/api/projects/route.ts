@@ -223,7 +223,7 @@ async function createPhotobookProject(params: {
 		const book = (await client.books.create({
 			bookSpecUid: selectedBookSpecUid || DEFAULT_PHOTOBOOK_SPEC_UID,
 			title: params.title,
-			creationType: "NORMAL",
+			creationType: "EBOOK_SYNC",
 		})) as { bookUid?: string };
 		bookUid = book.bookUid || null;
 
