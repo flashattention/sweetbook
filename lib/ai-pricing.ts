@@ -15,14 +15,20 @@ export const DEFAULT_USD_TO_KRW = 1350;
 export const CREDIT_MARKUP = 1.3;
 
 /**
- * USD 비용을 크레딧으로 변환 (API 비용 × 1.3배)
- * 크레딧 단위는 KRW 기반: 1 credit = 1 KRW
+ * 1 크레딧의 KRW 가치 (pack_100 기준: 1000원 / 100크레딧 = 10원/크레딧)
+ * usdToCredits 계산 시 이 값으로 나눠 패키지 단가와 일치시킨다.
+ */
+export const CREDIT_VALUE_KRW = 10;
+
+/**
+ * USD 비용을 크레딧으로 변환 (API 비용 × 1.3배 ÷ 10원/크레딧)
+ * 예) 1554원 API 비용 → ceil(1554 × 1.3 / 10) = 203 크레딧
  */
 export function usdToCredits(
 	usd: number,
 	exchangeRate: number = DEFAULT_USD_TO_KRW,
 ): number {
-	return Math.ceil(usd * exchangeRate * CREDIT_MARKUP);
+	return Math.ceil((usd * exchangeRate * CREDIT_MARKUP) / CREDIT_VALUE_KRW);
 }
 
 export const STORY_MODEL_OPTIONS: Array<{
