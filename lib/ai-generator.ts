@@ -100,6 +100,7 @@ interface ComicImageCheckpoint {
 	version: 1;
 	coverImageUrl?: string;
 	pageImageUrlsByOrder: Record<number, string>;
+	characterSheetUrlsByName?: Record<string, string>;
 	updatedAt: string;
 }
 
@@ -145,6 +146,14 @@ async function readComicImageCheckpoint(
 				parsed.pageImageUrlsByOrder &&
 				typeof parsed.pageImageUrlsByOrder === "object"
 					? (parsed.pageImageUrlsByOrder as Record<number, string>)
+					: {},
+			characterSheetUrlsByName:
+				parsed.characterSheetUrlsByName &&
+				typeof parsed.characterSheetUrlsByName === "object"
+					? (parsed.characterSheetUrlsByName as Record<
+							string,
+							string
+						>)
 					: {},
 			updatedAt:
 				typeof parsed.updatedAt === "string"
@@ -584,6 +593,90 @@ export async function generateBookPlan(
 		if (!Array.isArray(parsed.pages) || parsed.pages.length === 0) {
 			throw new Error("OpenAI 응답 JSON에 pages가 비어 있습니다.");
 		}
+
+		const draftPages = parsed.pages
+			.slice(0, input.pageCount)
+			.map((p, idx) =>
+				normalizeComicPageDraft(
+					p as {
+						pageOrder?: unknown;
+						caption?: unknown;
+						imagePrompt?: unknown;
+						dialogues?: unknown;
+						shotDirection?: unknown;
+					},
+					idx,
+				),
+			);
+
+		let polishedPages = draftPages;
+		const sceneSpecs = draftPages.map((p, idx) => ({
+			pageOrder: p.pageOrder,
+			sceneSummary: p.caption.slice(0, 140),
+			dialogues: p.dialogues,
+			shotDirection: p.shotDirection || "",
+			prevLink: idx > 0 ? draftPages[idx - 1].caption.slice(0, 80) : "",
+			nextHint:
+				idx < draftPages.length - 1
+					? draftPages[idx + 1].caption.slice(0, 80)
+					: "",
+		}));
+
+		const polishPrompt = [
+			"너는 만화 콘티 감독이다. 반드시 JSON만 출력하라.",
+			`제목: ${input.title}`,
+			`장르: ${input.genre}`,
+			`전체 줄거리: ${String(parsed.synopsis || input.description)}`,
+			`등장인물 프로필: ${
+				Array.isArray(parsed.characterProfiles)
+					? parsed.characterProfiles.map((v) => String(v)).join(" | ")
+					: input.characters
+			}`,
+			"아래는 페이지별 씬 초안 요약이다(JSON).",
+			JSON.stringify(sceneSpecs),
+			"출력 키는 pages만 사용하고, pages는 반드시 동일한 길이의 배열이어야 한다.",
+			"각 pages 원소는 {pageOrder, caption, imagePrompt, dialogues, shotDirection} 형식.",
+			"규칙:"
+				.concat(
+					" 1) 사건이 페이지 간 자연스럽게 이어지도록 caption을 재작성한다.",
+				)
+				.concat(
+					" 2) imagePrompt에는 캐릭터 외형(머리/의상/체형/소품)과 카메라 구도, 표정, 동작을 구체적으로 포함한다.",
+				)
+				.concat(" 3) dialogues는 1~2개, 각 8자 이내 한글만 사용한다.")
+				.concat(
+					" 4) 말풍선 텍스트는 실제로 읽히는 짧은 대사만 작성한다.",
+				)
+				.concat(
+					" 5) shotDirection은 인접 페이지와 겹치지 않게 다양화한다.",
+				),
+		].join("\n");
+
+		try {
+			const polished = (await callJsonObject({
+				prompt: polishPrompt,
+				temperature: 0.55,
+			})) as { pages?: unknown[] };
+			if (Array.isArray(polished.pages) && polished.pages.length > 0) {
+				polishedPages = polished.pages
+					.slice(0, input.pageCount)
+					.map((p, idx) =>
+						normalizeComicPageDraft(
+							p as {
+								pageOrder?: unknown;
+								caption?: unknown;
+								imagePrompt?: unknown;
+								dialogues?: unknown;
+								shotDirection?: unknown;
+							},
+							idx,
+						),
+					);
+			}
+		} catch {
+			// 정제 단계 실패 시 초안 사용
+		}
+
 		return {
 			tagline: String(parsed.tagline || input.title),
 			synopsis: String(parsed.synopsis || input.description),
@@ -596,33 +689,7 @@ export async function generateBookPlan(
 						summary: String(c.summary || ""),
 					}))
 				: [],
-			pages: parsed.pages.slice(0, input.pageCount).map((p, idx) => {
-				const rawDialogues = (p as { dialogues?: unknown }).dialogues;
-				const normalizedDialogues = Array.isArray(rawDialogues)
-					? rawDialogues
-							.map((item) => String(item || "").trim())
-							.filter(Boolean)
-							.slice(0, 2)
-					: [];
-
-				return {
-					pageOrder: idx + 1,
-					caption: String(p.caption || `${idx + 1}페이지`),
-					imagePrompt:
-						typeof p.imagePrompt === "string"
-							? p.imagePrompt
-							: undefined,
-					dialogues: normalizedDialogues,
-					shotDirection:
-						typeof (p as { shotDirection?: unknown })
-							.shotDirection === "string"
-							? String(
-									(p as { shotDirection?: string })
-										.shotDirection,
-								)
-							: undefined,
-				};
-			}),
+			pages: polishedPages,
 			actualUsage: {
 				inputTokens: usageCounter.inputTokens,
 				outputTokens: usageCounter.outputTokens,
@@ -639,14 +706,84 @@ export async function generateBookPlan(
 function clampDialogue(text: string): string {
 	// 말풍선 렌더링 최적화: 10자 초과 시 자연스러운 지점에서 자름
 	const t = String(text || "").trim();
-	if (t.length <= 10) return t;
+	if (t.length <= 20) return t;
 	// 구두점 앞에서 자르기 시도
 	const cutPoints = ["!", "?", ".", "~", "…", ","];
 	for (const c of cutPoints) {
 		const idx = t.indexOf(c);
-		if (idx > 0 && idx <= 10) return t.slice(0, idx + 1);
+		if (idx > 0 && idx <= 20) return t.slice(0, idx + 1);
 	}
-	return t.slice(0, 8) + "…";
+	return t.slice(0, 18) + "…";
+}
+
+function normalizeDialogueLine(text: string, fallback: string): string {
+	const cleaned = clampDialogue(
+		String(text || "")
+			.replace(/["'`]/g, "")
+			.trim(),
+	);
+	if (!cleaned) return fallback;
+	if (!/[가-힣]/.test(cleaned)) return fallback;
+	return cleaned;
+}
+
+function normalizeComicPageDraft(
+	page: {
+		pageOrder?: unknown;
+		caption?: unknown;
+		imagePrompt?: unknown;
+		dialogues?: unknown;
+		shotDirection?: unknown;
+	},
+	idx: number,
+): {
+	pageOrder: number;
+	caption: string;
+	imagePrompt?: string;
+	dialogues: string[];
+	shotDirection?: string;
+} {
+	const pageOrder =
+		typeof page.pageOrder === "number" && page.pageOrder > 0
+			? page.pageOrder
+			: idx + 1;
+	const caption = String(page.caption || `${pageOrder}페이지`).trim();
+	const rawDialogues = Array.isArray(page.dialogues) ? page.dialogues : [];
+	const dialogues = rawDialogues
+		.map((item, i) =>
+			normalizeDialogueLine(
+				String(item || ""),
+				i === 0 ? "잠깐!" : "좋아!",
+			),
+		)
+		.filter(Boolean)
+		.slice(0, 2);
+	const safeDialogues =
+		dialogues.length > 0
+			? dialogues
+			: [normalizeDialogueLine("좋아!", "좋아!")];
+
+	return {
+		pageOrder,
+		caption,
+		imagePrompt:
+			typeof page.imagePrompt === "string"
+				? String(page.imagePrompt).trim()
+				: undefined,
+		dialogues: safeDialogues,
+		shotDirection:
+			typeof page.shotDirection === "string"
+				? String(page.shotDirection).trim()
+				: undefined,
+	};
+}
+
+function extractCharacterName(profile: string, index: number): string {
+	const raw = String(profile || "").trim();
+	if (!raw) return `캐릭터${index + 1}`;
+	const token = raw.split(/[:(|\-]/)[0]?.trim();
+	if (!token) return `캐릭터${index + 1}`;
+	return token.slice(0, 20);
 }
 
 function ensurePageDialogues(page: {
@@ -765,7 +902,12 @@ export async function generateComicImages(params: {
 		totalCount: number,
 		page?: { pageOrder: number; imageUrl: string },
 	) => Promise<void> | void;
-}): Promise<{ coverImageUrl: string; pageImageUrls: string[] }> {
+}): Promise<{
+	coverImageUrl: string;
+	pageImageUrls: string[];
+	generatedCoverCount: number;
+	generatedCharacterSheetCount: number;
+}> {
 	const client = getOpenAIClient();
 	const imageModel = params.imageModel || DEFAULT_IMAGE_MODEL;
 	// 분당 5장 rate limit 모델: gpt-image-1, gpt-image-1-hd, dall-e-3, dall-e-3-hd → 순차 처리 + 요청 전 13s 간격
@@ -779,13 +921,12 @@ export async function generateComicImages(params: {
 		? 1
 		: Math.max(1, Math.min(8, params.maxParallel || 4));
 	const retryCount = Math.max(0, Math.min(5, params.retryCount ?? 3));
-	const charImages = (params.characterImages || []).filter(
+	const inputCharImages = (params.characterImages || []).filter(
 		(r) => r.imageUrl && r.name,
 	);
-	// gpt-image-1 / gpt-image-1-hd 는 Responses API로 참조 이미지 지원
-	const useResponsesApi =
-		(imageModel === "gpt-image-1" || imageModel === "gpt-image-1-hd") &&
-		charImages.length > 0;
+	const effectiveCharImages: CharacterImageRef[] = [...inputCharImages];
+	let generatedCharacterSheetCount = 0;
+	let generatedCoverCount = 0;
 	const imageQuality =
 		imageModel === "dall-e-3-hd"
 			? "hd"
@@ -814,35 +955,15 @@ export async function generateComicImages(params: {
 			PICTURE_BOOK: "Children's picture book illustration",
 		}[params.comicStyle] ?? "comic panel illustration";
 
-	const characterAnchor =
-		params.characterProfiles && params.characterProfiles.length > 0
-			? `Characters: ${params.characterProfiles.slice(0, 4).join(" | ")}.`
-			: "";
-
-	// 참조 이미지로부터 캐릭터 앵커 추가
-	const refCharacterNote =
-		charImages.length > 0
-			? `Character reference names: ${charImages.map((r) => r.name).join(", ")}. Strictly maintain each character's visual appearance from the provided reference images.`
-			: "";
-
-	const coverPrompt = [
-		stylePrefix + " cover art",
-		`Title: ${params.title}`,
-		`Synopsis: ${params.synopsis}`,
-		characterAnchor,
-		refCharacterNote,
-		"No text, no letters on image. Vivid composition, high quality, full scene.",
-	]
-		.filter(Boolean)
-		.join(". ");
-
 	const checkpoint = (await readComicImageCheckpoint(
 		params.checkpointKey,
 	)) || {
 		version: 1 as const,
 		pageImageUrlsByOrder: {},
+		characterSheetUrlsByName: {},
 		updatedAt: new Date().toISOString(),
 	};
+	checkpoint.characterSheetUrlsByName ||= {};
 
 	// DB에서 넘어온 저장 URL을 체크포인트에 병합 (Vercel /tmp 유실 시 복원)
 	if (params.savedCoverImageUrl && !checkpoint.coverImageUrl) {
@@ -858,6 +979,37 @@ export async function generateComicImages(params: {
 			}
 		}
 	}
+	for (const [name, url] of Object.entries(
+		checkpoint.characterSheetUrlsByName,
+	)) {
+		if (!name || !url) continue;
+		if (!effectiveCharImages.some((r) => r.name === name)) {
+			effectiveCharImages.push({ name, imageUrl: url });
+		}
+	}
+
+	const characterProfileLines = (params.characterProfiles || [])
+		.map((line) => String(line || "").trim())
+		.filter(Boolean)
+		.slice(0, 4);
+
+	const characterSpecs = characterProfileLines.map((line, index) => {
+		const name = extractCharacterName(line, index);
+		return {
+			name,
+			description: line,
+		};
+	});
+
+	const characterAnchor =
+		characterProfileLines.length > 0
+			? `Characters: ${characterProfileLines.join(" | ")}.`
+			: "";
+
+	const buildRefCharacterNote = () =>
+		effectiveCharImages.length > 0
+			? `Character reference names: ${effectiveCharImages.map((r) => r.name).join(", ")}. Keep each character face, hairstyle, body shape, outfit, and signature props consistent across all pages.`
+			: "";
 
 	/**
 	 * Responses API를 통해 참조 이미지와 함께 이미지 생성
@@ -866,12 +1018,11 @@ export async function generateComicImages(params: {
 		prompt: string,
 		prefix: string,
 	): Promise<string> {
-		const contentItems: Array<Record<string, unknown>> = charImages.map(
-			(ref) => ({
+		const contentItems: Array<Record<string, unknown>> =
+			effectiveCharImages.map((ref) => ({
 				type: "input_image",
 				image_url: ref.imageUrl,
-			}),
-		);
+			}));
 		contentItems.push({ type: "input_text", text: prompt });
 
 		const response = await (client as any).responses.create({
@@ -926,6 +1077,54 @@ export async function generateComicImages(params: {
 		return persistGeneratedImage({ image: img, prefix });
 	}
 
+	async function ensureCharacterSheets() {
+		for (let i = 0; i < characterSpecs.length; i++) {
+			const spec = characterSpecs[i];
+			if (effectiveCharImages.some((c) => c.name === spec.name)) {
+				continue;
+			}
+			const cachedUrl = checkpoint.characterSheetUrlsByName?.[spec.name];
+			if (cachedUrl) {
+				effectiveCharImages.push({
+					name: spec.name,
+					imageUrl: cachedUrl,
+				});
+				continue;
+			}
+
+			const sheetPrompt = [
+				`${stylePrefix} full-body character sheet`,
+				`Character name: ${spec.name}`,
+				`Character profile: ${spec.description}`,
+				"Single character only, full body, neutral standing pose, front view.",
+				"White plain background, no text, no watermark, clean silhouette.",
+				"Preserve identifiable face, hairstyle, outfit, body type, and key accessory details.",
+			]
+				.filter(Boolean)
+				.join(". ");
+
+			const sheetUrl = await generateWithImagesApi(
+				sheetPrompt,
+				`comic-char-${i + 1}`,
+			);
+			checkpoint.characterSheetUrlsByName![spec.name] = sheetUrl;
+			checkpoint.updatedAt = new Date().toISOString();
+			await writeComicImageCheckpoint({
+				checkpointKey: params.checkpointKey,
+				data: checkpoint,
+			});
+			effectiveCharImages.push({ name: spec.name, imageUrl: sheetUrl });
+			generatedCharacterSheetCount += 1;
+		}
+	}
+
+	await ensureCharacterSheets();
+
+	// gpt-image-1 / gpt-image-1-hd 는 Responses API로 참조 이미지 지원
+	const useResponsesApi =
+		(imageModel === "gpt-image-1" || imageModel === "gpt-image-1-hd") &&
+		effectiveCharImages.length > 0;
+
 	async function generateImage(
 		prompt: string,
 		prefix: string,
@@ -935,9 +1134,22 @@ export async function generateComicImages(params: {
 			: generateWithImagesApi(prompt, prefix);
 	}
 
+	const coverPrompt = [
+		stylePrefix + " cover art",
+		`Title: ${params.title}`,
+		`Synopsis: ${params.synopsis}`,
+		characterAnchor,
+		buildRefCharacterNote(),
+		"Use the character references as the exact visual base.",
+		"No text, no letters on image. Vivid composition, high quality, full scene.",
+	]
+		.filter(Boolean)
+		.join(". ");
+
 	let coverImageUrl = checkpoint.coverImageUrl;
 	if (!coverImageUrl) {
 		coverImageUrl = await generateImage(coverPrompt, "comic-cover");
+		generatedCoverCount = 1;
 		checkpoint.coverImageUrl = coverImageUrl;
 		checkpoint.updatedAt = new Date().toISOString();
 		await writeComicImageCheckpoint({
@@ -986,29 +1198,41 @@ export async function generateComicImages(params: {
 	}) => {
 		const { page, idx } = item;
 		const dialogues = ensurePageDialogues(page);
+		const exactDialogues = dialogues.map((d) =>
+			normalizeDialogueLine(d, "좋아!"),
+		);
 		const shotDirection = String(page.shotDirection || "").trim();
+		const prev = idx > 0 ? params.pages[idx - 1] : null;
+		const next =
+			idx < params.pages.length - 1 ? params.pages[idx + 1] : null;
 		const lowCostBooster =
 			imageModel === "dall-e-2"
 				? buildLowCostModelPromptBooster({
 						pageOrder: page.pageOrder,
 						totalCount,
-						dialogues,
+						dialogues: exactDialogues,
 					})
 				: "";
 		const speechBubbleParts = buildSpeechBubblePrompt(
 			imageModel,
-			dialogues,
+			exactDialogues,
 		);
+		const dialogueSpec = exactDialogues
+			.map((d, i) => `bubble${i + 1}=「${d}」`)
+			.join(", ");
 		const pagePrompt = [
 			stylePrefix,
 			`Use the same character appearance as the already generated cover image (${coverImageUrl}).`,
 			coverVisualLock,
 			characterAnchor,
-			refCharacterNote,
+			buildRefCharacterNote(),
+			prev ? `Previous scene summary: ${prev.caption}` : "",
+			next ? `Next scene hint: ${next.caption}` : "",
 			shotDirection ? `Shot direction: ${shotDirection}` : "",
 			page.imagePrompt || page.caption,
+			`Render EXACT Korean speech bubble text without alteration: ${dialogueSpec}.`,
 			...speechBubbleParts,
-			"Consistent character appearance with other panels. Dynamic camera angle. Distinct composition from adjacent scenes.",
+			"Consistent character appearance with all panels. Dynamic camera angle. Distinct composition from adjacent scenes.",
 			"No watermark.",
 			lowCostBooster,
 		]
@@ -1087,7 +1311,12 @@ export async function generateComicImages(params: {
 
 	await clearComicImageCheckpoint(params.checkpointKey);
 
-	return { coverImageUrl, pageImageUrls };
+	return {
+		coverImageUrl,
+		pageImageUrls,
+		generatedCoverCount,
+		generatedCharacterSheetCount,
+	};
 }
 
 export async function generateStoryCoverImage(params: {

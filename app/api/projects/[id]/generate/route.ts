@@ -517,8 +517,11 @@ export async function POST(
 					savedCoverImageUrl,
 					onPageDone: async (done, total, page) => {
 						const progress = 35 + Math.floor((done / total) * 50);
-						const delta = Math.max(0, done - lastDoneCount);
-						lastDoneCount = done;
+						let delta = 0;
+						if (page) {
+							delta = Math.max(0, done - lastDoneCount);
+						}
+						lastDoneCount = Math.max(lastDoneCount, done);
 						if (delta > 0) {
 							runningCostUsd +=
 								delta * IMAGE_PRICING_PER_IMAGE_USD[imageModel];
@@ -559,8 +562,17 @@ export async function POST(
 						await Promise.all(updates);
 					},
 				});
-				// 표지 이미지 비용 누적 (+1)
-				runningCostUsd += IMAGE_PRICING_PER_IMAGE_USD[imageModel];
+				// generateComicImages 내부에서 새로 생성된 표지/캐릭터시트만 비용 반영
+				runningCostUsd +=
+					generatedImages.generatedCoverCount *
+					IMAGE_PRICING_PER_IMAGE_USD[imageModel];
+				runningCostUsd +=
+					generatedImages.generatedCharacterSheetCount *
+					IMAGE_PRICING_PER_IMAGE_USD[imageModel];
+				await prisma.project.update({
+					where: { id: project.id },
+					data: { generationCostUsd: runningCostUsd } as any,
+				});
 				coverImageUrl = generatedImages.coverImageUrl;
 				pageImageUrls = generatedImages.pageImageUrls;
 			} else {
@@ -571,6 +583,11 @@ export async function POST(
 					imageModel,
 				});
 				coverImageUrl = generatedCoverImageUrl;
+				runningCostUsd += IMAGE_PRICING_PER_IMAGE_USD[imageModel];
+				await prisma.project.update({
+					where: { id: project.id },
+					data: { generationCostUsd: runningCostUsd } as any,
+				});
 			}
 
 			// ── SAVING ───────────────────────────────────────────────────

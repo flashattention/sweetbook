@@ -59,6 +59,29 @@ function formatCostKrw(usd: number): string {
 	return `₩${krw.toLocaleString("ko-KR")} (USD $${usd.toFixed(4)})`;
 }
 
+function formatDuration(seconds: number): string {
+	if (seconds < 60) return `${seconds}초`;
+	const m = Math.floor(seconds / 60);
+	const s = seconds % 60;
+	return s > 0 ? `${m}분 ${s}초` : `${m}분`;
+}
+
+function computeEtaSec(
+	samples: Array<{ t: number; p: number }>,
+	currentP: number,
+): number | null {
+	if (samples.length < 2) return null;
+	const first = samples[0];
+	const last = samples[samples.length - 1];
+	const deltaP = last.p - first.p;
+	const deltaT = last.t - first.t;
+	if (deltaP <= 0 || deltaT <= 0) return null;
+	const msPerPercent = deltaT / deltaP;
+	const remaining = 100 - currentP;
+	if (remaining <= 0) return 0;
+	return Math.round((remaining * msPerPercent) / 1000);
+}
+
 function getStageLabelMap(projectType: "COMIC" | "NOVEL" | "PHOTOBOOK") {
 	return projectType === "NOVEL" ? STAGE_LABEL_NOVEL : STAGE_LABEL_COMIC;
 }
@@ -99,6 +122,12 @@ export default function CreateProgressPage() {
 	const quotaAlertedRef = useRef(false);
 	const lastStageRef = useRef<string | null | undefined>(undefined);
 	const lastStageTimeRef = useRef<number>(0);
+	const [elapsedSec, setElapsedSec] = useState(0);
+	const [etaSec, setEtaSec] = useState<number | null>(null);
+	const progressSamplesRef = useRef<Array<{ t: number; p: number }>>([]);
+	const imagingPageMsRef = useRef<number[]>([]);
+	const lastImagingDoneRef = useRef<number>(-1);
+	const lastImagingDoneTimeRef = useRef<number | null>(null);
 
 	function isQuotaError(text?: string | null) {
 		const message = String(text || "").toLowerCase();
@@ -165,6 +194,72 @@ export default function CreateProgressPage() {
 				if (stopped) return;
 				setProject(json.data);
 				setError("");
+
+				// ── 타이밍 추적 ─────────────────────────────────────────────
+				{
+					const stageNow = json.data.generationStage;
+					const progNow = json.data.generationProgress ?? 0;
+					const storageKey = projectId
+						? `sb_gen_start_${projectId}`
+						: null;
+					if (
+						storageKey &&
+						isActiveClientStage(stageNow) &&
+						!sessionStorage.getItem(storageKey)
+					) {
+						sessionStorage.setItem(storageKey, String(Date.now()));
+					}
+					if (storageKey && stageNow === "COMPLETED") {
+						sessionStorage.removeItem(storageKey);
+					}
+					if (isActiveClientStage(stageNow) && progNow > 0) {
+						const now = Date.now();
+						const samples = progressSamplesRef.current;
+						const lastSample = samples[samples.length - 1];
+						if (!lastSample || lastSample.p !== progNow) {
+							samples.push({ t: now, p: progNow });
+							if (samples.length > 8) samples.shift();
+						}
+						if (stageNow?.startsWith("IMAGING:")) {
+							const parts = stageNow.split(":");
+							const done = Number(parts[1]);
+							const total = Number(parts[2]);
+							if (lastImagingDoneRef.current < 0) {
+								lastImagingDoneRef.current = done;
+								lastImagingDoneTimeRef.current = now;
+							} else if (done > lastImagingDoneRef.current) {
+								if (lastImagingDoneTimeRef.current !== null) {
+									const perMs =
+										(now - lastImagingDoneTimeRef.current) /
+										(done - lastImagingDoneRef.current);
+									imagingPageMsRef.current.push(perMs);
+									if (imagingPageMsRef.current.length > 5)
+										imagingPageMsRef.current.shift();
+								}
+								lastImagingDoneRef.current = done;
+								lastImagingDoneTimeRef.current = now;
+							}
+							const remaining = total - done;
+							if (
+								imagingPageMsRef.current.length > 0 &&
+								remaining >= 0
+							) {
+								const avgMs =
+									imagingPageMsRef.current.reduce(
+										(a, b) => a + b,
+										0,
+									) / imagingPageMsRef.current.length;
+								setEtaSec(
+									Math.round((remaining * avgMs) / 1000),
+								);
+							} else if (samples.length >= 3) {
+								setEtaSec(computeEtaSec(samples, progNow));
+							}
+						} else if (samples.length >= 3) {
+							setEtaSec(computeEtaSec(samples, progNow));
+						}
+					}
+				}
 
 				// stuck 감지: 활성 스테이지가 5분 이상 변경 없으면 서버 함수가
 				// 강제 종료된 것으로 판단하고 자동 재개 트리거
@@ -315,6 +410,22 @@ export default function CreateProgressPage() {
 			.finally(() => setStarting(false));
 	}, [stuckDetected, projectId, starting, quotaBlocked, searchParams]);
 
+	// ── 경과 시간 타이머 ──────────────────────────────────────────
+	useEffect(() => {
+		if (!projectId) return;
+		const storageKey = `sb_gen_start_${projectId}`;
+		const tick = () => {
+			const savedStr = sessionStorage.getItem(storageKey);
+			if (!savedStr) return;
+			const startedAt = Number(savedStr);
+			if (!startedAt) return;
+			setElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
+		};
+		tick();
+		const id = setInterval(tick, 1000);
+		return () => clearInterval(id);
+	}, [projectId]);
+
 	const progress = normalizeProgress(project?.generationProgress);
 	const isFailed = project?.generationStage === "FAILED";
 	const isStuck = stuckDetected;
@@ -398,9 +509,24 @@ export default function CreateProgressPage() {
 							style={{ width: `${progress}%` }}
 						/>
 					</div>
-					<p className="text-right text-xs text-zinc-500 mt-1">
-						{progress}%
-					</p>
+					<div className="flex justify-between items-center text-xs text-zinc-500 mt-1">
+						<span>
+							{elapsedSec > 0 && !isFailed
+								? `⏱ ${formatDuration(elapsedSec)}`
+								: ""}
+						</span>
+						<span className="flex items-center gap-2">
+							{etaSec !== null &&
+								!isFailed &&
+								etaSec > 0 &&
+								elapsedSec > 10 && (
+									<span className="text-violet-400/70">
+										~{formatDuration(etaSec)} 남음
+									</span>
+								)}
+							<span>{progress}%</span>
+						</span>
+					</div>
 				</div>
 
 				{typeof project?.generationCostUsd === "number" && (
@@ -450,6 +576,17 @@ export default function CreateProgressPage() {
 									startedRef.current = false;
 									setError("");
 									setRetryPending(true);
+									setEtaSec(null);
+									setElapsedSec(0);
+									progressSamplesRef.current = [];
+									imagingPageMsRef.current = [];
+									lastImagingDoneRef.current = -1;
+									lastImagingDoneTimeRef.current = null;
+									if (projectId) {
+										sessionStorage.removeItem(
+											`sb_gen_start_${projectId}`,
+										);
+									}
 								}}
 								className="flex-1 rounded-lg bg-red-600 text-white text-xs font-semibold py-2 hover:bg-red-700 transition-colors"
 							>
