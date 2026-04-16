@@ -715,8 +715,17 @@ export async function generateComicImages(params: {
 }): Promise<{ coverImageUrl: string; pageImageUrls: string[] }> {
 	const client = getOpenAIClient();
 	const imageModel = params.imageModel || DEFAULT_IMAGE_MODEL;
-	const maxParallel = Math.max(1, Math.min(8, params.maxParallel || 4));
-	const retryCount = Math.max(0, Math.min(3, params.retryCount ?? 2));
+	// 분당 5장 rate limit 모델: gpt-image-1, gpt-image-1-hd, dall-e-3, dall-e-3-hd → 순차 처리 + 요청 전 13s 간격
+	// dall-e-2: 분당 50장으로 병렬 처리 안전
+	const isRateLimitedModel =
+		imageModel === "gpt-image-1" ||
+		imageModel === "gpt-image-1-hd" ||
+		imageModel === "dall-e-3" ||
+		imageModel === "dall-e-3-hd";
+	const maxParallel = isRateLimitedModel
+		? 1
+		: Math.max(1, Math.min(8, params.maxParallel || 4));
+	const retryCount = Math.max(0, Math.min(5, params.retryCount ?? 3));
 	const charImages = (params.characterImages || []).filter(
 		(r) => r.imageUrl && r.name,
 	);
@@ -937,6 +946,10 @@ export async function generateComicImages(params: {
 
 		for (let attempt = 0; attempt <= retryCount; attempt++) {
 			try {
+				// rate-limited 모델: 요청 전 간격 확보 (첫 시도 포함)
+				if (isRateLimitedModel && attempt === 0) {
+					await new Promise((r) => setTimeout(r, 13_000));
+				}
 				const localUrl = await generateImage(
 					pagePrompt,
 					`comic-page-${page.pageOrder}`,
@@ -958,15 +971,27 @@ export async function generateComicImages(params: {
 				if (isOpenAIQuotaExceededError(error)) {
 					throw error;
 				}
-				if (attempt >= retryCount) {
-					throw new Error(
-						`${page.pageOrder}페이지 이미지 생성 실패 (재시도 ${retryCount}회 초과): ${
-							error instanceof Error
-								? error.message
-								: "알 수 없는 오류"
-						}`,
-					);
+				// 429 rate limit: 재시도 전 대기 (20s * (attempt+1))
+				const errStatus = (error as { status?: number }).status;
+				const isRateLimit =
+					errStatus === 429 ||
+					(error instanceof Error &&
+						(error.message.includes("429") ||
+							error.message
+								.toLowerCase()
+								.includes("rate limit")));
+				if (attempt < retryCount) {
+					const waitMs = isRateLimit ? 20_000 * (attempt + 1) : 2_000;
+					await new Promise((r) => setTimeout(r, waitMs));
+					continue;
 				}
+				throw new Error(
+					`${page.pageOrder}페이지 이미지 생성 실패 (재시도 ${retryCount}회 초과): ${
+						error instanceof Error
+							? error.message
+							: "알 수 없는 오류"
+					}`,
+				);
 			}
 		}
 	};

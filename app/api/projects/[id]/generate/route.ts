@@ -153,17 +153,42 @@ export async function POST(
 		}
 
 		// ── resume 여부 판단 ──────────────────────────────────────────────
-		// Vercel 함수 강제 종료 또는 redeploy로 작업이 중단됐을 때:
-		// generationStage가 active 상태이면서 updatedAt이 STUCK_THRESHOLD_MS
-		// 이상 멈춰 있으면 resume 경로로 진입, 크레딧 재차감 없이 이어서 진행.
 		const projectMeta = project as unknown as {
 			generationMetadata?: string | null;
 			updatedAt: Date;
 		};
+
+		// (1) stuck: active 스테이지가 5분 이상 멈춰있는 경우
+		// (2) failedResume: FAILED 상태이고 이미 크레딧이 차감된 기록이 있는 경우
+		//     → 어느 단계에서 실패했든 크레딧 재차감 없이 이어서 진행
 		const isResume = isStuckGeneration(
 			project.generationStage,
 			projectMeta.updatedAt,
 		);
+
+		const existingCharge =
+			project.generationStage === "FAILED"
+				? await (prisma as any).creditTransaction.findFirst({
+						where: {
+							projectId: project.id,
+							reason: "GENERATE_AI",
+							amount: { lt: 0 },
+						},
+					})
+				: null;
+		const isFailedResume =
+			project.generationStage === "FAILED" && !!existingCharge;
+
+		// 페이지가 이미 저장돼 있으면 SAVING 이후 단계(PUBLISHING)만 재시도
+		const savedPages = project.pages as Array<{
+			pageOrder: number;
+			caption: string;
+			imageUrl?: string;
+		}>;
+		const canSkipToPublish =
+			isFailedResume &&
+			savedPages.length > 0 &&
+			savedPages.every((p) => (p as any).imageUrl);
 
 		const normalizedType =
 			project.projectType === "NOVEL" ? "NOVEL" : "COMIC";
@@ -197,7 +222,7 @@ export async function POST(
 		const requiredCredits = usdToCredits(costEstimate.totalUsd);
 		let creditDeducted = false;
 
-		if (!isResume) {
+		if (!isResume && !isFailedResume) {
 			const userBefore = await (prisma.user as any).findUnique({
 				where: { id: user.id },
 				select: { credits: true },
@@ -231,6 +256,65 @@ export async function POST(
 		}
 
 		try {
+			// ── FAILED 재시도: 페이지가 이미 저장돼 있으면 PUBLISHING만 재시도 ──
+			if (canSkipToPublish) {
+				console.log(
+					`[generate] skip-to-publish: projectId=${project.id}, pages=${savedPages.length}`,
+				);
+				await prisma.project.update({
+					where: { id: project.id },
+					data: {
+						generationStage: "PUBLISHING",
+						generationProgress: 96,
+						generationError: null,
+					} as any,
+				});
+
+				const publishRes = await fetch(
+					`${req.nextUrl.origin}/api/projects/${project.id}/publish`,
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							cookie: req.headers.get("cookie") || "",
+						},
+						body: JSON.stringify({}),
+					},
+				);
+				const publishJson = (await publishRes
+					.json()
+					.catch(() => ({}))) as {
+					success?: boolean;
+					error?: string;
+					bookUid?: string;
+					failedStep?: string;
+				};
+				if (!publishRes.ok || !publishJson.success) {
+					const baseMsg =
+						publishJson.error || "출판 단계에서 실패했습니다.";
+					const stepInfo = publishJson.failedStep
+						? ` [단계: ${publishJson.failedStep}]`
+						: "";
+					throw new Error(baseMsg + stepInfo);
+				}
+
+				await prisma.project.update({
+					where: { id: project.id },
+					data: {
+						generationStage: "COMPLETED",
+						generationProgress: 100,
+						generationError: null,
+						generationMetadata: null,
+					} as any,
+				});
+
+				const updated = await prisma.project.findUnique({
+					where: { id: project.id },
+					include: { pages: { orderBy: { pageOrder: "asc" } } },
+				});
+				return NextResponse.json({ success: true, data: updated });
+			}
+
 			// ── resume: 아웃라인 + 저장된 페이지 로드 ────────────────────
 			let existingOutline: NovelOutline | undefined;
 			let resumeFromPageIndex = 0;
@@ -259,7 +343,7 @@ export async function POST(
 			}
 
 			// ── 스테이지 초기화 ───────────────────────────────────────────
-			if (!isResume) {
+			if (!isResume && !isFailedResume) {
 				await prisma.project.update({
 					where: { id: project.id },
 					data: {
@@ -269,7 +353,7 @@ export async function POST(
 					} as any,
 				});
 			} else {
-				// resume: 에러 메시지만 초기화
+				// resume / failedResume: 에러 메시지만 초기화
 				await prisma.project.update({
 					where: { id: project.id },
 					data: { generationError: null } as any,
@@ -343,7 +427,7 @@ export async function POST(
 
 			// ── 소설 아웃라인을 generationMetadata에 저장 (첫 실행 시) ────
 			// 중단 시 재개에서 outline API 호출을 건너뛸 수 있도록 캐시.
-			if (normalizedType === "NOVEL" && !isResume) {
+			if (normalizedType === "NOVEL" && !isResume && !isFailedResume) {
 				const outlineCache: NovelOutline = {
 					tagline: plan.tagline,
 					synopsis: plan.synopsis,
@@ -399,8 +483,18 @@ export async function POST(
 					characterProfiles: plan.characterProfiles,
 					imageModel,
 					characterImages,
-					maxParallel: imageModel === "dall-e-2" ? 6 : 4,
-					retryCount: 2,
+					// 분당 5장 제한 모델(dall-e-3, dall-e-3-hd, gpt-image-1, gpt-image-1-hd)은
+					// ai-generator.ts에서 maxParallel=1로 강제하지만, 의도를 명확히 표기
+					maxParallel:
+						imageModel === "dall-e-2"
+							? 6
+							: imageModel === "gpt-image-1" ||
+								  imageModel === "gpt-image-1-hd" ||
+								  imageModel === "dall-e-3" ||
+								  imageModel === "dall-e-3-hd"
+								? 1
+								: 3,
+					retryCount: 3,
 					checkpointKey: project.id,
 					onPageDone: async (done, total) => {
 						const progress = 35 + Math.floor((done / total) * 50);
