@@ -317,11 +317,7 @@ export default function CreateProgressPage() {
 
 	const progress = normalizeProgress(project?.generationProgress);
 	const isFailed = project?.generationStage === "FAILED";
-	const isStuck =
-		stuckDetected ||
-		(starting &&
-			!isFailed &&
-			isActiveClientStage(project?.generationStage));
+	const isStuck = stuckDetected;
 
 	return (
 		<div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">

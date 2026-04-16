@@ -26,7 +26,13 @@ import { isSweetbookConfigured } from "@/lib/sweetbook-api";
 /** 이 시간(ms) 이상 업데이트가 없으면 함수가 중단된 것으로 판단 */
 const STUCK_THRESHOLD_MS = 5 * 60 * 1000; // 5분
 
-const ACTIVE_STAGES = ["PLANNING", "WRITING", "SAVING", "PUBLISHING", "IMAGING"];
+const ACTIVE_STAGES = [
+	"PLANNING",
+	"WRITING",
+	"SAVING",
+	"PUBLISHING",
+	"IMAGING",
+];
 
 function isActiveGenerationStage(stage: string | null | undefined): boolean {
 	if (!stage) return false;
@@ -34,8 +40,8 @@ function isActiveGenerationStage(stage: string | null | undefined): boolean {
 }
 
 function isStuckGeneration(
-stage: string | null | undefined,
-updatedAt: Date,
+	stage: string | null | undefined,
+	updatedAt: Date,
 ): boolean {
 	if (!isActiveGenerationStage(stage)) return false;
 	return Date.now() - updatedAt.getTime() > STUCK_THRESHOLD_MS;
@@ -73,7 +79,7 @@ function isOpenAIQuotaExceededError(error: unknown): boolean {
 	const message = String(e?.message || e?.error?.message || "").toLowerCase();
 
 	return (
-status === 429 &&
+		status === 429 &&
 		(code.includes("insufficient_quota") ||
 			message.includes("insufficient_quota") ||
 			message.includes("current quota") ||
@@ -83,16 +89,16 @@ status === 429 &&
 
 // POST /api/projects/[id]/generate
 export async function POST(
-req: NextRequest,
-{ params }: { params: { id: string } },
+	req: NextRequest,
+	{ params }: { params: { id: string } },
 ) {
 	try {
 		const user = await getAuthUserFromRequest(req);
 		if (!user) {
 			return NextResponse.json(
-{ success: false, error: "로그인이 필요합니다." },
-{ status: 401 },
-);
+				{ success: false, error: "로그인이 필요합니다." },
+				{ status: 401 },
+			);
 		}
 
 		const body = await req.json().catch(() => ({}));
@@ -104,28 +110,28 @@ req: NextRequest,
 			: DEFAULT_IMAGE_MODEL;
 
 		const project = await prisma.project.findFirst({
-where: { id: params.id, userId: user.id },
-include: { pages: { orderBy: { pageOrder: "asc" } } },
-});
+			where: { id: params.id, userId: user.id },
+			include: { pages: { orderBy: { pageOrder: "asc" } } },
+		});
 		if (!project) {
 			return NextResponse.json(
-{ success: false, error: "프로젝트를 찾을 수 없습니다." },
-{ status: 404 },
-);
+				{ success: false, error: "프로젝트를 찾을 수 없습니다." },
+				{ status: 404 },
+			);
 		}
 
 		const characterImages: CharacterImageRef[] = (() => {
 			try {
 				const raw = (
-project as unknown as {
-characterImagesJson?: string | null;
+					project as unknown as {
+						characterImagesJson?: string | null;
 					}
 				).characterImagesJson;
 				if (!raw) return [];
 				const parsed = JSON.parse(raw);
 				if (!Array.isArray(parsed)) return [];
 				return parsed.filter(
-(item): item is CharacterImageRef =>
+					(item): item is CharacterImageRef =>
 						item &&
 						typeof item.name === "string" &&
 						typeof item.imageUrl === "string",
@@ -137,9 +143,9 @@ characterImagesJson?: string | null;
 
 		if (project.projectType === "PHOTOBOOK") {
 			return NextResponse.json(
-{ success: false, error: "포토북 프로젝트는 대상이 아닙니다." },
-{ status: 400 },
-);
+				{ success: false, error: "포토북 프로젝트는 대상이 아닙니다." },
+				{ status: 400 },
+			);
 		}
 
 		if (project.status === "PUBLISHED" && project.pages.length > 0) {
@@ -155,20 +161,20 @@ characterImagesJson?: string | null;
 			updatedAt: Date;
 		};
 		const isResume = isStuckGeneration(
-project.generationStage,
-projectMeta.updatedAt,
-);
+			project.generationStage,
+			projectMeta.updatedAt,
+		);
 
 		const normalizedType =
 			project.projectType === "NOVEL" ? "NOVEL" : "COMIC";
 		const pageCount = Math.max(
-24,
-Math.min(
-120,
-(project as { requestedPageCount?: number | null })
-.requestedPageCount || 24,
-),
-);
+			24,
+			Math.min(
+				120,
+				(project as { requestedPageCount?: number | null })
+					.requestedPageCount || 24,
+			),
+		);
 		const refImageCount = (() => {
 			try {
 				const raw = (project as any).characterImagesJson;
@@ -182,45 +188,45 @@ Math.min(
 
 		// ── 크레딧 확인 및 선차감 (resume 시 생략) ───────────────────────
 		const costEstimate = estimateOpenAICost({
-kind: normalizedType,
-pageCount,
-storyModel,
-imageModel,
-refImageCount,
-});
+			kind: normalizedType,
+			pageCount,
+			storyModel,
+			imageModel,
+			refImageCount,
+		});
 		const requiredCredits = usdToCredits(costEstimate.totalUsd);
 		let creditDeducted = false;
 
 		if (!isResume) {
 			const userBefore = await (prisma.user as any).findUnique({
-where: { id: user.id },
-select: { credits: true },
-});
+				where: { id: user.id },
+				select: { credits: true },
+			});
 			if (!userBefore || (userBefore.credits ?? 0) < requiredCredits) {
 				return NextResponse.json(
-{
-success: false,
-error: "크레딧이 부족합니다.",
-required: requiredCredits,
-current: userBefore?.credits ?? 0,
-},
-{ status: 402 },
-);
+					{
+						success: false,
+						error: "크레딧이 부족합니다.",
+						required: requiredCredits,
+						current: userBefore?.credits ?? 0,
+					},
+					{ status: 402 },
+				);
 			}
 			await (prisma as any).$transaction([
-(prisma.user as any).update({
-where: { id: user.id },
-data: { credits: { decrement: requiredCredits } },
-}),
-(prisma as any).creditTransaction.create({
-data: {
-userId: user.id,
-amount: -requiredCredits,
-reason: "GENERATE_AI",
-projectId: project.id,
-},
-}),
-]);
+				(prisma.user as any).update({
+					where: { id: user.id },
+					data: { credits: { decrement: requiredCredits } },
+				}),
+				(prisma as any).creditTransaction.create({
+					data: {
+						userId: user.id,
+						amount: -requiredCredits,
+						reason: "GENERATE_AI",
+						projectId: project.id,
+					},
+				}),
+			]);
 			creditDeducted = true;
 		}
 
@@ -233,62 +239,62 @@ projectId: project.id,
 
 			if (isResume && normalizedType === "NOVEL") {
 				const meta = parseGenerationMetadata(
-projectMeta.generationMetadata,
-);
+					projectMeta.generationMetadata,
+				);
 				existingOutline = meta?.outline;
 
 				for (const p of project.pages) {
 					existingPages.push({
-pageOrder: p.pageOrder,
-caption: p.caption || "",
-});
+						pageOrder: p.pageOrder,
+						caption: p.caption || "",
+					});
 				}
 				resumeFromPageIndex = existingPages.length;
 
 				console.log(
-`[generate] resume: projectId=${project.id}, ` +
-`savedPages=${existingPages.length}/${pageCount}, ` +
-`hasOutline=${!!existingOutline}`,
-);
+					`[generate] resume: projectId=${project.id}, ` +
+						`savedPages=${existingPages.length}/${pageCount}, ` +
+						`hasOutline=${!!existingOutline}`,
+				);
 			}
 
 			// ── 스테이지 초기화 ───────────────────────────────────────────
 			if (!isResume) {
 				await prisma.project.update({
-where: { id: project.id },
-data: {
-generationStage: "PLANNING",
-generationProgress: 10,
-generationError: null,
-} as any,
-});
+					where: { id: project.id },
+					data: {
+						generationStage: "PLANNING",
+						generationProgress: 10,
+						generationError: null,
+					} as any,
+				});
 			} else {
 				// resume: 에러 메시지만 초기화
 				await prisma.project.update({
-where: { id: project.id },
-data: { generationError: null } as any,
-});
+					where: { id: project.id },
+					data: { generationError: null } as any,
+				});
 			}
 
 			const comicStyle = toComicStyle(project.comicStyle);
 			let runningCostUsd = 0;
 
 			const plan = await generateBookPlan(
-{
-title: project.title,
-characters: project.storyCharacters || "주인공",
-genre: project.genre || "일반",
-description: project.synopsis || "",
-pageCount,
-bookKind: normalizedType,
-comicStyle,
-},
-{
-storyModel,
-existingOutline,
-resumeFromPageIndex,
-existingPages,
-onNovelPageDone: async (done, total, usage, page) => {
+				{
+					title: project.title,
+					characters: project.storyCharacters || "주인공",
+					genre: project.genre || "일반",
+					description: project.synopsis || "",
+					pageCount,
+					bookKind: normalizedType,
+					comicStyle,
+				},
+				{
+					storyModel,
+					existingOutline,
+					resumeFromPageIndex,
+					existingPages,
+					onNovelPageDone: async (done, total, usage, page) => {
 						if (normalizedType !== "NOVEL") return;
 
 						// done=0 이면 아웃라인 완료 시점 (첫 PLANNING→WRITING 전환)
@@ -297,37 +303,40 @@ onNovelPageDone: async (done, total, usage, page) => {
 
 						const safeTotal = Math.max(1, total);
 						const safeDone = Math.max(0, Math.min(done, safeTotal));
-						runningCostUsd = calcStoryActualCostUsd(usage, storyModel);
+						runningCostUsd = calcStoryActualCostUsd(
+							usage,
+							storyModel,
+						);
 
 						// 방금 생성된 페이지 즉시 upsert (중단 대비 증분 저장)
 						if (page) {
 							await (prisma as any).page.upsert({
-where: {
-projectId_pageOrder: {
-projectId: project.id,
-pageOrder: page.pageOrder,
-},
-},
-create: {
-projectId: project.id,
-pageOrder: page.pageOrder,
-caption: page.caption,
-imageUrl: "",
-},
-update: { caption: page.caption },
-});
+								where: {
+									projectId_pageOrder: {
+										projectId: project.id,
+										pageOrder: page.pageOrder,
+									},
+								},
+								create: {
+									projectId: project.id,
+									pageOrder: page.pageOrder,
+									caption: page.caption,
+									imageUrl: "",
+								},
+								update: { caption: page.caption },
+							});
 						}
 
 						const progress =
 							12 + Math.floor((safeDone / safeTotal) * 76);
 						await prisma.project.update({
-where: { id: project.id },
-data: {
-generationStage: `WRITING:${safeDone}:${safeTotal}`,
-generationProgress: progress,
-generationCostUsd: runningCostUsd,
-} as any,
-});
+							where: { id: project.id },
+							data: {
+								generationStage: `WRITING:${safeDone}:${safeTotal}`,
+								generationProgress: progress,
+								generationCostUsd: runningCostUsd,
+							} as any,
+						});
 					},
 				},
 			);
@@ -344,53 +353,56 @@ generationCostUsd: runningCostUsd,
 					pageBlueprints: [],
 				};
 				await prisma.project.update({
-where: { id: project.id },
-data: {
-generationMetadata: JSON.stringify({
-outline: outlineCache,
-}),
-synopsis: plan.synopsis,
-} as any,
-});
+					where: { id: project.id },
+					data: {
+						generationMetadata: JSON.stringify({
+							outline: outlineCache,
+						}),
+						synopsis: plan.synopsis,
+					} as any,
+				});
 			}
 
 			// 스토리 생성 비용 최종 갱신
-			runningCostUsd = calcStoryActualCostUsd(plan.actualUsage, storyModel);
+			runningCostUsd = calcStoryActualCostUsd(
+				plan.actualUsage,
+				storyModel,
+			);
 			await prisma.project.update({
-where: { id: project.id },
-data: { generationCostUsd: runningCostUsd } as any,
-});
+				where: { id: project.id },
+				data: { generationCostUsd: runningCostUsd } as any,
+			});
 
 			let coverImageUrl = `https://picsum.photos/seed/${encodeURIComponent(project.title)}-cover/900/700`;
 			let pageImageUrls: string[] = [];
 
 			if (normalizedType === "COMIC") {
 				pageImageUrls = plan.pages.map(
-(page) =>
+					(page) =>
 						`https://picsum.photos/seed/${encodeURIComponent(project.title)}-${page.pageOrder}/900/700`,
 				);
 				const totalPages = plan.pages.length;
 				await prisma.project.update({
-where: { id: project.id },
-data: {
-generationStage: `IMAGING:0:${totalPages}`,
-generationProgress: 35,
-} as any,
-});
+					where: { id: project.id },
+					data: {
+						generationStage: `IMAGING:0:${totalPages}`,
+						generationProgress: 35,
+					} as any,
+				});
 				let lastDoneCount = 0;
 
 				const generatedImages = await generateComicImages({
-title: project.title,
-synopsis: plan.synopsis,
-comicStyle,
-pages: plan.pages,
-characterProfiles: plan.characterProfiles,
-imageModel,
-characterImages,
-maxParallel: imageModel === "dall-e-2" ? 6 : 4,
-retryCount: 2,
-checkpointKey: project.id,
-onPageDone: async (done, total) => {
+					title: project.title,
+					synopsis: plan.synopsis,
+					comicStyle,
+					pages: plan.pages,
+					characterProfiles: plan.characterProfiles,
+					imageModel,
+					characterImages,
+					maxParallel: imageModel === "dall-e-2" ? 6 : 4,
+					retryCount: 2,
+					checkpointKey: project.id,
+					onPageDone: async (done, total) => {
 						const progress = 35 + Math.floor((done / total) * 50);
 						const delta = Math.max(0, done - lastDoneCount);
 						lastDoneCount = done;
@@ -399,13 +411,13 @@ onPageDone: async (done, total) => {
 								delta * IMAGE_PRICING_PER_IMAGE_USD[imageModel];
 						}
 						await prisma.project.update({
-where: { id: project.id },
-data: {
-generationStage: `IMAGING:${done}:${total}`,
-generationProgress: progress,
-generationCostUsd: runningCostUsd,
-} as any,
-});
+							where: { id: project.id },
+							data: {
+								generationStage: `IMAGING:${done}:${total}`,
+								generationProgress: progress,
+								generationCostUsd: runningCostUsd,
+							} as any,
+						});
 					},
 				});
 				// 표지 이미지 비용 누적 (+1)
@@ -414,108 +426,112 @@ generationCostUsd: runningCostUsd,
 				pageImageUrls = generatedImages.pageImageUrls;
 			} else {
 				const generatedCoverImageUrl = await generateStoryCoverImage({
-title: project.title,
-synopsis: plan.synopsis,
-genre: project.genre || undefined,
-imageModel,
-});
+					title: project.title,
+					synopsis: plan.synopsis,
+					genre: project.genre || undefined,
+					imageModel,
+				});
 				coverImageUrl = generatedCoverImageUrl;
 			}
 
 			// ── SAVING ───────────────────────────────────────────────────
 			await prisma.project.update({
-where: { id: project.id },
-data: {
-generationStage: "SAVING",
-generationProgress: 92,
-} as any,
-});
+				where: { id: project.id },
+				data: {
+					generationStage: "SAVING",
+					generationProgress: 92,
+				} as any,
+			});
 
 			if (normalizedType === "NOVEL") {
 				// 소설 페이지는 onNovelPageDone에서 이미 증분 upsert 완료.
 				// cover/synopsis 등 메타데이터만 업데이트.
 				await prisma.project.update({
-where: { id: project.id },
-data: {
-synopsis: plan.synopsis,
-coverCaption: plan.tagline,
-coverImageUrl,
-} as any,
-});
+					where: { id: project.id },
+					data: {
+						synopsis: plan.synopsis,
+						coverCaption: plan.tagline,
+						coverImageUrl,
+					} as any,
+				});
 			} else {
 				// 만화: 일괄 저장
 				await prisma.project.update({
-where: { id: project.id },
-data: {
-synopsis: plan.synopsis,
-coverCaption: plan.tagline,
-coverImageUrl,
-comicStyle,
-pages: {
-deleteMany: {},
-create: plan.pages.map((page, index) => ({
-pageOrder: page.pageOrder,
-caption: page.caption,
-imageUrl:
-pageImageUrls[index] ||
-`https://picsum.photos/seed/${encodeURIComponent(project.title)}-${page.pageOrder}/900/700`,
-})),
+					where: { id: project.id },
+					data: {
+						synopsis: plan.synopsis,
+						coverCaption: plan.tagline,
+						coverImageUrl,
+						comicStyle,
+						pages: {
+							deleteMany: {},
+							create: plan.pages.map((page, index) => ({
+								pageOrder: page.pageOrder,
+								caption: page.caption,
+								imageUrl:
+									pageImageUrls[index] ||
+									`https://picsum.photos/seed/${encodeURIComponent(project.title)}-${page.pageOrder}/900/700`,
+							})),
 						},
 					} as any,
 				});
 			}
 
 			await prisma.project.update({
-where: { id: project.id },
-data: {
-generationStage: "PUBLISHING",
-generationProgress: 96,
-} as any,
-});
+				where: { id: project.id },
+				data: {
+					generationStage: "PUBLISHING",
+					generationProgress: 96,
+				} as any,
+			});
 
 			const publishRes = await fetch(
-`${req.nextUrl.origin}/api/projects/${project.id}/publish`,
-{
-method: "POST",
-headers: {
-"Content-Type": "application/json",
-cookie: req.headers.get("cookie") || "",
-},
-body: JSON.stringify({}),
-},
-);
+				`${req.nextUrl.origin}/api/projects/${project.id}/publish`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						cookie: req.headers.get("cookie") || "",
+					},
+					body: JSON.stringify({}),
+				},
+			);
 			const publishJson = (await publishRes.json().catch(() => ({}))) as {
 				success?: boolean;
 				error?: string;
 				bookUid?: string;
+				failedStep?: string;
 			};
 			if (!publishRes.ok || !publishJson.success) {
-				throw new Error(
-publishJson.error ||
-"출판 단계에서 실패했습니다. 잠시 후 다시 시도해 주세요.",
-);
+				const baseMsg =
+					publishJson.error ||
+					"출판 단계에서 실패했습니다. 잠시 후 다시 시도해 주세요.";
+				const stepInfo = publishJson.failedStep
+					? ` [단계: ${publishJson.failedStep}]`
+					: "";
+				throw new Error(baseMsg + stepInfo);
 			}
 			if (isSweetbookConfigured() && !publishJson.bookUid) {
 				throw new Error(
-"출판은 성공했지만 bookUid를 받지 못했습니다. 템플릿/API 설정을 확인해 주세요.",
-);
+					"출판은 성공했지만 bookUid를 받지 못했습니다. 템플릿/API 설정을 확인해 주세요.",
+				);
 			}
 
 			// 완료 — generationMetadata 클리어
 			await prisma.project.update({
-where: { id: project.id },
-data: {
-generationStage: "COMPLETED",
-generationProgress: 100,
-generationError: null,
-generationMetadata: null,
-} as any,
-});
+				where: { id: project.id },
+				data: {
+					generationStage: "COMPLETED",
+					generationProgress: 100,
+					generationError: null,
+					generationMetadata: null,
+				} as any,
+			});
 
 			const updated = await prisma.project.findUnique({
-where: { id: project.id },
-include: { pages: { orderBy: { pageOrder: "asc" } } },
-});
+				where: { id: project.id },
+				include: { pages: { orderBy: { pageOrder: "asc" } } },
+			});
 
 			creditDeducted = false; // 성공 — 환불 불필요
 			return NextResponse.json({ success: true, data: updated });
@@ -524,19 +540,19 @@ include: { pages: { orderBy: { pageOrder: "asc" } } },
 			if (creditDeducted) {
 				await (prisma as any)
 					.$transaction([
-(prisma.user as any).update({
-where: { id: user.id },
-data: { credits: { increment: requiredCredits } },
-}),
-(prisma as any).creditTransaction.create({
-data: {
-userId: user.id,
-amount: requiredCredits,
-reason: "REFUND",
-projectId: project.id,
-},
-}),
-])
+						(prisma.user as any).update({
+							where: { id: user.id },
+							data: { credits: { increment: requiredCredits } },
+						}),
+						(prisma as any).creditTransaction.create({
+							data: {
+								userId: user.id,
+								amount: requiredCredits,
+								reason: "REFUND",
+								projectId: project.id,
+							},
+						}),
+					])
 					.catch(() => {});
 			}
 			throw innerErr;
@@ -544,9 +560,9 @@ projectId: project.id,
 	} catch (err) {
 		if (err instanceof MissingOpenAIKeyError) {
 			return NextResponse.json(
-{ success: false, error: err.message },
-{ status: 400 },
-);
+				{ success: false, error: err.message },
+				{ status: 400 },
+			);
 		}
 
 		const isQuotaExceeded = isOpenAIQuotaExceededError(err);
@@ -558,22 +574,22 @@ projectId: project.id,
 		console.error("[POST /api/projects/[id]/generate]", err);
 		await prisma.project
 			.update({
-where: { id: params.id },
-data: {
-generationStage: "FAILED",
-generationError: message,
-} as any,
-})
+				where: { id: params.id },
+				data: {
+					generationStage: "FAILED",
+					generationError: message,
+				} as any,
+			})
 			.catch(() => {});
 		return NextResponse.json(
-{
-success: false,
-error: message,
-errorCode: isQuotaExceeded
-? "OPENAI_QUOTA_EXCEEDED"
-: undefined,
-},
-{ status: isQuotaExceeded ? 429 : 500 },
-);
+			{
+				success: false,
+				error: message,
+				errorCode: isQuotaExceeded
+					? "OPENAI_QUOTA_EXCEEDED"
+					: undefined,
+			},
+			{ status: isQuotaExceeded ? 429 : 500 },
+		);
 	}
 }
