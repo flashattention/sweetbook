@@ -342,6 +342,23 @@ export async function POST(
 				);
 			}
 
+			// COMIC resume: DB에 저장된 이미지 URL을 주입 (Vercel /tmp 유실 대비)
+			let savedComicPageImageUrls: Record<number, string> | undefined;
+			let savedCoverImageUrl: string | undefined;
+			if ((isResume || isFailedResume) && normalizedType === "COMIC") {
+				savedCoverImageUrl = project.coverImageUrl || undefined;
+				savedComicPageImageUrls = {};
+				for (const p of project.pages) {
+					if (p.imageUrl) {
+						savedComicPageImageUrls[p.pageOrder] = p.imageUrl;
+					}
+				}
+				const savedCount = Object.keys(savedComicPageImageUrls).length;
+				console.log(
+					`[generate] comic-resume: projectId=${project.id}, savedImages=${savedCount}/${pageCount}`,
+				);
+			}
+
 			// ── 스테이지 초기화 ───────────────────────────────────────────
 			if (!isResume && !isFailedResume) {
 				await prisma.project.update({
@@ -496,7 +513,9 @@ export async function POST(
 								: 3,
 					retryCount: 3,
 					checkpointKey: project.id,
-					onPageDone: async (done, total) => {
+					savedPageImageUrls: savedComicPageImageUrls,
+					savedCoverImageUrl,
+					onPageDone: async (done, total, page) => {
 						const progress = 35 + Math.floor((done / total) * 50);
 						const delta = Math.max(0, done - lastDoneCount);
 						lastDoneCount = done;
@@ -504,14 +523,40 @@ export async function POST(
 							runningCostUsd +=
 								delta * IMAGE_PRICING_PER_IMAGE_USD[imageModel];
 						}
-						await prisma.project.update({
-							where: { id: project.id },
-							data: {
-								generationStage: `IMAGING:${done}:${total}`,
-								generationProgress: progress,
-								generationCostUsd: runningCostUsd,
-							} as any,
-						});
+						const updates: Promise<unknown>[] = [
+							prisma.project.update({
+								where: { id: project.id },
+								data: {
+									generationStage: `IMAGING:${done}:${total}`,
+									generationProgress: progress,
+									generationCostUsd: runningCostUsd,
+								} as any,
+							}),
+						];
+						// 이미지 생성 즉시 DB upsert (중단 시 resume 대비)
+						if (page) {
+							const planPage = plan.pages.find(
+								(p) => p.pageOrder === page.pageOrder,
+							);
+							updates.push(
+								(prisma as any).page.upsert({
+									where: {
+										projectId_pageOrder: {
+											projectId: project.id,
+											pageOrder: page.pageOrder,
+										},
+									},
+									create: {
+										projectId: project.id,
+										pageOrder: page.pageOrder,
+										caption: planPage?.caption || "",
+										imageUrl: page.imageUrl,
+									},
+									update: { imageUrl: page.imageUrl },
+								}),
+							);
+						}
+						await Promise.all(updates);
 					},
 				});
 				// 표지 이미지 비용 누적 (+1)

@@ -708,9 +708,14 @@ export async function generateComicImages(params: {
 	maxParallel?: number;
 	retryCount?: number;
 	checkpointKey?: string;
+	/** DB에 이미 저장된 페이지 이미지 URL (resume 시 /tmp 유실 대비 주입) */
+	savedPageImageUrls?: Record<number, string>;
+	/** DB에 이미 저장된 커버 이미지 URL (resume 시 /tmp 유실 대비 주입) */
+	savedCoverImageUrl?: string;
 	onPageDone?: (
 		doneCount: number,
 		totalCount: number,
+		page?: { pageOrder: number; imageUrl: string },
 	) => Promise<void> | void;
 }): Promise<{ coverImageUrl: string; pageImageUrls: string[] }> {
 	const client = getOpenAIClient();
@@ -790,6 +795,21 @@ export async function generateComicImages(params: {
 		pageImageUrlsByOrder: {},
 		updatedAt: new Date().toISOString(),
 	};
+
+	// DB에서 넘어온 저장 URL을 체크포인트에 병합 (Vercel /tmp 유실 시 복원)
+	if (params.savedCoverImageUrl && !checkpoint.coverImageUrl) {
+		checkpoint.coverImageUrl = params.savedCoverImageUrl;
+	}
+	if (params.savedPageImageUrls) {
+		for (const [orderStr, url] of Object.entries(
+			params.savedPageImageUrls,
+		)) {
+			const order = Number(orderStr);
+			if (url && !checkpoint.pageImageUrlsByOrder[order]) {
+				checkpoint.pageImageUrlsByOrder[order] = url;
+			}
+		}
+	}
 
 	/**
 	 * Responses API를 통해 참조 이미지와 함께 이미지 생성
@@ -964,7 +984,10 @@ export async function generateComicImages(params: {
 
 				doneCount += 1;
 				if (params.onPageDone) {
-					await params.onPageDone(doneCount, totalCount);
+					await params.onPageDone(doneCount, totalCount, {
+						pageOrder: page.pageOrder,
+						imageUrl: localUrl,
+					});
 				}
 				return;
 			} catch (error) {
