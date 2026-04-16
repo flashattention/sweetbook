@@ -5,7 +5,8 @@ import { getAuthUserFromRequest } from "@/lib/auth";
 import { CREDIT_PACKAGES } from "@/lib/credits";
 
 function isAdminPassword(input: unknown): boolean {
-	const secret = process.env.ADMIN_CHARGE_PASSWORD ?? "Test1234!";
+	const secret = process.env.ADMIN_CHARGE_PASSWORD;
+	if (!secret) return false;
 	if (typeof input !== "string" || input.length === 0) return false;
 	try {
 		const a = Buffer.from(input);
