@@ -1865,6 +1865,11 @@ export async function POST(
 		let bookUid = project.bookUid;
 		if (!bookUid) {
 			bookUid = await createBookAndGetUid();
+			// bookUid를 즉시 DB에 저장: 이후 단계에서 실패해도 재시도 시 재사용 가능
+			await prisma.project.update({
+				where: { id: project.id },
+				data: { bookUid } as any,
+			});
 		}
 
 		const coverTemplateUid =
