@@ -43,8 +43,8 @@ export default function ProfileClient() {
 		type: "ok" | "err";
 		text: string;
 	} | null>(null);
-	const [adminCode, setAdminCode] = useState("");
-	const [adminCodeVisible, setAdminCodeVisible] = useState(false);
+	const [pendingPkgId, setPendingPkgId] = useState<string | null>(null);
+	const [modalPassword, setModalPassword] = useState("");
 
 	// 프로필 편집
 	const [name, setName] = useState("");
@@ -93,7 +93,7 @@ export default function ProfileClient() {
 			.finally(() => setLoading(false));
 	}, [router]);
 
-	async function handleCharge(pkgId: string) {
+	async function handleCharge(pkgId: string, password: string) {
 		setChargingPkg(pkgId);
 		setChargeMsg(null);
 		try {
@@ -102,7 +102,7 @@ export default function ProfileClient() {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					packageId: pkgId,
-					adminPassword: adminCode || undefined,
+					adminPassword: password || undefined,
 				}),
 			});
 			const json = await res.json();
@@ -123,6 +123,8 @@ export default function ProfileClient() {
 				type: "ok",
 				text: `${charged.toLocaleString()} 크레딧이 충전됐습니다!`,
 			});
+			setPendingPkgId(null);
+			setModalPassword("");
 		} catch (err) {
 			setChargeMsg({
 				type: "err",
@@ -235,300 +237,382 @@ export default function ProfileClient() {
 	const labelClass = "block text-sm font-medium text-zinc-300 mb-1";
 
 	return (
-		<div className="min-h-screen bg-zinc-950">
-			{/* 헤더 */}
-			<header className="sticky top-0 z-40 bg-zinc-950 border-b border-white/[0.08]">
-				<div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-4">
-					<Link
-						href="/"
-						className="text-zinc-400 hover:text-white text-sm transition-colors"
-					>
-						← 홈
-					</Link>
-					<h1 className="text-base font-bold text-white">
-						마이페이지
-					</h1>
-				</div>
-			</header>
-
-			<main className="max-w-2xl mx-auto px-4 py-10 space-y-8">
-				{/* ── 프로필 이미지 ── */}
-				<section className="bg-zinc-900 rounded-2xl border border-white/[0.08] p-6">
-					<h2 className="text-base font-bold text-white mb-5">
-						프로필 이미지
-					</h2>
-					<div className="flex items-center gap-5">
-						<div
-							className="w-20 h-20 rounded-full overflow-hidden bg-violet-800 flex items-center justify-center flex-shrink-0 cursor-pointer ring-2 ring-white/10 hover:ring-violet-500/50 transition-all"
-							onClick={() => fileInputRef.current?.click()}
+		<>
+			<div className="min-h-screen bg-zinc-950">
+				{/* 헤더 */}
+				<header className="sticky top-0 z-40 bg-zinc-950 border-b border-white/[0.08]">
+					<div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-4">
+						<Link
+							href="/"
+							className="text-zinc-400 hover:text-white text-sm transition-colors"
 						>
-							{profile.avatarUrl ? (
-								<Image
-									src={profile.avatarUrl}
-									alt="프로필"
-									width={80}
-									height={80}
-									className="object-cover w-full h-full"
-									unoptimized
-								/>
-							) : (
-								<span className="text-white text-2xl font-bold">
-									{(profile.name ||
-										profile.email)[0].toUpperCase()}
-								</span>
-							)}
-						</div>
-						<div className="flex-1 min-w-0">
-							<p className="text-sm text-zinc-400 mb-3">
-								JPG, PNG, WebP, GIF · 최대 5MB
-							</p>
-							<button
-								type="button"
-								onClick={() => fileInputRef.current?.click()}
-								disabled={uploadingAvatar}
-								className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
-							>
-								{uploadingAvatar
-									? "업로드 중..."
-									: "이미지 변경"}
-							</button>
-							<input
-								ref={fileInputRef}
-								type="file"
-								accept="image/jpeg,image/png,image/webp,image/gif"
-								className="hidden"
-								onChange={handleAvatarChange}
-							/>
-						</div>
+							← 홈
+						</Link>
+						<h1 className="text-base font-bold text-white">
+							마이페이지
+						</h1>
 					</div>
-					{avatarMsg && (
-						<p
-							className={`mt-3 text-sm px-3 py-2 rounded-lg ${avatarMsg.type === "ok" ? "text-green-300 bg-green-900/20 border border-green-800/30" : "text-red-400 bg-red-900/20 border border-red-800/30"}`}
-						>
-							{avatarMsg.text}
-						</p>
-					)}
-				</section>
+				</header>
 
-				{/* ── 프로필 정보 ── */}
-				<section className="bg-zinc-900 rounded-2xl border border-white/[0.08] p-6">
-					<h2 className="text-base font-bold text-white mb-5">
-						프로필 정보
-					</h2>
-					<form onSubmit={handleSaveProfile} className="space-y-4">
-						<div>
-							<label className={labelClass}>
-								이메일 (변경 불가)
-							</label>
-							<input
-								type="text"
-								value={profile.email}
-								disabled
-								className="w-full bg-zinc-800/50 border border-white/[0.05] rounded-lg px-3 py-2.5 text-sm text-zinc-500 cursor-not-allowed"
-							/>
-						</div>
-						<div>
-							<label className={labelClass}>닉네임</label>
-							<input
-								type="text"
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-								maxLength={50}
-								placeholder="표시될 이름"
-								className={inputClass}
-							/>
-						</div>
-						{profileMsg && (
-							<p
-								className={`text-sm px-3 py-2 rounded-lg ${profileMsg.type === "ok" ? "text-green-300 bg-green-900/20 border border-green-800/30" : "text-red-400 bg-red-900/20 border border-red-800/30"}`}
-							>
-								{profileMsg.text}
-							</p>
-						)}
-						<button
-							type="submit"
-							disabled={savingProfile}
-							className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
-						>
-							{savingProfile ? "저장 중..." : "저장"}
-						</button>
-					</form>
-				</section>
-
-				{/* ── 비밀번호 변경 ── */}
-				<section className="bg-zinc-900 rounded-2xl border border-white/[0.08] p-6">
-					<h2 className="text-base font-bold text-white mb-5">
-						비밀번호 변경
-					</h2>
-					<form onSubmit={handleChangePassword} className="space-y-4">
-						<div>
-							<label className={labelClass}>현재 비밀번호</label>
-							<input
-								type="password"
-								value={oldPassword}
-								onChange={(e) => setOldPassword(e.target.value)}
-								autoComplete="current-password"
-								className={inputClass}
-							/>
-						</div>
-						<div>
-							<label className={labelClass}>새 비밀번호</label>
-							<input
-								type="password"
-								value={newPassword}
-								onChange={(e) => setNewPassword(e.target.value)}
-								autoComplete="new-password"
-								className={inputClass}
-							/>
-							<p className="mt-1 text-xs text-zinc-500">
-								8자 이상 + 영문/숫자/특수문자 모두 포함
-							</p>
-						</div>
-						<div>
-							<label className={labelClass}>
-								새 비밀번호 확인
-							</label>
-							<input
-								type="password"
-								value={confirmPassword}
-								onChange={(e) =>
-									setConfirmPassword(e.target.value)
-								}
-								autoComplete="new-password"
-								className={inputClass}
-							/>
-						</div>
-						{pwMsg && (
-							<p
-								className={`text-sm px-3 py-2 rounded-lg ${pwMsg.type === "ok" ? "text-green-300 bg-green-900/20 border border-green-800/30" : "text-red-400 bg-red-900/20 border border-red-800/30"}`}
-							>
-								{pwMsg.text}
-							</p>
-						)}
-						<button
-							type="submit"
-							disabled={savingPw}
-							className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
-						>
-							{savingPw ? "변경 중..." : "비밀번호 변경"}
-						</button>
-					</form>
-				</section>
-
-				{/* 가입일 */}
-				<p className="text-center text-xs text-zinc-600">
-					가입일:{" "}
-					{new Date(profile.createdAt).toLocaleDateString("ko-KR")}
-				</p>
-
-				{/* ── 크레딧 ── */}
-				<section className="bg-zinc-900 rounded-2xl border border-white/[0.08] p-6">
-					<div className="flex items-center justify-between mb-5">
-						<h2 className="text-base font-bold text-white">
-							크레딧
+				<main className="max-w-2xl mx-auto px-4 py-10 space-y-8">
+					{/* ── 프로필 이미지 ── */}
+					<section className="bg-zinc-900 rounded-2xl border border-white/[0.08] p-6">
+						<h2 className="text-base font-bold text-white mb-5">
+							프로필 이미지
 						</h2>
-						<div className="flex items-center gap-2 bg-violet-900/30 border border-violet-500/30 rounded-xl px-4 py-2">
-							<span className="text-violet-300 text-sm">
-								잔액
-							</span>
-							<span className="text-white font-bold text-lg">
-								{credits.toLocaleString()}
-							</span>
-							<span className="text-violet-400 text-sm">C</span>
-						</div>
-					</div>
-
-					<div className="grid grid-cols-2 gap-3 mb-5">
-						{CREDIT_PACKAGES.map((pkg) => (
-							<button
-								key={pkg.id}
-								onClick={() => handleCharge(pkg.id)}
-								disabled={chargingPkg !== null}
-								className="flex flex-col items-center gap-1 bg-zinc-800 hover:bg-zinc-700 border border-white/[0.08] hover:border-violet-500/40 rounded-xl px-4 py-3 transition-all disabled:opacity-50"
+						<div className="flex items-center gap-5">
+							<div
+								className="w-20 h-20 rounded-full overflow-hidden bg-violet-800 flex items-center justify-center flex-shrink-0 cursor-pointer ring-2 ring-white/10 hover:ring-violet-500/50 transition-all"
+								onClick={() => fileInputRef.current?.click()}
 							>
-								<span className="text-white font-bold text-base">
-									{chargingPkg === pkg.id
-										? "처리 중..."
-										: pkg.label}
-								</span>
-								<span className="text-zinc-400 text-xs">
-									{adminCode
-										? "무료 충전"
-										: `${pkg.priceKrw.toLocaleString()}원`}
-								</span>
-							</button>
-						))}
-					</div>
-
-					{/* 관리자 코드 입력 */}
-					<div className="mb-4">
-						<button
-							type="button"
-							onClick={() => {
-								setAdminCodeVisible((v) => !v);
-								if (adminCodeVisible) setAdminCode("");
-							}}
-							className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
-						>
-							{adminCodeVisible ? "코드 숨기기" : "관리자 코드"}
-						</button>
-						{adminCodeVisible && (
-							<input
-								type="password"
-								value={adminCode}
-								onChange={(e) => setAdminCode(e.target.value)}
-								placeholder="관리자 코드 입력"
-								className="mt-2 w-full bg-zinc-800 border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500/50"
-								autoComplete="off"
-							/>
-						)}
-					</div>
-
-					{creditTxns.length > 0 && (
-						<div>
-							<p className="text-xs font-medium text-zinc-500 mb-2">
-								최근 내역
-							</p>
-							<div className="space-y-1.5 max-h-52 overflow-y-auto">
-								{creditTxns.map((txn) => (
-									<div
-										key={txn.id}
-										className="flex items-center justify-between text-sm py-1.5 border-b border-white/[0.05] last:border-0"
-									>
-										<div className="flex items-center gap-2">
-											<span
-												className={`text-xs px-2 py-0.5 rounded-full ${
-													txn.amount > 0
-														? "bg-green-900/40 text-green-400"
-														: "bg-zinc-800 text-zinc-400"
-												}`}
-											>
-												{REASON_LABEL[txn.reason] ??
-													txn.reason}
-											</span>
-											<span className="text-zinc-500 text-xs">
-												{new Date(
-													txn.createdAt,
-												).toLocaleDateString("ko-KR")}
-											</span>
-										</div>
-										<span
-											className={`font-semibold ${
-												txn.amount > 0
-													? "text-green-400"
-													: "text-zinc-300"
-											}`}
-										>
-											{txn.amount > 0 ? "+" : ""}
-											{txn.amount.toLocaleString()} C
-										</span>
-									</div>
-								))}
+								{profile.avatarUrl ? (
+									<Image
+										src={profile.avatarUrl}
+										alt="프로필"
+										width={80}
+										height={80}
+										className="object-cover w-full h-full"
+										unoptimized
+									/>
+								) : (
+									<span className="text-white text-2xl font-bold">
+										{(profile.name ||
+											profile.email)[0].toUpperCase()}
+									</span>
+								)}
+							</div>
+							<div className="flex-1 min-w-0">
+								<p className="text-sm text-zinc-400 mb-3">
+									JPG, PNG, WebP, GIF · 최대 5MB
+								</p>
+								<button
+									type="button"
+									onClick={() =>
+										fileInputRef.current?.click()
+									}
+									disabled={uploadingAvatar}
+									className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+								>
+									{uploadingAvatar
+										? "업로드 중..."
+										: "이미지 변경"}
+								</button>
+								<input
+									ref={fileInputRef}
+									type="file"
+									accept="image/jpeg,image/png,image/webp,image/gif"
+									className="hidden"
+									onChange={handleAvatarChange}
+								/>
 							</div>
 						</div>
-					)}
-				</section>
-			</main>
-		</div>
+						{avatarMsg && (
+							<p
+								className={`mt-3 text-sm px-3 py-2 rounded-lg ${avatarMsg.type === "ok" ? "text-green-300 bg-green-900/20 border border-green-800/30" : "text-red-400 bg-red-900/20 border border-red-800/30"}`}
+							>
+								{avatarMsg.text}
+							</p>
+						)}
+					</section>
+
+					{/* ── 프로필 정보 ── */}
+					<section className="bg-zinc-900 rounded-2xl border border-white/[0.08] p-6">
+						<h2 className="text-base font-bold text-white mb-5">
+							프로필 정보
+						</h2>
+						<form
+							onSubmit={handleSaveProfile}
+							className="space-y-4"
+						>
+							<div>
+								<label className={labelClass}>
+									이메일 (변경 불가)
+								</label>
+								<input
+									type="text"
+									value={profile.email}
+									disabled
+									className="w-full bg-zinc-800/50 border border-white/[0.05] rounded-lg px-3 py-2.5 text-sm text-zinc-500 cursor-not-allowed"
+								/>
+							</div>
+							<div>
+								<label className={labelClass}>닉네임</label>
+								<input
+									type="text"
+									value={name}
+									onChange={(e) => setName(e.target.value)}
+									maxLength={50}
+									placeholder="표시될 이름"
+									className={inputClass}
+								/>
+							</div>
+							{profileMsg && (
+								<p
+									className={`text-sm px-3 py-2 rounded-lg ${profileMsg.type === "ok" ? "text-green-300 bg-green-900/20 border border-green-800/30" : "text-red-400 bg-red-900/20 border border-red-800/30"}`}
+								>
+									{profileMsg.text}
+								</p>
+							)}
+							<button
+								type="submit"
+								disabled={savingProfile}
+								className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+							>
+								{savingProfile ? "저장 중..." : "저장"}
+							</button>
+						</form>
+					</section>
+
+					{/* ── 비밀번호 변경 ── */}
+					<section className="bg-zinc-900 rounded-2xl border border-white/[0.08] p-6">
+						<h2 className="text-base font-bold text-white mb-5">
+							비밀번호 변경
+						</h2>
+						<form
+							onSubmit={handleChangePassword}
+							className="space-y-4"
+						>
+							<div>
+								<label className={labelClass}>
+									현재 비밀번호
+								</label>
+								<input
+									type="password"
+									value={oldPassword}
+									onChange={(e) =>
+										setOldPassword(e.target.value)
+									}
+									autoComplete="current-password"
+									className={inputClass}
+								/>
+							</div>
+							<div>
+								<label className={labelClass}>
+									새 비밀번호
+								</label>
+								<input
+									type="password"
+									value={newPassword}
+									onChange={(e) =>
+										setNewPassword(e.target.value)
+									}
+									autoComplete="new-password"
+									className={inputClass}
+								/>
+								<p className="mt-1 text-xs text-zinc-500">
+									8자 이상 + 영문/숫자/특수문자 모두 포함
+								</p>
+							</div>
+							<div>
+								<label className={labelClass}>
+									새 비밀번호 확인
+								</label>
+								<input
+									type="password"
+									value={confirmPassword}
+									onChange={(e) =>
+										setConfirmPassword(e.target.value)
+									}
+									autoComplete="new-password"
+									className={inputClass}
+								/>
+							</div>
+							{pwMsg && (
+								<p
+									className={`text-sm px-3 py-2 rounded-lg ${pwMsg.type === "ok" ? "text-green-300 bg-green-900/20 border border-green-800/30" : "text-red-400 bg-red-900/20 border border-red-800/30"}`}
+								>
+									{pwMsg.text}
+								</p>
+							)}
+							<button
+								type="submit"
+								disabled={savingPw}
+								className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+							>
+								{savingPw ? "변경 중..." : "비밀번호 변경"}
+							</button>
+						</form>
+					</section>
+
+					{/* 가입일 */}
+					<p className="text-center text-xs text-zinc-600">
+						가입일:{" "}
+						{new Date(profile.createdAt).toLocaleDateString(
+							"ko-KR",
+						)}
+					</p>
+
+					{/* ── 크레딧 ── */}
+					<section className="bg-zinc-900 rounded-2xl border border-white/[0.08] p-6">
+						<div className="flex items-center justify-between mb-5">
+							<h2 className="text-base font-bold text-white">
+								크레딧
+							</h2>
+							<div className="flex items-center gap-2 bg-violet-900/30 border border-violet-500/30 rounded-xl px-4 py-2">
+								<span className="text-violet-300 text-sm">
+									잔액
+								</span>
+								<span className="text-white font-bold text-lg">
+									{credits.toLocaleString()}
+								</span>
+								<span className="text-violet-400 text-sm">
+									C
+								</span>
+							</div>
+						</div>
+
+						<div className="grid grid-cols-2 gap-3 mb-5">
+							{CREDIT_PACKAGES.map((pkg) => (
+								<button
+									key={pkg.id}
+									onClick={() => handleCharge(pkg.id)}
+									disabled={chargingPkg !== null}
+									className="flex flex-col items-center gap-1 bg-zinc-800 hover:bg-zinc-700 border border-white/[0.08] hover:border-violet-500/40 rounded-xl px-4 py-3 transition-all disabled:opacity-50"
+								>
+									<span className="text-white font-bold text-base">
+										{chargingPkg === pkg.id
+											? "처리 중..."
+											: pkg.label}
+									</span>
+									<span className="text-zinc-400 text-xs">
+										{adminCode
+											? "무료 충전"
+											: `${pkg.priceKrw.toLocaleString()}원`}
+									</span>
+								</button>
+							))}
+						</div>
+
+						{creditTxns.length > 0 && (
+							<div>
+								<p className="text-xs font-medium text-zinc-500 mb-2">
+									최근 내역
+								</p>
+								<div className="space-y-1.5 max-h-52 overflow-y-auto">
+									{creditTxns.map((txn) => (
+										<div
+											key={txn.id}
+											className="flex items-center justify-between text-sm py-1.5 border-b border-white/[0.05] last:border-0"
+										>
+											<div className="flex items-center gap-2">
+												<span
+													className={`text-xs px-2 py-0.5 rounded-full ${
+														txn.amount > 0
+															? "bg-green-900/40 text-green-400"
+															: "bg-zinc-800 text-zinc-400"
+													}`}
+												>
+													{REASON_LABEL[txn.reason] ??
+														txn.reason}
+												</span>
+												<span className="text-zinc-500 text-xs">
+													{new Date(
+														txn.createdAt,
+													).toLocaleDateString(
+														"ko-KR",
+													)}
+												</span>
+											</div>
+											<span
+												className={`font-semibold ${
+													txn.amount > 0
+														? "text-green-400"
+														: "text-zinc-300"
+												}`}
+											>
+												{txn.amount > 0 ? "+" : ""}
+												{txn.amount.toLocaleString()} C
+											</span>
+										</div>
+									))}
+								</div>
+							</div>
+						)}
+					</section>
+				</main>
+			</div>
+
+			{/* 관리자 비밀번호 입력 모달 */}
+			{pendingPkgId &&
+				(() => {
+					const pkg = CREDIT_PACKAGES.find(
+						(p) => p.id === pendingPkgId,
+					);
+					return (
+						<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+							<div className="bg-zinc-900 border border-white/[0.08] rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+								<h3 className="text-base font-bold text-white mb-1">
+									크레딧 충전
+								</h3>
+								<p className="text-sm text-zinc-400 mb-5">
+									{pkg?.label} (
+									{pkg?.priceKrw.toLocaleString()}원) 충전을
+									위해 관리자 비밀번호를 입력하세요.
+								</p>
+								<input
+									type="password"
+									value={modalPassword}
+									onChange={(e) =>
+										setModalPassword(e.target.value)
+									}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" && modalPassword)
+											handleCharge(
+												pendingPkgId,
+												modalPassword,
+											);
+									}}
+									placeholder="관리자 비밀번호"
+									autoFocus
+									autoComplete="off"
+									className="w-full bg-zinc-800 border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/50 mb-4"
+								/>
+								{chargeMsg && (
+									<p
+										className={`text-sm px-3 py-2 rounded-lg mb-4 ${
+											chargeMsg.type === "ok"
+												? "text-green-300 bg-green-900/20 border border-green-800/30"
+												: "text-red-400 bg-red-900/20 border border-red-800/30"
+										}`}
+									>
+										{chargeMsg.text}
+									</p>
+								)}
+								<div className="flex gap-3">
+									<button
+										type="button"
+										onClick={() => {
+											setPendingPkgId(null);
+											setModalPassword("");
+											setChargeMsg(null);
+										}}
+										className="flex-1 px-4 py-2.5 bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-semibold rounded-lg transition-colors"
+									>
+										취소
+									</button>
+									<button
+										type="button"
+										onClick={() =>
+											handleCharge(
+												pendingPkgId,
+												modalPassword,
+											)
+										}
+										disabled={
+											!modalPassword ||
+											chargingPkg !== null
+										}
+										className="flex-1 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+									>
+										{chargingPkg
+											? "처리 중..."
+											: "충전하기"}
+									</button>
+								</div>
+							</div>
+						</div>
+					);
+				})()}
+		</>
 	);
 }
