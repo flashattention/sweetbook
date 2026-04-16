@@ -567,8 +567,9 @@ export async function generateBookPlan(
 					"각 페이지의 imagePrompt에는 등장인물의 외형(헤어 색상, 의상, 체형, 소품)을 반드시 상세히 포함시켜라.",
 					"모든 페이지에서 동일 캐릭터는 외형 묘사가 일치해야 한다.",
 					"각 페이지는 구도가 반복되지 않도록 shotDirection에 서로 다른 샷 타입을 넣어라. 예: establishing shot, medium shot, close-up, over-shoulder, low angle, top-down.",
-					"각 페이지의 dialogues는 1~2개의 짧은 한국어 대사로 작성하라.",
-					"dialogues는 말풍선에 넣을 실제 문장이어야 하며, 장면 감정과 행동을 드러내야 한다.",
+					"각 페이지의 dialogues는 반드시 한국어(한글)로만 작성하라. 영어 사용 절대 금지.",
+					"dialogues는 1~2개이며, 각 대사는 8자 이내의 짧고 임팩트 있는 한글 문장으로 작성하라. (예: '잠깐!', '여기야!', '믿어줘.')",
+					"dialogues는 말풍선에 렌더링될 실제 텍스트이므로 반드시 짧고 명확한 한글이어야 한다.",
 				].join(" ")
 			: "";
 	const fullPrompt = characterConsistencyNote
@@ -635,24 +636,41 @@ export async function generateBookPlan(
 	}
 }
 
+function clampDialogue(text: string): string {
+	// 말풍선 렌더링 최적화: 10자 초과 시 자연스러운 지점에서 자름
+	const t = String(text || "").trim();
+	if (t.length <= 10) return t;
+	// 구두점 앞에서 자르기 시도
+	const cutPoints = ["!", "?", ".", "~", "…", ","];
+	for (const c of cutPoints) {
+		const idx = t.indexOf(c);
+		if (idx > 0 && idx <= 10) return t.slice(0, idx + 1);
+	}
+	return t.slice(0, 8) + "…";
+}
+
 function ensurePageDialogues(page: {
 	pageOrder: number;
 	caption: string;
 	dialogues?: string[];
 }): string[] {
 	if (Array.isArray(page.dialogues) && page.dialogues.length > 0) {
-		return page.dialogues
-			.map((line) => String(line || "").trim())
+		const lines = page.dialogues
+			.map((line) => clampDialogue(String(line || "").trim()))
 			.filter(Boolean)
 			.slice(0, 2);
+		if (lines.length > 0) return lines;
 	}
 
 	const caption = String(page.caption || "").trim();
 	if (!caption) {
-		return ["좋아, 시작해볼까?", "이번엔 꼭 해낼 거야."];
+		return ["잠깐!", "해낼 거야!"];
 	}
 
-	return [caption.slice(0, 32), "좋아, 다음으로 가자."];
+	// caption에서 자연어 첫 문장 추출
+	const firstSentence = (caption.match(/[^!?.~\n,，。！？]{2,8}[!?~！？]?/) ||
+		[])[0];
+	return [firstSentence ? clampDialogue(firstSentence) : "좋아!"];
 }
 
 function buildCoverVisualLock(params: {
@@ -686,9 +704,39 @@ function buildLowCostModelPromptBooster(params: {
 		`Panel ${params.pageOrder}/${params.totalCount}.`,
 		"Avoid generic composition and repeated poses.",
 		"Use clear foreground/midground/background separation.",
-		"Speech bubbles must be clearly visible and readable.",
-		`Speech bubble text (Korean): ${params.dialogues.join(" / ")}`,
+		// dall-e-2는 한글 텍스트 렌더링 불가 → 빈 말풍선만 요청
+		"Include speech bubble shapes with '...' placeholder text only. Do NOT attempt to render Korean text.",
 	].join(" ");
+}
+
+/**
+ * 모델별 말풍선 프롬프트 생성
+ * - gpt-image-1/hd: 한글 텍스트 렌더링 가능 → 강력한 한글 강제
+ * - dall-e-3/hd: 제한적 렌더링 → 짧은 텍스트 + 한글 강제
+ * - dall-e-2: 한글 렌더링 불가 → 빈 말풍선(buildLowCostModelPromptBooster에서 처리)
+ */
+function buildSpeechBubblePrompt(
+	model: ImageModel,
+	dialogues: string[],
+): string[] {
+	if (model === "gpt-image-1" || model === "gpt-image-1-hd") {
+		// 최고 품질 모델: 한글 텍스트 렌더링 강제
+		return [
+			`CRITICAL: Include exactly ${dialogues.length} speech bubble(s). ALL text inside bubbles MUST be Korean Hangul (한글) characters only.`,
+			`Speech bubble Korean text: ${dialogues.map((d, i) => `bubble${i + 1}=「${d}」`).join(", ")}.`,
+			"Each speech bubble must display legible Korean Hangul glyphs. No English, no romanization, no garbled text.",
+		];
+	}
+	if (model === "dall-e-3" || model === "dall-e-3-hd") {
+		// 중간 모델: 짧은 텍스트로 한글 렌더링 시도
+		return [
+			`Include ${dialogues.length} speech bubble(s) with short Korean Hangul text only.`,
+			`Bubble text (must be Korean Hangul 한글, NOT English): ${dialogues.join(" / ")}.`,
+			"Text in bubbles must show actual Korean characters (한글). Keep text very short for readability.",
+		];
+	}
+	// dall-e-2: buildLowCostModelPromptBooster에서 처리
+	return [];
 }
 
 export async function generateComicImages(params: {
@@ -947,6 +995,10 @@ export async function generateComicImages(params: {
 						dialogues,
 					})
 				: "";
+		const speechBubbleParts = buildSpeechBubblePrompt(
+			imageModel,
+			dialogues,
+		);
 		const pagePrompt = [
 			stylePrefix,
 			`Use the same character appearance as the already generated cover image (${coverImageUrl}).`,
@@ -955,8 +1007,7 @@ export async function generateComicImages(params: {
 			refCharacterNote,
 			shotDirection ? `Shot direction: ${shotDirection}` : "",
 			page.imagePrompt || page.caption,
-			`Speech bubble requirements: include exactly ${dialogues.length} readable Korean speech bubble(s).`,
-			`Speech bubble text: ${dialogues.join(" / ")}`,
+			...speechBubbleParts,
 			"Consistent character appearance with other panels. Dynamic camera angle. Distinct composition from adjacent scenes.",
 			"No watermark.",
 			lowCostBooster,
