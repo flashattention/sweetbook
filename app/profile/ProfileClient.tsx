@@ -465,7 +465,11 @@ export default function ProfileClient() {
 							{CREDIT_PACKAGES.map((pkg) => (
 								<button
 									key={pkg.id}
-									onClick={() => handleCharge(pkg.id)}
+									onClick={() => {
+										setPendingPkgId(pkg.id);
+										setModalPassword("");
+										setChargeMsg(null);
+									}}
 									disabled={chargingPkg !== null}
 									className="flex flex-col items-center gap-1 bg-zinc-800 hover:bg-zinc-700 border border-white/[0.08] hover:border-violet-500/40 rounded-xl px-4 py-3 transition-all disabled:opacity-50"
 								>
@@ -475,9 +479,7 @@ export default function ProfileClient() {
 											: pkg.label}
 									</span>
 									<span className="text-zinc-400 text-xs">
-										{adminCode
-											? "무료 충전"
-											: `${pkg.priceKrw.toLocaleString()}원`}
+										{pkg.priceKrw.toLocaleString()}원
 									</span>
 								</button>
 							))}
